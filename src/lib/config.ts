@@ -1,12 +1,18 @@
 import type { Plan } from "@/lib/types";
 
+/**
+ * מספר הוואטסאפ של העסק, בפורמט בינלאומי.
+ * ניתן לדריסה במשתני סביבה לכל סביבה בנפרד.
+ */
+const DEFAULT_WHATSAPP = "972552951664";
+
 export const brand = {
   name: process.env.NEXT_PUBLIC_BRAND_NAME || "NAIMLY",
   hebrewName: process.env.NEXT_PUBLIC_BRAND_HEBREW_NAME || "נעיםלי",
   shortName: process.env.NEXT_PUBLIC_BRAND_SHORT_NAME || "N",
   tagline: "נעים להכיר. קל לסגור.",
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "hello@naimly.co.il",
-  supportWhatsapp: process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "",
+  supportWhatsapp: (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || DEFAULT_WHATSAPP).replace(/\D/g, ""),
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://naimly.co.il",
 };
 
@@ -15,8 +21,8 @@ export const brand = {
  * המספר בפורמט בינלאומי ללא סימנים: 9725XXXXXXXX.
  */
 export const billing = {
-  whatsappNumber: (process.env.NEXT_PUBLIC_BILLING_WHATSAPP || process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || "").replace(/\D/g, ""),
-  bitPhone: process.env.NEXT_PUBLIC_BIT_PHONE || "",
+  whatsappNumber: (process.env.NEXT_PUBLIC_BILLING_WHATSAPP || process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || DEFAULT_WHATSAPP).replace(/\D/g, ""),
+  bitPhone: process.env.NEXT_PUBLIC_BIT_PHONE || "055-295-1664",
   bitDisplayName: process.env.NEXT_PUBLIC_BIT_NAME || process.env.NEXT_PUBLIC_BRAND_NAME || "NAIMLY",
 };
 
@@ -74,4 +80,5 @@ export const marketingNav = [
   { label: "דוגמה חיה", href: "/noa-design" },
   { label: "מחירים", href: "/pricing" },
   { label: "שאלות נפוצות", href: "/#faq" },
+  { label: "צרו קשר", href: "/contact" },
 ];

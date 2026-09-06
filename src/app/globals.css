@@ -78,7 +78,37 @@ img, svg, video, canvas, iframe {
 
 .floating-tool { position: fixed; z-index: 75; top: 50%; display: flex; min-height: 52px; align-items: center; gap: 8px; border: 1px solid rgba(255,255,255,.28); color: white; padding: 12px 14px; font-weight: 800; box-shadow: 0 16px 38px rgba(7,11,22,.22); backdrop-filter: blur(14px); }
 .floating-tool-accessibility { left: 0; transform: translateY(-50%); border-radius: 0 16px 16px 0; background: #0b1020; }
-.floating-tool-contact { right: 0; transform: translateY(-50%); border-radius: 16px 0 0 16px; background: #6d4aff; }
+/*
+ * אשכול יצירת הקשר: שלושה אייקונים קומפקטיים במקום כפתור רחב.
+ * וואטסאפ ומייל נפתחים ישירות, והשלישי מוביל לטופס עם נושאים לבחירה.
+ */
+.floating-contact {
+  position: fixed;
+  z-index: 75;
+  top: 50%;
+  right: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  transform: translateY(-50%);
+}
+
+.floating-contact-item {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  place-items: center;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 14px;
+  background: #0b1020;
+  color: white;
+  box-shadow: 0 10px 26px rgba(7, 11, 22, 0.2);
+  transition: transform 160ms ease, background 160ms ease;
+}
+
+.floating-contact-item:hover { transform: translateX(-3px); }
+.floating-contact-whatsapp { background: #1f9d59; }
+.floating-contact-form { background: #6d4aff; }
 
 a {
   color: inherit;
@@ -292,17 +322,29 @@ a {
 
   .floating-tool { top: auto; bottom: calc(14px + env(safe-area-inset-bottom)); min-height: 48px; transform: none; padding: 10px 12px; font-size: .82rem; }
   .floating-tool-accessibility { left: 8px; border-radius: 15px; }
-  .floating-tool-contact { right: 8px; border-radius: 15px; }
+
+  /* בנייד האשכול נפרס לשורה אופקית בפינה, כדי לא לחסום את התוכן. */
+  .floating-contact {
+    top: auto;
+    right: 8px;
+    bottom: calc(14px + env(safe-area-inset-bottom));
+    flex-direction: row;
+    transform: none;
+  }
+  .floating-contact-item { width: 46px; height: 46px; }
+  .floating-contact-item:hover { transform: none; }
 
   /*
    * באזור האישי יש ניווט תחתון קבוע (ובבונה גם סרגל שמירה), ולכן הכלים
    * הצפים מורמים מעליהם כדי שלא יחסמו זה את זה באצבע.
    */
-  body[data-app-chrome="dashboard"] .floating-tool {
+  body[data-app-chrome="dashboard"] .floating-tool,
+  body[data-app-chrome="dashboard"] .floating-contact {
     bottom: calc(74px + env(safe-area-inset-bottom));
   }
 
-  body[data-app-chrome="builder"] .floating-tool {
+  body[data-app-chrome="builder"] .floating-tool,
+  body[data-app-chrome="builder"] .floating-contact {
     bottom: calc(140px + env(safe-area-inset-bottom));
   }
 }

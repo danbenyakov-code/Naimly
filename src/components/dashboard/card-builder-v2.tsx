@@ -15,6 +15,7 @@ import { downgradeImpact, featureLabels, lockMessages, paidPlanOrder, planFeatur
 import { TrialPlanPreview } from "@/components/dashboard/trial-plan-preview";
 import { LockedOverlay } from "@/components/dashboard/locked-overlay";
 import { AppChrome } from "@/components/app-chrome";
+import { burst, fireworks } from "@/lib/celebrate";
 import { LockBadge, PlanLock, useUpgrade } from "@/components/upgrade-dialog";
 import type { UpgradePrompt } from "@/components/upgrade-dialog";
 
@@ -110,6 +111,8 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
         throw new Error(result.error || "השמירה נכשלה");
       }
       const next = { ...card, ...result.card } as CardData; setCard(next); if (demo) localStorage.setItem("naimly-demo-card", JSON.stringify(next));
+      // פרסום הוא הרגע הגדול של המשתמש — הוא מקבל זיקוקים. שמירת טיוטה מקבלת קונפטי קצר.
+      if (card.isPublished) fireworks({ bursts: 4 }); else burst(undefined, { count: 50 });
       setStatus({ type: "success", text: card.isPublished ? "השינויים נשמרו והכרטיס פורסם" : "הטיוטה נשמרה" });
     } catch (error) { setStatus({ type: "error", text: error instanceof Error ? error.message : "לא הצלחנו לשמור" }); } finally { setSaving(false); }
   }

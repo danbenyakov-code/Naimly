@@ -7,6 +7,7 @@ import type { AdminCustomer, PaymentRequestRecord } from "@/lib/admin-data";
 import type { PlanId } from "@/lib/types";
 import { planName } from "@/lib/plan-access";
 import { cn, formatCurrency } from "@/lib/utils";
+import { burst } from "@/lib/celebrate";
 
 type Tab = "pending" | "customers" | "create";
 
@@ -56,6 +57,7 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
   async function review(request: PaymentRequestRecord, action: "approve" | "reject") {
     const result = await call(`/api/admin/payment-requests/${request.id}`, "POST", { action, months: 1 }, request.id);
     if (!result) return;
+    if (action === "approve") burst(undefined, { count: 80 });
     const trimmed = Array.isArray(result.trimmed) && result.trimmed.length ? ` הכרטיס הותאם למסלול: ${result.trimmed.join(", ")}.` : "";
     setNotice(action === "approve" ? `המסלול הופעל עבור ${request.customerName}.${trimmed}` : `הבקשה של ${request.customerName} נדחתה.`);
     router.refresh();

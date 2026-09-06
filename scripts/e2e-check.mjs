@@ -71,13 +71,17 @@ const publicRoutes = [
   "/legal/cookies",
   "/login",
   "/signup",
-  "/forgot-password",
+  "/contact",
+  "/contact?topic=technical",
   "/reset-password",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",
   "/icon.svg",
 ];
+
+// כתובות ישנות שנשמרו לתאימות ומפנות ליעד החדש.
+const permanentRedirects = [{ from: "/forgot-password", to: "/login?mode=forgot" }];
 
 // מסלולים שדורשים התחברות: מצופה הפניה ל-login (או 200 במצב הדגמה).
 const guardedRoutes = ["/dashboard", "/dashboard/card", "/dashboard/analytics", "/dashboard/leads", "/dashboard/settings", "/admin", "/admin/approvals", "/checkout?plan=pro"];
@@ -93,6 +97,8 @@ const apiChecks = [
   { path: "/api/events", method: "POST", body: { slug: "noa-design", type: "view" }, expect: [200, 400, 404, 503] },
   { path: "/api/leads", method: "POST", body: { slug: "noa-design", name: "בדיקה", phone: "0500000000", email: "", message: "" }, expect: [200, 400, 404, 503] },
   { path: "/api/vcard/noa-design", method: "GET", expect: [200, 404] },
+  { path: "/api/contact", method: "POST", body: { topic: "general", name: "בודק", email: "t@e.com", message: "הודעת בדיקה ארוכה מספיק" }, expect: [200, 400, 429, 503] },
+  { path: "/api/contact", method: "POST", body: { topic: "nope" }, expect: [400] },
   { path: "/api/vcard/does-not-exist-xyz", method: "GET", expect: [404] },
   // נתיבים שהוסרו — לא אמורים להתקיים יותר
   { path: "/api/payments/checkout", method: "POST", body: {}, expect: [404, 405] },
@@ -165,6 +171,18 @@ async function main() {
       if (expected === 200) pages.set(route, await response.text());
     } else {
       fail(route, `ציפינו ל-${expected}, קיבלנו ${response.status}`);
+    }
+  }
+
+  // ── 2b. הפניות תאימות ────────────────────────────────────────────────────
+  console.log("\n== הפניות תאימות ==");
+  for (const rule of permanentRedirects) {
+    const response = await fetch(base + rule.from, { redirect: "manual" });
+    const target = response.headers.get("location") || "";
+    if ([301, 302, 307, 308].includes(response.status) && target.includes(rule.to.split("?")[0])) {
+      ok(`${rule.from} → ${response.status} → ${target}`);
+    } else {
+      fail(rule.from, `ציפינו להפניה אל ${rule.to}, קיבלנו ${response.status} ${target}`);
     }
   }
 
