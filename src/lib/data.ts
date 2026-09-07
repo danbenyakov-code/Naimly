@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveAccess } from "@/lib/plan-access";
+import { isBackgroundId } from "@/lib/backgrounds";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
 
 type SubscriptionRow = { status?: string | null; current_period_end?: string | null } | null | undefined;
@@ -52,7 +53,7 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     buttonColor: stringValue(row.button_color, stringValue(row.primary_color, "#6d4aff")),
     headingColor: stringValue(row.heading_color, "#142038"),
     bodyTextColor: stringValue(row.body_text_color, "#53627a"),
-    backgroundPreset: (["aurora", "midnight", "paper", "sunset", "ocean", "minimal"].includes(stringValue(row.background_preset)) ? stringValue(row.background_preset) : "aurora") as CardData["backgroundPreset"],
+    backgroundPreset: isBackgroundId(stringValue(row.background_preset)) ? stringValue(row.background_preset) : "aurora",
     template: (["spotlight", "clean", "bold"].includes(stringValue(row.template)) ? stringValue(row.template) : "spotlight") as CardData["template"],
     isPublished: Boolean(row.is_published),
     allowIndexing: row.allow_indexing !== false,

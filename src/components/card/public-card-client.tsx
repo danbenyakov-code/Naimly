@@ -8,6 +8,7 @@ import QRCode from "qrcode";
 import { CardPreview } from "@/components/card/card-preview";
 import { Logo } from "@/components/logo";
 import type { CardData, ContactFormField } from "@/lib/types";
+import { backgroundCss } from "@/lib/backgrounds";
 
 export function PublicCardClient({ card }: { card: CardData }) {
   const [leadState, setLeadState] = useState<"idle" | "sending" | "success" | "error">("idle");
@@ -60,15 +61,8 @@ export function PublicCardClient({ card }: { card: CardData }) {
     ? <div className="flex items-center gap-3 rounded-2xl bg-[#ecfbf6] p-5 text-[#08735f]"><span className="grid h-10 w-10 place-items-center rounded-full bg-white"><Check size={20} /></span><span><strong className="block">הפנייה נשלחה</strong><span className="text-sm">{card.contactFormSuccessMessage}</span></span></div>
     : <div><h2 className="text-xl font-black">{card.contactFormTitle}</h2><p className="mt-1 text-sm text-[#6a778c]">הפרטים יגיעו ישירות ל־{card.businessName}. שדות המסומנים „חובה” נדרשים לשליחה.</p><form className="mt-5 grid gap-3" onSubmit={submitLead}>{card.contactFormFields.map((field) => <DynamicField key={field.id} field={field} />)}<label className="flex min-h-11 items-start gap-2 text-sm leading-6"><input className="mt-1" name="privacyConsent" type="checkbox" required aria-required="true" /><span>אני מאשר/ת להעביר את הפרטים ל־{card.businessName} לצורך מענה לפנייה, בהתאם ל<Link href="/legal/privacy" className="font-bold text-[#5134cc] underline">מדיניות הפרטיות</Link>. <span className="required-field">חובה</span></span></label><label className="sr-only">אתר<input name="website" tabIndex={-1} autoComplete="off" /></label>{leadState === "error" && <p role="alert" className="text-sm text-[#b7293a]">לא הצלחנו לשלוח כרגע. אפשר ליצור קשר באמצעות הכפתורים למעלה.</p>}<button className="button-primary w-full" type="submit" disabled={leadState === "sending"} style={{ background: card.primaryColor, borderColor: card.primaryColor }}>{leadState === "sending" && <Loader2 size={18} className="animate-spin" />}{leadState === "sending" ? "שולחים..." : "שליחת פנייה"}</button></form></div>;
 
-  const backgrounds: Record<CardData["backgroundPreset"], string> = {
-    aurora: "radial-gradient(circle at 15% 10%,color-mix(in srgb,var(--public-primary) 18%,transparent),transparent 32%),#eef1f6",
-    paper: "linear-gradient(135deg,#fffdf7,#eee9df)", sunset: "linear-gradient(135deg,#ffe0d5,#eddcff 55%,#d7f3ff)",
-    ocean: "radial-gradient(circle at 15% 10%,#1a9aae,transparent 35%),linear-gradient(145deg,#06172b,#12384a)",
-    midnight: "radial-gradient(circle at 85% 10%,#4c3f91,transparent 38%),linear-gradient(145deg,#0d1323,#252044)",
-    minimal: "radial-gradient(circle at 15% 15%,#ffd7f1,transparent 35%),radial-gradient(circle at 85% 25%,#c5edff,transparent 40%),radial-gradient(circle at 50% 90%,#ddd2ff,transparent 45%),#f5f2ff",
-  };
 
-  return <div className="min-h-screen" style={{ "--public-primary": card.primaryColor, background: backgrounds[card.backgroundPreset] } as React.CSSProperties}>
+  return <div className="min-h-screen" style={{ "--public-primary": card.primaryColor, background: backgroundCss(card.backgroundPreset) } as React.CSSProperties}>
     <header className="mx-auto flex max-w-[660px] items-center justify-between px-4 py-5"><span className="rounded-xl bg-white/85 px-3 py-2 shadow-sm backdrop-blur"><Logo compact /></span><div className="flex gap-2"><button type="button" onClick={() => setShowQr(true)} className="button-secondary h-11 min-h-11 px-3" aria-label="הצגת QR"><QrCode size={18} /><span className="hidden sm:inline">QR</span></button><button type="button" onClick={share} className="button-secondary h-11 min-h-11 px-3" aria-label="שיתוף הכרטיס"><Share2 size={18} /><span className="hidden sm:inline">שיתוף</span></button></div></header>
     <main className="mx-auto max-w-[620px] px-3 pb-10 sm:px-5"><div className="overflow-hidden rounded-[32px] border border-white/80 bg-white shadow-[0_30px_90px_rgba(11,24,48,.16)]"><CardPreview card={card} onAction={track} contactForm={contactForm} /></div></main>
     <footer className="pb-8 text-center text-xs text-[#758198]">נבנה באמצעות <Logo compact /></footer>

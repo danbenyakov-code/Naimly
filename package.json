@@ -17,7 +17,13 @@
     "verify": "npm run check && npm run test:unit && npm run audit:mobile && npm run test:e2e",
     "test:flows": "node scripts/flow-check.mjs",
     "create:user": "node scripts/create-user.mjs",
-    "test:unit": "node --experimental-strip-types --no-warnings --test tests/*.test.mts"
+    "test:unit": "node --experimental-strip-types --no-warnings --test tests/*.test.mts",
+    "db:check": "node scripts/db-setup.mjs check",
+    "db:verify": "node scripts/db-setup.mjs verify",
+    "db:migrate": "node scripts/db-setup.mjs migrate",
+    "db:types": "supabase gen types typescript --linked > src/lib/database.types.ts",
+    "test:rls": "node --experimental-strip-types --no-warnings --test tests/rls.test.mts",
+    "db:bundle": "node scripts/bundle-migrations.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
@@ -37,6 +43,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.3.4",
+    "supabase": "^2.116.0",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

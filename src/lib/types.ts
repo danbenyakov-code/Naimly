@@ -108,7 +108,8 @@ export type CardData = {
   buttonColor: string;
   headingColor: string;
   bodyTextColor: string;
-  backgroundPreset: "aurora" | "midnight" | "paper" | "sunset" | "ocean" | "minimal";
+  /** מזהה מתוך src/lib/backgrounds.ts. נבדק מול הרישום בוולידציה. */
+  backgroundPreset: string;
   template: "spotlight" | "clean" | "bold";
   isPublished: boolean;
   allowIndexing: boolean;

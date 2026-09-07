@@ -1,5 +1,6 @@
 import { z } from "zod";
 import { isHttpUrl } from "@/lib/safe-url";
+import { isBackgroundId } from "@/lib/backgrounds";
 
 // z.string().url() מאשר גם javascript: ו‑data: — ולכן נדרשת בדיקת סכימה מפורשת.
 const httpUrl = z.string().max(2000).refine(isHttpUrl, "כתובת חייבת להתחיל ב‑http:// או https://");
@@ -41,7 +42,7 @@ export const cardSchema = z.object({
   buttonColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   headingColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   bodyTextColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  backgroundPreset: z.enum(["aurora", "midnight", "paper", "sunset", "ocean", "minimal"]),
+  backgroundPreset: z.string().max(60).refine(isBackgroundId, "הרקע שנבחר אינו קיים בספרייה"),
   template: z.enum(["spotlight", "clean", "bold"]),
   isPublished: z.boolean(),
   allowIndexing: z.boolean(),

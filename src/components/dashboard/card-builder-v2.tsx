@@ -15,6 +15,12 @@ import { downgradeImpact, featureLabels, lockMessages, paidPlanOrder, planFeatur
 import { TrialPlanPreview } from "@/components/dashboard/trial-plan-preview";
 import { LockedOverlay } from "@/components/dashboard/locked-overlay";
 import { AppChrome } from "@/components/app-chrome";
+import { BackgroundPicker } from "@/components/dashboard/background-picker";
+import { FormAlert } from "@/components/ui/field";
+import { checkContrast } from "@/lib/contrast";
+import { backgroundPresets, getBackground } from "@/lib/backgrounds";
+
+const backgroundCount = backgroundPresets.length;
 import { burst, fireworks } from "@/lib/celebrate";
 import { LockBadge, PlanLock, useUpgrade } from "@/components/upgrade-dialog";
 import type { UpgradePrompt } from "@/components/upgrade-dialog";
@@ -209,18 +215,36 @@ function Section({ title, text, badge, children }: { title: string; text: string
 function Field({ label, wide, required, children }: { label: string; wide?: boolean; required?: boolean; children: React.ReactNode }) { return <label className={cn("field-label", wide && "sm:col-span-2")}><span>{label}{required && <span className="required-field">חובה</span>}</span>{children}</label>; }
 function UploadTile({ label, busy, onFile }: { label: string; busy: boolean; onFile: (file: File) => void }) { return <label className="mt-3 grid min-h-28 cursor-pointer place-items-center rounded-2xl border border-dashed border-[#bdc7d6] bg-[#f8f9fc] text-center"><span><ImagePlus size={22} className="mx-auto text-[#6d4aff]" /><strong className="mt-1 block text-sm">{busy ? "מעלה..." : label}</strong><small className="text-[#7c8799]">JPG, PNG או WebP</small></span><input type="file" className="sr-only" accept="image/png,image/jpeg,image/webp" disabled={busy} onChange={(e) => { const file = e.target.files?.[0]; if (file) onFile(file); e.target.value = ""; }} /></label>; }
 
-const backgroundPresets: Array<{ id: CardData["backgroundPreset"]; label: string; preview: string }> = [
-  { id: "aurora", label: "רך ובהיר", preview: "linear-gradient(135deg,#f4f1ff,#eef9ff)" },
-  { id: "paper", label: "נייר נקי", preview: "linear-gradient(135deg,#fff,#f3efe7)" },
-  { id: "sunset", label: "שקיעה", preview: "linear-gradient(135deg,#ffdfd1,#f2d7ff)" },
-  { id: "ocean", label: "אוקיינוס", preview: "linear-gradient(135deg,#071a31,#0f7b8d)" },
-  { id: "midnight", label: "Midnight", preview: "linear-gradient(135deg,#111827,#392b73)" },
-  { id: "minimal", label: "Mesh צבעוני", preview: "radial-gradient(circle at 20% 20%,#ffd8f4,transparent 40%),radial-gradient(circle at 80% 30%,#c8ecff,transparent 42%),#eeeaff" },
-];
 
 function AppearancePanel({ card, onPatch }: { card: CardData; onPatch: (patch: Partial<CardData>) => void }) {
   const colors: Array<{ key: "primaryColor" | "accentColor" | "buttonColor" | "headingColor" | "bodyTextColor"; label: string }> = [
     { key: "primaryColor", label: "צבע ראשי" }, { key: "accentColor", label: "צבע משלים" }, { key: "buttonColor", label: "צבע כפתורים" }, { key: "headingColor", label: "צבע כותרות" }, { key: "bodyTextColor", label: "צבע טקסט" },
   ];
-  return <div className="grid gap-8"><Section title="רקע הכרטיס" text="בחרו אווירה מוכנה. כל רקע נשמר עם הכרטיס הציבורי."><div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">{backgroundPresets.map((preset) => <button key={preset.id} type="button" onClick={() => onPatch({ backgroundPreset: preset.id })} className={cn("overflow-hidden rounded-2xl border-2 text-right transition", card.backgroundPreset === preset.id ? "border-[#6d4aff] shadow-[0_0_0_3px_#eeeaff]" : "border-[#dfe4ec] hover:border-[#a99feb]")}><span className="block h-24" style={{ background: preset.preview }} /><span className="block bg-white px-3 py-2 text-sm font-bold">{preset.label}</span></button>)}</div></Section><Section title="צבעי מותג מדויקים" text="ניתן לשלוט בנפרד בכפתורים, בכותרות ובטקסט."><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{colors.map(({ key, label }) => <Field key={key} label={label}><div className="flex items-center gap-3 rounded-xl border border-[#dfe4ec] bg-white p-2"><input type="color" value={card[key]} onChange={(event) => onPatch({ [key]: event.target.value })} className="h-11 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0" /><input dir="ltr" value={card[key]} onChange={(event) => onPatch({ [key]: event.target.value })} className="min-w-0 flex-1 bg-transparent text-sm font-bold uppercase outline-none" maxLength={7} aria-label={label} /></div></Field>)}</div></Section></div>;
+  const surface = getBackground(card.backgroundPreset).foreground === "light" ? "#101223" : "#ffffff";
+  const buttonContrast = checkContrast("#ffffff", card.buttonColor, { large: true });
+  const headingContrast = checkContrast(card.headingColor, surface, { large: true });
+  const bodyContrast = checkContrast(card.bodyTextColor, surface);
+
+  return <div className="grid gap-8"><Section title="רקע הכרטיס" text={`בחרו מתוך ${backgroundCount} רקעים. כל רקע נשמר עם הכרטיס הציבורי ונראה בפרסום בדיוק כמו בתצוגה.`}><BackgroundPicker value={card.backgroundPreset} headingColor={card.headingColor} onChange={(id) => onPatch({ backgroundPreset: id })} /></Section><Section title="צבעי מותג מדויקים" text="ניתן לשלוט בנפרד בכפתורים, בכותרות ובטקסט."><div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">{colors.map(({ key, label }) => <Field key={key} label={label}><div className="flex items-center gap-3 rounded-xl border border-[#dfe4ec] bg-white p-2"><input type="color" value={card[key]} onChange={(event) => onPatch({ [key]: event.target.value })} className="h-11 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0" /><input dir="ltr" value={card[key]} onChange={(event) => onPatch({ [key]: event.target.value })} className="min-w-0 flex-1 bg-transparent text-sm font-bold uppercase outline-none" maxLength={7} aria-label={label} /></div></Field>)}</div>
+    <div className="mt-4 grid gap-2">
+      {!headingContrast.passes && (
+        <FormAlert tone="warning" title="צבע הכותרות קשה לקריאה">
+          {headingContrast.message}
+        </FormAlert>
+      )}
+      {!bodyContrast.passes && (
+        <FormAlert tone="warning" title="צבע גוף הטקסט קשה לקריאה">
+          {bodyContrast.message}
+        </FormAlert>
+      )}
+      {!buttonContrast.passes && (
+        <FormAlert tone="warning" title="הטקסט על הכפתור קשה לקריאה">
+          {buttonContrast.message} הכפתורים מוצגים עם טקסט לבן.
+        </FormAlert>
+      )}
+      {headingContrast.passes && bodyContrast.passes && buttonContrast.passes && (
+        <FormAlert tone="success">כל הצבעים עומדים בדרישות הניגודיות של WCAG AA.</FormAlert>
+      )}
+    </div>
+    </Section></div>;
 }
