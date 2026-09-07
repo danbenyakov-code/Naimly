@@ -84,6 +84,8 @@ export function isUpgrade(from: PlanId, to: PlanId) {
 export type TrialState = {
   /** ההתנסות פעילה כרגע. */
   active: boolean;
+  /** נרשם אך טרם פרסם — הספירה לא התחילה. */
+  pending: boolean;
   /** ההתנסות הסתיימה ולא נרכש מסלול — המערכת נעולה. */
   expired: boolean;
   endsAt: string | null;
@@ -94,10 +96,18 @@ export type TrialState = {
   percentUsed: number;
 };
 
-const emptyTrial: TrialState = { active: false, expired: false, endsAt: null, daysLeft: 0, hoursLeft: 0, totalDays: TRIAL_DAYS, percentUsed: 0 };
+const emptyTrial: TrialState = { active: false, pending: false, expired: false, endsAt: null, daysLeft: 0, hoursLeft: 0, totalDays: TRIAL_DAYS, percentUsed: 0 };
 
-export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEndsAt">, now = Date.now()): TrialState {
+export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEndsAt" | "trialPending">, now = Date.now()): TrialState {
   if (viewer.subscriptionStatus === "active") return emptyTrial;
+
+  /*
+   * ההתנסות מתחילה בפרסום הראשון. עד אז אין תאריך תפוגה, הגישה מלאה,
+   * ולא מוצג טיימר — אין לְמה לספור.
+   */
+  if (viewer.trialPending && viewer.subscriptionStatus === "trialing") {
+    return { ...emptyTrial, active: true, pending: true, daysLeft: TRIAL_DAYS, hoursLeft: TRIAL_DAYS * 24 };
+  }
 
   const endsAt = viewer.trialEndsAt ? new Date(viewer.trialEndsAt).getTime() : NaN;
   if (!Number.isFinite(endsAt)) {
@@ -113,6 +123,7 @@ export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEnd
   const totalMs = TRIAL_DAYS * 86400000;
   return {
     active: true,
+    pending: false,
     expired: false,
     endsAt: new Date(endsAt).toISOString(),
     daysLeft: Math.ceil(msLeft / 86400000),
@@ -144,7 +155,7 @@ const lockedFeatures: FeatureMap = {
  * נקודת הכניסה היחידה להרשאות. כל מסך וכל route נגזרים מכאן, כדי שלא ייווצר
  * מצב שבו הממשק מרשה משהו שהשרת חוסם (או להפך).
  */
-export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt">, now = Date.now()): Access {
+export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending">, now = Date.now()): Access {
   const trial = trialState(viewer, now);
 
   if (viewer.subscriptionStatus === "active") {
@@ -167,7 +178,7 @@ export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus"
 }
 
 /** האם מותר לשמור, להעלות ולפרסם כרגע. */
-export function canEdit(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt">) {
+export function canEdit(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending">) {
   return !resolveAccess(viewer).locked;
 }
 

@@ -179,6 +179,8 @@ export type Viewer = {
   plan: PlanId;
   subscriptionStatus: "trialing" | "active" | "past_due" | "canceled";
   trialEndsAt?: string;
+  /** נרשם אך טרם פרסם — הספירה תתחיל בפרסום הראשון. */
+  trialPending?: boolean;
   demo: boolean;
 };
 

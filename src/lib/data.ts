@@ -156,7 +156,7 @@ export async function getViewer(): Promise<Viewer | null> {
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
     supabase.from("profiles").select("full_name,role,plan_id").eq("id", authData.user.id).maybeSingle(),
-    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at").eq("user_id", authData.user.id).maybeSingle(),
+    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending").eq("user_id", authData.user.id).maybeSingle(),
   ]);
 
   // הסטטוס נשמר כפי שהוא. תפוגת ההתנסות נגזרת מ‑trialEndsAt דרך plan-access,
@@ -169,7 +169,8 @@ export async function getViewer(): Promise<Viewer | null> {
     role: profile?.role === "admin" ? "admin" : "customer",
     plan: ((subscription?.plan_id || profile?.plan_id || "trial") as PlanId),
     subscriptionStatus,
-    trialEndsAt: subscription?.trial_ends_at || subscription?.current_period_end || undefined,
+    trialEndsAt: subscription?.trial_ends_at || undefined,
+    trialPending: subscription?.trial_pending === true,
     demo: false,
   };
 }

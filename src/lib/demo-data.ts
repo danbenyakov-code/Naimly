@@ -13,6 +13,7 @@ export const demoViewer: Viewer = {
   plan: "pro",
   subscriptionStatus: "trialing",
   get trialEndsAt() { return demoTrialEndsAt(); },
+  trialPending: false,
   demo: true,
 };
 
