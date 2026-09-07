@@ -71,13 +71,34 @@ export type TrackingSettings = {
 };
 
 export type VCardSettings = {
+  /** שם לתצוגה. כשריק — מורכב מפרטי ומשפחה. */
   fullName: string;
+  firstName: string;
+  lastName: string;
   organization: string;
   title: string;
+  /** נייד — הטלפון הראשי בכרטיס איש הקשר. */
   phone: string;
+  /** טלפון נוסף (קווי/משרד). */
+  phoneSecondary: string;
   email: string;
   website: string;
+  /** נשמר לתאימות. הכתובת המובנית היא cardAddress. */
   address: string;
+  note: string;
+  /** האם לצרף את הלוגו/תמונה לאיש הקשר. */
+  includePhoto: boolean;
+};
+
+/** כתובת מובנית לניווט ולכרטיס איש הקשר. */
+export type CardAddress = {
+  country: string;
+  city: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  latitude: string;
+  longitude: string;
   note: string;
 };
 
@@ -131,6 +152,8 @@ export type CardData = {
   galleryStyle: "grid" | "carousel";
   tracking: TrackingSettings;
   vcard: VCardSettings;
+  /** כתובת מובנית. ממנה נבנים Waze, Maps וה-vCard. */
+  cardAddress: CardAddress;
   services: ServiceItem[];
   testimonials: Testimonial[];
   businessHours: Array<{ day: string; hours: string }>;

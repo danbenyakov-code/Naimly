@@ -50,6 +50,7 @@ export function cardToDatabaseRow(card: CardData | ReturnType<typeof import("@/l
     gallery_style: card.galleryStyle,
     tracking: card.tracking,
     vcard: card.vcard,
+    card_address: card.cardAddress,
     services: card.services,
     testimonials: card.testimonials,
     business_hours: card.businessHours,
