@@ -92,12 +92,18 @@ console.log("\n== התחברות מאוחדת ==");
     ["שדה אימייל", 'type="email"'],
     ["שדה סיסמה", 'type="password"'],
     ["סימון שדה חובה", "required-field"],
-    ["קוד חד־פעמי למייל", "קוד חד"],
+    ["קישור לשחזור סיסמה", "שכחתי את הסיסמה"],
   ];
   for (const [label, needle] of checks) {
     if (login.body.includes(needle)) ok(label);
     else fail(label, `לא נמצא "${needle}"`);
   }
+
+  // דרישה מפורשת: אין כניסה ללא סיסמה בשום מקום במסך.
+  const forbidden = ["קוד חד־פעמי", "כניסה ללא סיסמה", "קישור חד־פעמי", "magic"];
+  const offenders = forbidden.filter((needle) => login.body.includes(needle));
+  if (offenders.length === 0) ok("אין כניסה ללא סיסמה במסך הכניסה");
+  else fail("כניסה ללא סיסמה", `נמצאו אזכורים: ${offenders.join(", ")}`);
 
   const signup = await html("/login?mode=signup");
   if (signup.body.includes("בואו נבנה")) ok("מעבר למצב הרשמה דרך ה-URL");

@@ -6,13 +6,13 @@ import { Field, inputClass } from "@/components/ui/field";
 import { evaluatePassword, passwordRules } from "@/lib/password";
 import { cn } from "@/lib/utils";
 
-const barColors = ["bg-[#d94b5e]", "bg-[#d94b5e]", "bg-[#e0932f]", "bg-[#3fa06b]", "bg-[#0a9b81]"];
+const barColors = ["bg-[#c93445]", "bg-[#c93445]", "bg-[#b76b00]", "bg-[#3fa06b]", "bg-[#0a9b81]"];
 const textColors = ["text-[#a32031]", "text-[#a32031]", "text-[#8a5300]", "text-[#0b6b4a]", "text-[#08735f]"];
 
 /**
  * שדה סיסמה עם חיווי חוזק ורשימת דרישות חיה.
- * החיווי נגיש: הוא לא נשען על צבע בלבד — יש טקסט, אייקון וכן/לא לכל דרישה,
- * והמצב מוכרז ב-aria-live כדי שקורא מסך ישמע את השינוי.
+ * החיווי אינו נשען על צבע בלבד — לכל דרישה יש אייקון, טקסט וסימון לקורא מסך.
+ * הרשימה מוצגת לפני ההגשה, כדי שהמשתמש יידע מה נדרש מראש.
  */
 export function PasswordField({
   name,
@@ -20,6 +20,7 @@ export function PasswordField({
   value,
   onChange,
   error,
+  success,
   autoComplete = "new-password",
   showMeter = true,
   hint,
@@ -29,6 +30,7 @@ export function PasswordField({
   value: string;
   onChange: (value: string) => void;
   error?: string;
+  success?: string;
   autoComplete?: string;
   showMeter?: boolean;
   hint?: string;
@@ -38,11 +40,12 @@ export function PasswordField({
 
   return (
     <div className="grid gap-2">
-      <Field label={label} required error={error} hint={hint}>
+      <Field label={label} required error={error} success={success} hint={hint}>
         {(field) => (
           <div className="relative">
             <input
               {...field}
+              data-field={name}
               name={name}
               type={visible ? "text" : "password"}
               className={cn(inputClass(Boolean(error)), "pl-12")}
@@ -64,23 +67,27 @@ export function PasswordField({
         )}
       </Field>
 
-      {showMeter && value.length > 0 && (
+      {showMeter && (
         <div className="rounded-2xl border border-[#e4e8f0] bg-[#fbfcfe] p-3">
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs font-semibold text-[#68758a]">חוזק הסיסמה</span>
-            <span className={cn("text-xs font-bold", textColors[strength.score])} aria-live="polite">
-              {strength.label}
-            </span>
+            <span className="text-xs font-semibold text-[#68758a]">דרישות הסיסמה</span>
+            {value.length > 0 && (
+              <span className={cn("text-xs font-bold", textColors[strength.score])} aria-live="polite">
+                {strength.label}
+              </span>
+            )}
           </div>
 
-          <div className="mt-2 flex gap-1" aria-hidden="true">
-            {[0, 1, 2, 3].map((index) => (
-              <span
-                key={index}
-                className={cn("h-1.5 flex-1 rounded-full transition-colors", index < strength.score ? barColors[strength.score] : "bg-[#e4e8f0]")}
-              />
-            ))}
-          </div>
+          {value.length > 0 && (
+            <div className="mt-2 flex gap-1" aria-hidden="true">
+              {[0, 1, 2, 3].map((index) => (
+                <span
+                  key={index}
+                  className={cn("h-1.5 flex-1 rounded-full transition-colors", index < strength.score ? barColors[strength.score] : "bg-[#e4e8f0]")}
+                />
+              ))}
+            </div>
+          )}
 
           <ul className="mt-3 grid gap-1">
             {passwordRules.map((rule) => {

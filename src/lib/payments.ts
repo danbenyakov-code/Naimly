@@ -49,7 +49,7 @@ export function whatsappPaymentLink(input: { plan: Plan; viewer: Pick<Viewer, "e
 }
 
 /** הודעת וואטסאפ שהמנהל שולח ללקוח עם פרטי הכניסה. */
-export function credentialsMessage(input: { email: string; password?: string; loginUrl: string; planName: string; magicLink?: string }) {
+export function credentialsMessage(input: { email: string; password?: string; loginUrl: string; planName: string; resetLink?: string }) {
   const lines = [
     `היי! החשבון שלך ב${brand.name} מוכן 🎉`,
     "",
@@ -60,8 +60,8 @@ export function credentialsMessage(input: { email: string; password?: string; lo
   if (input.password) {
     lines.push(`סיסמה זמנית: ${input.password}`, "", "מומלץ להחליף סיסמה מיד אחרי הכניסה הראשונה.");
   }
-  if (input.magicLink) {
-    lines.push("", `כניסה מהירה בלחיצה אחת (בתוקף לשעה): ${input.magicLink}`);
+  if (input.resetLink) {
+    lines.push("", `קישור לקביעת סיסמה (בתוקף לשעה): ${input.resetLink}`);
   }
   return lines.join("\n");
 }

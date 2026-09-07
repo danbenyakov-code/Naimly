@@ -63,8 +63,8 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
     router.refresh();
   }
 
-  async function sendCredentials(customer: AdminCustomer, mode: "magic_link" | "reset_password") {
-    const result = await call("/api/admin/users", "PATCH", { userId: customer.id, mode, phone: customer.phone }, customer.id);
+  async function sendCredentials(customer: AdminCustomer) {
+    const result = await call("/api/admin/users", "PATCH", { userId: customer.id, mode: "reset_password", phone: customer.phone }, customer.id);
     if (!result) return;
     setCredentials({ email: customer.email, message: result.message, whatsappUrl: result.whatsappUrl, actionLink: result.actionLink });
     router.refresh();
@@ -224,18 +224,11 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
                 <button
                   type="button"
                   disabled={busy === customer.id || demo}
-                  onClick={() => sendCredentials(customer, "magic_link")}
+                  onClick={() => sendCredentials(customer)}
                   className="button-primary min-h-12 flex-1"
                 >
-                  {busy === customer.id ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />}קישור כניסה
-                </button>
-                <button
-                  type="button"
-                  disabled={busy === customer.id || demo}
-                  onClick={() => sendCredentials(customer, "reset_password")}
-                  className="button-secondary min-h-12 flex-1"
-                >
-                  איפוס סיסמה
+                  {busy === customer.id ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />}
+                  שליחת קישור לקביעת סיסמה
                 </button>
               </div>
             </article>

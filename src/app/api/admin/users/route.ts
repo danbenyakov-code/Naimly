@@ -95,7 +95,8 @@ export async function POST(request: Request) {
 
 const credentialsSchema = z.object({
   userId: z.string().uuid(),
-  mode: z.enum(["reset_password", "magic_link"]),
+  // רק איפוס סיסמה. קישור כניסה ללא סיסמה הוסר במכוון מכל המערכת.
+  mode: z.literal("reset_password"),
   phone: z.string().max(30).optional(),
 });
 
@@ -120,9 +121,9 @@ export async function PATCH(request: Request) {
 
   const origin = canonicalOrigin() || "";
   const { data: link, error } = await admin.auth.admin.generateLink({
-    type: parsed.data.mode === "magic_link" ? "magiclink" : "recovery",
+    type: "recovery",
     email: profile.email,
-    options: { redirectTo: `${origin}/auth/callback?next=${encodeURIComponent(parsed.data.mode === "magic_link" ? "/dashboard" : "/reset-password")}` },
+    options: { redirectTo: `${origin}/auth/callback?next=%2Freset-password` },
   });
   if (error || !link?.properties?.action_link) {
     return NextResponse.json({ error: "לא הצלחנו ליצור קישור כניסה" }, { status: 500 });
@@ -135,7 +136,7 @@ export async function PATCH(request: Request) {
     email: profile.email,
     loginUrl: `${origin}/login`,
     planName: planName((profile.plan_id || "trial") as Parameters<typeof planName>[0]),
-    magicLink: link.properties.action_link,
+    resetLink: link.properties.action_link,
   });
   const phone = parsed.data.phone || profile.phone || "";
 

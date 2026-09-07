@@ -73,7 +73,6 @@ const publicRoutes = [
   "/signup",
   "/contact",
   "/contact?topic=technical",
-  "/reset-password",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",
@@ -81,7 +80,10 @@ const publicRoutes = [
 ];
 
 // כתובות ישנות שנשמרו לתאימות ומפנות ליעד החדש.
-const permanentRedirects = [{ from: "/forgot-password", to: "/login?mode=forgot" }];
+const permanentRedirects = [
+  { from: "/forgot-password", to: "/login?mode=forgot" },
+  { from: "/reset-password", to: "/login?mode=forgot" },
+];
 
 // מסלולים שדורשים התחברות: מצופה הפניה ל-login (או 200 במצב הדגמה).
 const guardedRoutes = ["/dashboard", "/dashboard/card", "/dashboard/analytics", "/dashboard/leads", "/dashboard/settings", "/admin", "/admin/approvals", "/checkout?plan=pro"];

@@ -1,134 +1,217 @@
 "use client";
 
-import { useActionState, useEffect, useRef, useState } from "react";
+import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, KeyRound, Loader2, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, KeyRound, Loader2, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import type { AuthResult } from "@/app/(auth)/actions";
-import { forgotPasswordAction, loginAction, magicCodeAction, resendOtpAction, signupAction, verifyOtpAction } from "@/app/(auth)/actions";
-import { Field, inputClass } from "@/components/ui/field";
+import {
+  loginAction,
+  requestPasswordResetAction,
+  resendResetOtpAction,
+  resendSignupOtpAction,
+  signupAction,
+  updatePasswordAction,
+  verifyResetOtpAction,
+  verifySignupOtpAction,
+} from "@/app/(auth)/actions";
+import { Field, FormAlert, inputClass } from "@/components/ui/field";
 import { PasswordField } from "@/components/auth/password-field";
 import { OtpInput } from "@/components/auth/otp-input";
+import { ResendButton } from "@/components/auth/resend-button";
 import { burst } from "@/lib/celebrate";
 import { cn } from "@/lib/utils";
 
 export type AuthMode = "login" | "signup" | "forgot";
+
+/** השלב בתוך הזרימה. OTP מופיע רק לאימות הרשמה ולשחזור סיסמה. */
+type Step = "form" | "verifyEmail" | "resetOtp" | "choosePassword";
 
 const tabs: Array<{ id: AuthMode; label: string }> = [
   { id: "login", label: "כניסה" },
   { id: "signup", label: "הרשמה" },
 ];
 
-const copy: Record<AuthMode, { title: string; description: string }> = {
-  login: { title: "טוב לראות אותך שוב", description: "נכנסים וממשיכים לנהל את הכרטיס והפניות." },
+const headings: Record<AuthMode, { title: string; description: string }> = {
+  login: { title: "טוב לראות אותך שוב", description: "כניסה עם אימייל וסיסמה." },
   signup: { title: "בואו נבנה את הכרטיס שלך", description: "14 יום עם כל היכולות פתוחות. בלי כרטיס אשראי." },
-  forgot: { title: "איפוס סיסמה", description: "נשלח קישור לכתובת שרשומה אצלנו." },
+  forgot: { title: "שחזור סיסמה", description: "נשלח קוד אימות למייל, ואחריו תבחרו סיסמה חדשה." },
 };
 
 /**
- * מסך התחברות מאוחד: כניסה, הרשמה, שכחתי סיסמה ואימות קוד — הכול במקום אחד,
- * בלי ניווט בין עמודים. המצב נשמר ב-URL כדי שרענון או שיתוף קישור ישמרו הקשר.
+ * מסך אימות מאוחד. הכניסה היא באימייל וסיסמה בלבד — אין כניסה ללא סיסמה.
+ * קוד ה‑OTP משמש רק לאימות כתובת בהרשמה ולזיהוי בשחזור סיסמה.
  */
 export function AuthForm({ initialMode = "login", plan = "", next = "" }: { initialMode?: AuthMode; plan?: string; next?: string }) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
+  // התוצאה שהמשתמש "סגר" בכפתור חזרה, כדי שהשלב לא יחזור מעצמו.
+  const [dismissed, setDismissed] = useState<AuthResult | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  // הבקשה שכבר "נסגרה" בכפתור חזרה, כדי שהשלב לא יחזור מעצמו.
-  const [dismissedOtp, setDismissedOtp] = useState<AuthResult | null>(null);
-  const liveRef = useRef<HTMLParagraphElement>(null);
+  const [passwordConfirm, setPasswordConfirm] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
 
   const [loginState, login, loginPending] = useActionState(loginAction, null);
   const [signupState, signup, signupPending] = useActionState(signupAction, null);
-  const [forgotState, forgot, forgotPending] = useActionState(forgotPasswordAction, null);
-  const [magicState, magic, magicPending] = useActionState(magicCodeAction, null);
-  const [otpState, verify, otpPending] = useActionState(verifyOtpAction, null);
-  const [resendState, resend, resendPending] = useActionState(resendOtpAction, null);
+  const [verifyState, verify, verifyPending] = useActionState(verifySignupOtpAction, null);
+  const [resendSignup, resendSignupAction, resendSignupPending] = useActionState(resendSignupOtpAction, null);
+  const [resetReqState, requestReset, resetReqPending] = useActionState(requestPasswordResetAction, null);
+  const [resetOtpState, verifyReset, resetOtpPending] = useActionState(verifyResetOtpAction, null);
+  const [resendReset, resendResetAction, resendResetPending] = useActionState(resendResetOtpAction, null);
+  const [updateState, updatePassword, updatePending] = useActionState(updatePasswordAction, null);
 
-  const state: AuthResult | null = mode === "login" ? loginState : mode === "signup" ? signupState : forgotState;
-  const pending = loginPending || signupPending || forgotPending || magicPending || otpPending;
+  const successTarget = next || (plan ? `/checkout?plan=${plan}` : "/dashboard");
 
-  // שלב הקוד נגזר ישירות מהתוצאה האחרונה שביקשה אימות.
-  const otpRequest = [signupState, magicState, loginState].find((candidate) => candidate?.ok && candidate.step === "otp") || null;
-  const otpStep = otpRequest && otpRequest !== dismissedOtp ? { email, message: (otpRequest.ok && otpRequest.message) || "" } : null;
+  /*
+   * השלב נגזר מהתוצאה האחרונה שהחזירה step. הסדר חשוב: choosePassword
+   * מגיע מ-resetOtpState ולכן נבדק לפני resetReqState.
+   */
+  const stepResult = [resetOtpState, signupState, loginState, resetReqState].find((result) => result?.ok && result.step) || null;
+  const step: Step = stepResult && stepResult !== dismissed && stepResult.ok && stepResult.step ? stepResult.step : "form";
+  const stepEmail = stepResult?.ok && stepResult.email ? stepResult.email : email;
 
+  // ניווט אחרי הצלחה סופית.
   useEffect(() => {
-    const done = [loginState, signupState, otpState].find((candidate) => candidate?.ok && candidate.next);
+    const done = [loginState, signupState, verifyState, updateState].find((result) => result?.ok && result.next);
     if (done?.ok && done.next) {
       burst(undefined, { count: 60 });
       router.push(done.next);
     }
-  }, [loginState, signupState, otpState, router]);
+  }, [loginState, signupState, verifyState, updateState, router]);
 
   function switchMode(nextMode: AuthMode) {
     setMode(nextMode);
-    setDismissedOtp(otpRequest);
+    setDismissed(stepResult);
     const url = new URL(window.location.href);
     url.searchParams.set("mode", nextMode);
     window.history.replaceState(null, "", url.toString());
   }
 
-  // ── שלב אימות הקוד ────────────────────────────────────────────────────────
-  if (otpStep) {
-    const otpError = otpState && !otpState.ok ? otpState.error : "";
+  const fieldError = (result: AuthResult | null, field: string) =>
+    result && !result.ok && result.field === field ? result.error : undefined;
+  const formError = (result: AuthResult | null) =>
+    result && !result.ok && !result.field ? result.error : undefined;
+
+  // ── שלב: אימות כתובת המייל בהרשמה ────────────────────────────────────────
+  if (step === "verifyEmail") {
     return (
       <div className="grid gap-5">
-        <div className="rounded-2xl border border-[#d8d0ff] bg-[#f7f5ff] p-4">
-          <p className="flex items-center gap-2 text-sm font-bold text-[#4636a6]">
-            <ShieldCheck size={17} aria-hidden="true" />אימות כתובת המייל
-          </p>
-          <p className="mt-1 text-sm leading-6 text-[#6d5fb8]">
-            {otpStep.message || "שלחנו קוד בן 6 ספרות"} לכתובת <span dir="ltr" className="font-semibold">{otpStep.email}</span>
-          </p>
-        </div>
+        <StepHeader
+          icon={<ShieldCheck size={17} aria-hidden="true" />}
+          title="אימות כתובת המייל"
+          body={<>שלחנו קוד בן 6 ספרות לכתובת <Email value={stepEmail} />. הקוד בתוקף ל‑10 דקות.</>}
+        />
+
+        {formError(verifyState) && <FormAlert tone="error">{formError(verifyState)}</FormAlert>}
+        {resendSignup?.ok && resendSignup.message && <FormAlert tone="success">{resendSignup.message}</FormAlert>}
+        {resendSignup && !resendSignup.ok && <FormAlert tone="error">{resendSignup.error}</FormAlert>}
 
         <form action={verify} className="grid gap-4">
-          <input type="hidden" name="email" value={otpStep.email} />
-          <input type="hidden" name="next" value={next || (plan ? `/checkout?plan=${plan}` : "/dashboard")} />
-          <OtpInput name="code" error={otpError} disabled={otpPending} />
-
-          <button type="submit" disabled={otpPending} className="button-primary min-h-13 w-full">
-            {otpPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
-            {otpPending ? "מאמתים..." : "אימות והמשך"}
+          <input type="hidden" name="email" value={stepEmail} />
+          <input type="hidden" name="next" value={successTarget} />
+          <OtpInput name="code" error={fieldError(verifyState, "code")} disabled={verifyPending} />
+          <button type="submit" disabled={verifyPending} className="button-primary min-h-13 w-full" aria-busy={verifyPending}>
+            {verifyPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
+            {verifyPending ? "מאמתים את הקוד..." : "אימות והמשך"}
           </button>
         </form>
 
         <div className="flex flex-col gap-2 sm:flex-row">
-          <form action={resend} className="flex-1">
-            <input type="hidden" name="email" value={otpStep.email} />
-            <button type="submit" disabled={resendPending} className="button-secondary min-h-12 w-full">
-              {resendPending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Mail size={16} aria-hidden="true" />}
-              שליחת קוד חדש
-            </button>
-          </form>
-          <button type="button" onClick={() => setDismissedOtp(otpRequest)} className="button-ghost min-h-12 flex-1">
-            <ArrowRight size={16} aria-hidden="true" />חזרה
+          <ResendButton action={resendSignupAction} email={stepEmail} pending={resendSignupPending} />
+          <button type="button" onClick={() => switchMode("signup")} className="button-ghost min-h-12 flex-1">
+            <ArrowRight size={16} aria-hidden="true" />שינוי כתובת המייל
           </button>
         </div>
-
-        {resendState?.ok && resendState.message && (
-          <p role="status" className="rounded-xl border border-[#b7e6d8] bg-[#effcf8] p-3 text-sm text-[#08735f]">{resendState.message}</p>
-        )}
-        {resendState && !resendState.ok && (
-          <p role="alert" className="rounded-xl border border-[#f0bdc3] bg-[#fff2f4] p-3 text-sm text-[#a32031]">{resendState.error}</p>
-        )}
       </div>
     );
   }
 
-  const error = state && !state.ok ? state : null;
-  const success = state?.ok && state.message ? state.message : "";
+  // ── שלב: אימות קוד שחזור ─────────────────────────────────────────────────
+  if (step === "resetOtp") {
+    return (
+      <div className="grid gap-5">
+        <StepHeader
+          icon={<LockKeyhole size={17} aria-hidden="true" />}
+          title="אימות זהות"
+          body={<>{resetReqState?.ok && resetReqState.message ? resetReqState.message : <>שלחנו קוד לכתובת <Email value={stepEmail} />.</>}</>}
+        />
+
+        {formError(resetOtpState) && <FormAlert tone="error">{formError(resetOtpState)}</FormAlert>}
+        {resendReset?.ok && resendReset.message && <FormAlert tone="success">{resendReset.message}</FormAlert>}
+
+        <form action={verifyReset} className="grid gap-4">
+          <input type="hidden" name="email" value={stepEmail} />
+          <OtpInput name="code" error={fieldError(resetOtpState, "code")} disabled={resetOtpPending} />
+          <button type="submit" disabled={resetOtpPending} className="button-primary min-h-13 w-full" aria-busy={resetOtpPending}>
+            {resetOtpPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <ShieldCheck size={18} aria-hidden="true" />}
+            {resetOtpPending ? "מאמתים את הקוד..." : "אימות והמשך"}
+          </button>
+        </form>
+
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ResendButton action={resendResetAction} email={stepEmail} pending={resendResetPending} />
+          <button type="button" onClick={() => switchMode("login")} className="button-ghost min-h-12 flex-1">
+            <ArrowRight size={16} aria-hidden="true" />חזרה לכניסה
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── שלב: בחירת סיסמה חדשה ────────────────────────────────────────────────
+  if (step === "choosePassword") {
+    const mismatch = newPasswordConfirm.length > 0 && newPassword !== newPasswordConfirm;
+    return (
+      <div className="grid gap-5">
+        <StepHeader
+          icon={<KeyRound size={17} aria-hidden="true" />}
+          title="בחירת סיסמה חדשה"
+          body="הזהות אומתה. הסיסמה החדשה תיכנס לתוקף מיד."
+        />
+
+        {formError(updateState) && <FormAlert tone="error">{formError(updateState)}</FormAlert>}
+
+        <form action={updatePassword} className="grid gap-4">
+          <PasswordField
+            name="password"
+            label="סיסמה חדשה"
+            value={newPassword}
+            onChange={setNewPassword}
+            error={fieldError(updateState, "password")}
+          />
+          <PasswordField
+            name="passwordConfirm"
+            label="אימות הסיסמה החדשה"
+            value={newPasswordConfirm}
+            onChange={setNewPasswordConfirm}
+            showMeter={false}
+            error={mismatch ? "שתי הסיסמאות אינן זהות." : fieldError(updateState, "passwordConfirm")}
+          />
+          <button type="submit" disabled={updatePending || mismatch} className="button-primary min-h-13 w-full" aria-busy={updatePending}>
+            {updatePending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
+            {updatePending ? "מעדכנים את הסיסמה..." : "עדכון הסיסמה וכניסה"}
+          </button>
+        </form>
+      </div>
+    );
+  }
+
+  // ── שלב הטופס הראשי ──────────────────────────────────────────────────────
+  const activeState = mode === "login" ? loginState : mode === "signup" ? signupState : resetReqState;
+  const activePending = mode === "login" ? loginPending : mode === "signup" ? signupPending : resetReqPending;
+  const signupMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
 
   return (
     <div className="grid gap-6">
-      {/* כותרת ומתגי מצב */}
       <div>
-        <h1 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{copy[mode].title}</h1>
-        <p className="mt-1.5 text-[#607087]">{copy[mode].description}</p>
+        <h1 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{headings[mode].title}</h1>
+        <p className="mt-1.5 text-[#607087]">{headings[mode].description}</p>
       </div>
 
       {mode !== "forgot" && (
-        <div role="tablist" aria-label="מצב התחברות" className="grid grid-cols-2 gap-1 rounded-2xl bg-[#f1f3f7] p-1">
+        <div role="tablist" aria-label="בחירת מצב: כניסה או הרשמה" className="grid grid-cols-2 gap-1 rounded-2xl bg-[#f1f3f7] p-1">
           {tabs.map((tab) => (
             <button
               key={tab.id}
@@ -147,95 +230,74 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
         </div>
       )}
 
-      {/* הודעות ברמת הטופס */}
-      {error && !error.field && (
-        <p role="alert" className="rounded-xl border border-[#f0bdc3] bg-[#fff2f4] p-3 text-sm font-semibold text-[#a32031]">{error.error}</p>
+      {formError(activeState) && (
+        <FormAlert tone="error" retryAfterSeconds={activeState && !activeState.ok ? activeState.retryAfterSeconds : undefined}>
+          {formError(activeState)}
+        </FormAlert>
       )}
-      {success && (
-        <p role="status" className="rounded-xl border border-[#b7e6d8] bg-[#effcf8] p-3 text-sm text-[#08735f]">{success}</p>
-      )}
-      <p ref={liveRef} aria-live="polite" className="sr-only">{pending ? "מעבד את הבקשה" : ""}</p>
+      {activeState?.ok && activeState.message && !activeState.step && <FormAlert tone="success">{activeState.message}</FormAlert>}
 
-      {/* ── כניסה ─────────────────────────────────────────────────────────── */}
+      {mode === "signup" && (
+        <p className="text-xs leading-5 text-[#78859a]">
+          שדות המסומנים <span className="required-field">חובה</span> נדרשים להשלמת ההרשמה.
+        </p>
+      )}
+
+      {/* ── כניסה: אימייל וסיסמה בלבד ─────────────────────────────────────── */}
       {mode === "login" && (
-        <>
-          <form action={login} className="grid gap-4">
-            <input type="hidden" name="next" value={next || (plan ? `/checkout?plan=${plan}` : "/dashboard")} />
-            <Field label="אימייל" required error={error?.field === "email" ? error.error : undefined}>
-              {(field) => (
-                <input
-                  {...field}
-                  className={inputClass(error?.field === "email")}
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  dir="ltr"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                  placeholder="name@business.co.il"
-                />
-              )}
-            </Field>
+        <form action={login} className="grid gap-4">
+          <input type="hidden" name="next" value={successTarget} />
 
-            <PasswordField
-              name="password"
-              value={password}
-              onChange={setPassword}
-              autoComplete="current-password"
-              showMeter={false}
-              error={error?.field === "password" ? error.error : undefined}
-            />
+          <Field label="כתובת אימייל" required error={fieldError(loginState, "email")}>
+            {(field) => (
+              <input
+                {...field}
+                className={inputClass(Boolean(fieldError(loginState, "email")))}
+                name="email"
+                type="email"
+                inputMode="email"
+                dir="ltr"
+                autoComplete="email"
+                placeholder="name@example.com"
+                value={email}
+                onChange={(event) => setEmail(event.target.value)}
+              />
+            )}
+          </Field>
 
-            <div className="flex justify-end">
-              <button type="button" onClick={() => switchMode("forgot")} className="min-h-11 text-sm font-semibold text-[#6d4aff]">
-                שכחתי סיסמה
-              </button>
-            </div>
+          <PasswordField
+            name="password"
+            label="סיסמה"
+            value={password}
+            onChange={setPassword}
+            autoComplete="current-password"
+            showMeter={false}
+            error={fieldError(loginState, "password")}
+          />
 
-            <button type="submit" disabled={pending} className="button-primary min-h-13 w-full">
-              {loginPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
-              {loginPending ? "נכנסים..." : "כניסה למערכת"}
+          <div className="flex justify-end">
+            <button type="button" onClick={() => switchMode("forgot")} className="min-h-11 px-1 text-sm font-semibold text-[#6d4aff] underline underline-offset-2">
+              שכחתי את הסיסמה
             </button>
-          </form>
-
-          <div className="flex items-center gap-3 text-xs text-[#8a95a7]">
-            <span className="h-px flex-1 bg-[#e2e6ee]" />או כניסה עם קוד למייל<span className="h-px flex-1 bg-[#e2e6ee]" />
           </div>
 
-          <form action={magic} className="grid gap-3 rounded-2xl bg-[#f6f7fb] p-4">
-            <Field label="אימייל לקבלת קוד" required error={magicState && !magicState.ok ? magicState.error : undefined}>
-              {(field) => (
-                <input
-                  {...field}
-                  className={inputClass(Boolean(magicState && !magicState.ok))}
-                  name="email"
-                  type="email"
-                  inputMode="email"
-                  dir="ltr"
-                  autoComplete="email"
-                  value={email}
-                  onChange={(event) => setEmail(event.target.value)}
-                />
-              )}
-            </Field>
-            <button type="submit" disabled={pending} className="button-secondary min-h-12 w-full">
-              {magicPending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Mail size={16} aria-hidden="true" />}
-              שליחת קוד חד־פעמי
-            </button>
-          </form>
-        </>
+          <button type="submit" disabled={activePending} className="button-primary min-h-13 w-full" aria-busy={loginPending}>
+            {loginPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <KeyRound size={18} aria-hidden="true" />}
+            {loginPending ? "נכנסים למערכת..." : "כניסה למערכת"}
+          </button>
+        </form>
       )}
 
       {/* ── הרשמה ─────────────────────────────────────────────────────────── */}
       {mode === "signup" && (
         <form action={signup} className="grid gap-4">
           <input type="hidden" name="plan" value={plan} />
-          <Field label="שם מלא" required error={error?.field === "fullName" ? error.error : undefined}>
+
+          <Field label="שם מלא" required error={fieldError(signupState, "fullName")} hint="כך נפנה אליך במערכת ובמיילים">
             {(field) => (
               <input
                 {...field}
-                className={inputClass(error?.field === "fullName")}
+                className={inputClass(Boolean(fieldError(signupState, "fullName")))}
                 name="fullName"
                 autoComplete="name"
                 placeholder="ישראל ישראלי"
@@ -245,19 +307,24 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
             )}
           </Field>
 
-          <Field label="אימייל עסקי" required error={error?.field === "email" ? error.error : undefined} hint="לכאן יישלח קוד האימות">
+          <Field
+            label="כתובת אימייל"
+            required
+            error={fieldError(signupState, "email")}
+            hint="לכאן יישלח קוד האימות, וגם התראות על פניות חדשות"
+          >
             {(field) => (
               <input
                 {...field}
-                className={inputClass(error?.field === "email")}
+                className={inputClass(Boolean(fieldError(signupState, "email")))}
                 name="email"
                 type="email"
                 inputMode="email"
                 dir="ltr"
                 autoComplete="email"
+                placeholder="name@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
-                placeholder="name@business.co.il"
               />
             )}
           </Field>
@@ -266,21 +333,48 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
             name="password"
             value={password}
             onChange={setPassword}
-            error={error?.field === "password" ? error.error : undefined}
+            error={fieldError(signupState, "password")}
           />
 
-          <label className="flex items-start gap-2 text-xs leading-5 text-[#607087]">
-            <input type="checkbox" className="mt-1 h-4 w-4" required aria-required="true" />
-            <span>
-              קראתי ואני מאשר/ת את <Link href="/legal/terms" className="font-semibold text-[#6d4aff] underline underline-offset-2">תנאי השימוש</Link>
-              {" "}ואת <Link href="/legal/privacy" className="font-semibold text-[#6d4aff] underline underline-offset-2">מדיניות הפרטיות</Link>
-              <span className="required-field">חובה</span>
-            </span>
-          </label>
+          <PasswordField
+            name="passwordConfirm"
+            label="אימות סיסמה"
+            value={passwordConfirm}
+            onChange={setPasswordConfirm}
+            showMeter={false}
+            error={signupMismatch ? "שתי הסיסמאות אינן זהות." : fieldError(signupState, "passwordConfirm")}
+            success={!signupMismatch && passwordConfirm.length > 0 ? "הסיסמאות תואמות" : undefined}
+          />
 
-          <button type="submit" disabled={pending} className="button-primary min-h-13 w-full">
+          <div className="grid gap-1.5">
+            <label className="flex items-start gap-2.5 text-xs leading-5 text-[#607087]">
+              <input
+                type="checkbox"
+                name="terms"
+                value="accepted"
+                className="mt-0.5 h-4.5 w-4.5 shrink-0"
+                aria-required="true"
+                aria-invalid={Boolean(fieldError(signupState, "terms"))}
+                aria-describedby={fieldError(signupState, "terms") ? "terms-error" : undefined}
+              />
+              <span>
+                קראתי ואני מאשר/ת את{" "}
+                <Link href="/legal/terms" className="font-semibold text-[#6d4aff] underline underline-offset-2">תנאי השימוש</Link>
+                {" "}ואת{" "}
+                <Link href="/legal/privacy" className="font-semibold text-[#6d4aff] underline underline-offset-2">מדיניות הפרטיות</Link>
+                <span className="required-field">חובה</span>
+              </span>
+            </label>
+            {fieldError(signupState, "terms") && (
+              <p id="terms-error" role="alert" className="text-xs font-semibold text-[#a32031]">
+                {fieldError(signupState, "terms")}
+              </p>
+            )}
+          </div>
+
+          <button type="submit" disabled={activePending} className="button-primary min-h-13 w-full" aria-busy={signupPending}>
             {signupPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
-            {signupPending ? "פותחים חשבון..." : plan ? "פתיחת חשבון והמשך לתשלום" : "פתיחת חשבון והתחלה"}
+            {signupPending ? "פותחים חשבון..." : "פתיחת חשבון ושליחת קוד אימות"}
             {!signupPending && <ArrowLeft size={16} aria-hidden="true" />}
           </button>
 
@@ -290,28 +384,34 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
         </form>
       )}
 
-      {/* ── שכחתי סיסמה ───────────────────────────────────────────────────── */}
+      {/* ── שחזור סיסמה ───────────────────────────────────────────────────── */}
       {mode === "forgot" && (
-        <form action={forgot} className="grid gap-4">
-          <Field label="האימייל שלך" required error={error?.field === "email" ? error.error : undefined} hint="נשלח קישור לאיפוס אם הכתובת רשומה">
+        <form action={requestReset} className="grid gap-4">
+          <Field
+            label="כתובת האימייל שלך"
+            required
+            error={fieldError(resetReqState, "email")}
+            hint="נשלח לכתובת הזו קוד אימות בן 6 ספרות"
+          >
             {(field) => (
               <input
                 {...field}
-                className={inputClass(error?.field === "email")}
+                className={inputClass(Boolean(fieldError(resetReqState, "email")))}
                 name="email"
                 type="email"
                 inputMode="email"
                 dir="ltr"
                 autoComplete="email"
+                placeholder="name@example.com"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />
             )}
           </Field>
 
-          <button type="submit" disabled={pending} className="button-primary min-h-13 w-full">
-            {forgotPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Mail size={18} aria-hidden="true" />}
-            שליחת קישור לאיפוס
+          <button type="submit" disabled={activePending} className="button-primary min-h-13 w-full" aria-busy={resetReqPending}>
+            {resetReqPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Mail size={18} aria-hidden="true" />}
+            {resetReqPending ? "שולחים קוד..." : "שליחת קוד אימות"}
           </button>
 
           <button type="button" onClick={() => switchMode("login")} className="button-ghost min-h-12 w-full">
@@ -321,4 +421,17 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
       )}
     </div>
   );
+}
+
+function StepHeader({ icon, title, body }: { icon: React.ReactNode; title: string; body: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-[#d8d0ff] bg-[#f7f5ff] p-4">
+      <p className="flex items-center gap-2 text-sm font-bold text-[#4636a6]">{icon}{title}</p>
+      <p className="mt-1 text-sm leading-6 text-[#6d5fb8]">{body}</p>
+    </div>
+  );
+}
+
+function Email({ value }: { value: string }) {
+  return <span dir="ltr" className="font-semibold">{value}</span>;
 }

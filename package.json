@@ -14,9 +14,10 @@
     "check": "npm run lint && npm run typecheck && npm run build",
     "test:e2e": "node scripts/e2e-check.mjs",
     "audit:mobile": "node scripts/mobile-audit.mjs",
-    "verify": "npm run check && npm run audit:mobile && npm run test:e2e",
+    "verify": "npm run check && npm run test:unit && npm run audit:mobile && npm run test:e2e",
     "test:flows": "node scripts/flow-check.mjs",
-    "create:user": "node scripts/create-user.mjs"
+    "create:user": "node scripts/create-user.mjs",
+    "test:unit": "node --experimental-strip-types --no-warnings --test tests/*.test.mts"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
