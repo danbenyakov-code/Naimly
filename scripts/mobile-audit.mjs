@@ -14,7 +14,9 @@ function walk(dir) {
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) walk(full);
-    else if (/\.(tsx|ts)$/.test(entry.name)) inspect(full);
+    // רק רכיבי ממשק. קובצי .ts (לוגיקה, תבניות מייל) אינם נסרקים —
+    // תבנית מייל חייבת <table> ואין משמעות ל-overflow-x-auto בלקוח מייל.
+    else if (/\.tsx$/.test(entry.name)) inspect(full);
   }
 }
 

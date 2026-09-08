@@ -58,7 +58,19 @@ export async function POST(request: Request) {
   if (!admin) return NextResponse.json({ error: "השירות אינו זמין כרגע" }, { status: 503 });
 
   const { error } = await admin.from("contact_messages").insert(record);
-  if (error) return NextResponse.json({ error: "לא הצלחנו לשלוח את הפנייה. אפשר לכתוב לנו במייל." }, { status: 500 });
+  if (error) {
+    // PGRST205 / 42P01 = הטבלה אינה קיימת, כלומר המיגרציות טרם הורצו.
+    const notMigrated = ["PGRST205", "42P01", "PGRST106"].includes(error.code || "");
+    return NextResponse.json(
+      {
+        error: notMigrated
+          ? `שירות הפניות טרם הופעל. אפשר לכתוב לנו ישירות אל ${brand.supportEmail}.`
+          : `לא הצלחנו לשלוח את הפנייה. אפשר לכתוב לנו אל ${brand.supportEmail}.`,
+        fallbackEmail: brand.supportEmail,
+      },
+      { status: notMigrated ? 503 : 500 },
+    );
+  }
 
   // אישור לשולח. אינו חוסם — הפנייה כבר נשמרה.
   await sendContactAcknowledgement({
