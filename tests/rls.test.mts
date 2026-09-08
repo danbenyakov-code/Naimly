@@ -27,7 +27,21 @@ const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 const configured = Boolean(url && anonKey && serviceKey);
 
-const skipReason = configured ? undefined : "אין חיבור Supabase — יש להגדיר .env.local";
+/** האם הסכמה כבר הורצה. בלי זה אין מה לבדוק. */
+async function schemaReady() {
+  if (!configured) return false;
+  const probe = createClient(url!, serviceKey!, { auth: { persistSession: false, autoRefreshToken: false } });
+  const { error } = await probe.from("cards").select("id").limit(1);
+  if (!error) return true;
+  // PGRST205 / 42P01 = הטבלה אינה קיימת.
+  return !["PGRST205", "42P01", "PGRST106"].includes(error.code || "");
+}
+
+const skipReason = !configured
+  ? "אין חיבור Supabase — יש להגדיר .env.local"
+  : (await schemaReady())
+    ? undefined
+    : "הסכמה טרם הורצה — יש להריץ npm run db:migrate";
 
 /** שני משתמשי בדיקה שנוצרים ונמחקים בתוך החליפה. */
 type TestUser = { id: string; email: string; client: SupabaseClient };

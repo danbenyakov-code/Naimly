@@ -38,6 +38,8 @@ export type QuickAction = {
 
 export type SmartButtonAction = "url" | "phone" | "whatsapp" | "email" | "waze" | "google_maps" | "booking" | "image" | "menu";
 
+export type ButtonShape = "rounded" | "pill" | "square";
+
 export type SmartButton = {
   id: string;
   label: string;
@@ -45,6 +47,14 @@ export type SmartButton = {
   action: SmartButtonAction;
   value: string;
   imageUrl?: string;
+  /** מזהה מתוך src/lib/icons.ts. */
+  icon?: string;
+  /** צבע רקע. כשריק — נגזר מצבע המותג. */
+  backgroundColor?: string;
+  /** צבע טקסט ואייקון. כשריק — נבחר אוטומטית לפי הניגודיות. */
+  textColor?: string;
+  shape?: ButtonShape;
+  enabled?: boolean;
 };
 
 export type CardWidgetType = "smart_buttons" | "services" | "gallery" | "video" | "testimonials" | "hours" | "files" | "contact_form";

@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { contactTopicIds, topicLabel, topicPriority } from "@/lib/contact";
-import { brand } from "@/lib/config";
+import { adminNotificationEmail, brand } from "@/lib/config";
+import { sendContactAcknowledgement } from "@/lib/email";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/env";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
@@ -59,5 +60,12 @@ export async function POST(request: Request) {
   const { error } = await admin.from("contact_messages").insert(record);
   if (error) return NextResponse.json({ error: "לא הצלחנו לשלוח את הפנייה. אפשר לכתוב לנו במייל." }, { status: 500 });
 
-  return NextResponse.json({ ok: true });
+  // אישור לשולח. אינו חוסם — הפנייה כבר נשמרה.
+  await sendContactAcknowledgement({
+    to: parsed.data.email,
+    name: parsed.data.name,
+    topicLabel: record.topic_label,
+  }).catch(() => null);
+
+  return NextResponse.json({ ok: true, notifyTo: adminNotificationEmail ? undefined : brand.supportEmail });
 }

@@ -11,7 +11,7 @@ export const brand = {
   hebrewName: process.env.NEXT_PUBLIC_BRAND_HEBREW_NAME || "נעיםלי",
   shortName: process.env.NEXT_PUBLIC_BRAND_SHORT_NAME || "N",
   tagline: "נעים להכיר. קל לסגור.",
-  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "hello@naimly.co.il",
+  supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "info.naimly@gmail.com",
   supportWhatsapp: (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || DEFAULT_WHATSAPP).replace(/\D/g, ""),
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://naimly.co.il",
 };
@@ -27,6 +27,9 @@ export const billing = {
 };
 
 export const isBillingConfigured = Boolean(billing.whatsappNumber);
+
+/** הכתובת שאליה מגיעות התראות מערכת (בקשות תשלום, פניות). */
+export const adminNotificationEmail = process.env.ADMIN_NOTIFICATION_EMAIL || brand.supportEmail;
 
 // המחירים מרוכזים כאן כדי שניתן יהיה לעדכן אותם לפני ההשקה ללא שינוי במסכים.
 export const plans: Plan[] = [

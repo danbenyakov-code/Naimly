@@ -1,6 +1,10 @@
 import { z } from "zod";
 import { isHttpUrl } from "@/lib/safe-url";
 import { isBackgroundId } from "@/lib/backgrounds";
+import { isIconId } from "@/lib/icons";
+
+/** צבע hex בן 6 ספרות. */
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע תקין");
 
 // z.string().url() מאשר גם javascript: ו‑data: — ולכן נדרשת בדיקת סכימה מפורשת.
 const httpUrl = z.string().max(2000).refine(isHttpUrl, "כתובת חייבת להתחיל ב‑http:// או https://");
@@ -72,6 +76,11 @@ export const cardSchema = z.object({
     action: z.enum(["url", "phone", "whatsapp", "email", "waze", "google_maps", "booking", "image", "menu"]),
     value: z.string().max(1000),
     imageUrl: optionalUrl.optional(),
+    icon: z.string().max(60).refine((id) => !id || isIconId(id), "האייקון שנבחר אינו קיים").optional(),
+    backgroundColor: z.union([z.literal(""), hexColor]).optional(),
+    textColor: z.union([z.literal(""), hexColor]).optional(),
+    shape: z.enum(["rounded", "pill", "square"]).optional(),
+    enabled: z.boolean().optional(),
   }).superRefine((button, ctx) => {
     if (freeLinkButtonActions.has(button.action) && button.value && !isHttpUrl(button.value)) {
       ctx.addIssue({ code: "custom", path: ["value"], message: `הקישור של הכפתור „${button.label}” חייב להתחיל ב‑https://` });

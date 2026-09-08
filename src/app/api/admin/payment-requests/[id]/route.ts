@@ -5,6 +5,7 @@ import { auditLog, isResponse, requireAdmin } from "@/lib/admin-guard";
 import { clampCardToPlan } from "@/lib/plan-access";
 import { normalizeCard } from "@/lib/data";
 import { cardToDatabaseRow } from "@/lib/card-row";
+import { sendPlanActivatedNotification } from "@/lib/email";
 
 const schema = z.object({
   action: z.enum(["approve", "reject"]),
@@ -30,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: paymentRequest } = await admin
     .from("payment_requests")
-    .select("id,user_id,plan_id,amount,status,reference")
+    .select("id,user_id,plan_id,amount,status,reference,profiles(full_name,email)")
     .eq("id", id)
     .maybeSingle();
   if (!paymentRequest) return NextResponse.json({ error: "הבקשה לא נמצאה" }, { status: 404 });
@@ -85,6 +86,17 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (error) return NextResponse.json({ error: "המנוי הופעל אך עדכון הבקשה נכשל" }, { status: 500 });
 
   await auditLog(context, "payment_request.approve", "payment_request", id, { reference: paymentRequest.reference, plan: plan.id, months, trimmed });
+
+  // אישור ללקוח. כישלון בשליחה אינו מבטל את ההפעלה שכבר בוצעה.
+  const customer = (paymentRequest as unknown as { profiles?: { full_name?: string; email?: string } }).profiles;
+  if (customer?.email) {
+    await sendPlanActivatedNotification({
+      to: customer.email,
+      customerName: customer.full_name || "לקוח יקר",
+      planName: plan.name,
+      months,
+    }).catch(() => null);
+  }
 
   return NextResponse.json({ ok: true, status: "approved", plan: plan.id, months, trimmed });
 }
