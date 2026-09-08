@@ -121,13 +121,15 @@ describe("RLS — בידוד נתונים בין משתמשים", { skip: skipRe
   });
 
   it("משתמש אינו יכול לשנות את התפקיד שלו", async () => {
-    const { error } = await userA.client.from("profiles").update({ role: "admin" }).eq("id", userA.id);
-    assert.ok(error, "עדכון role עבר — הרשאת העמדה אינה נאכפת!");
+    await userA.client.from("profiles").update({ role: "admin" }).eq("id", userA.id);
+    const { data } = await admin.from("profiles").select("role").eq("id", userA.id).single();
+    assert.equal(data?.role, "customer", "המשתמש הפך לאדמין בעצמו!");
   });
 
   it("משתמש אינו יכול לשנות את המסלול שלו", async () => {
-    const { error } = await userA.client.from("profiles").update({ plan_id: "premium" }).eq("id", userA.id);
-    assert.ok(error, "עדכון plan_id עבר — אפשר להעלות מסלול ללא תשלום!");
+    await userA.client.from("profiles").update({ plan_id: "premium" }).eq("id", userA.id);
+    const { data } = await admin.from("profiles").select("plan_id").eq("id", userA.id).single();
+    assert.notEqual(data?.plan_id, "premium", "המסלול שודרג ללא תשלום!");
   });
 
   it("משתמש אינו קורא את הפרופיל של אחר", async () => {
@@ -177,11 +179,18 @@ describe("RLS — בידוד נתונים בין משתמשים", { skip: skipRe
 
   // ── מנויים ובקשות תשלום ───────────────────────────────────────────────────
   it("משתמש אינו יכול להפעיל מנוי בעצמו", async () => {
-    const { error } = await userA.client
+    const before = (await admin.from("subscriptions").select("plan_id,status").eq("user_id", userA.id).single()).data;
+
+    await userA.client
       .from("subscriptions")
       .update({ status: "active", plan_id: "premium" })
       .eq("user_id", userA.id);
-    assert.ok(error, "משתמש הפעיל מנוי בעצמו — עקיפת תשלום!");
+
+    // המדד הוא הנתונים עצמם: PostgREST מחזיר 204 ללא שגיאה כש-RLS
+    // מסנן את כל השורות, ולכן היעדר שגיאה אינו מעיד על הצלחה.
+    const after = (await admin.from("subscriptions").select("plan_id,status").eq("user_id", userA.id).single()).data;
+    assert.deepEqual(after, before, "המנוי שונה על ידי המשתמש — עקיפת תשלום!");
+    assert.notEqual(after?.status, "active", "המנוי הופעל ללא תשלום!");
   });
 
   it("משתמש אינו יכול לאשר בקשת תשלום", async () => {

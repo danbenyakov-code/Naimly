@@ -11,6 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import postgres from "postgres";
 
 // ── טעינת סביבה ─────────────────────────────────────────────────────────────
 for (const file of [".env.local", ".env"]) {
@@ -53,7 +54,6 @@ console.log("  anon:    ", mask(anonKey));
 console.log("  service: ", mask(serviceKey));
 
 const admin = createClient(url, serviceKey, { auth: { persistSession: false, autoRefreshToken: false } });
-const anon = createClient(url, anonKey, { auth: { persistSession: false, autoRefreshToken: false } });
 
 // ── מה אמור להתקיים אחרי כל המיגרציות ───────────────────────────────────────
 const expectedTables = [
@@ -98,25 +98,53 @@ async function verify() {
     if (!exists) missingTables.push(name);
   }
 
-  console.log("\n=== פונקציות ===");
+  /*
+   * פונקציות ו-RLS נבדקים ב-introspection ישיר. קריאת rpc או select
+   * אינן יכולות להבחין בין "חסום" לבין "ריק", ולכן אינן ראיה.
+   */
   const missingFunctions = [];
-  for (const name of expectedFunctions) {
-    // קריאה עם ארגומנטים שגויים מחזירה שגיאת חתימה אם הפונקציה קיימת,
-    // ושגיאת "not found" אם היא אינה קיימת.
-    const { error } = await admin.rpc(name, {});
-    const exists = !error || !/could not find|does not exist/i.test(error.message);
-    console.log(`  ${exists ? "✓" : "✗"} ${name}`);
-    if (!exists) missingFunctions.push(name);
+  const dbUrl = process.env.SUPABASE_DB_URL;
+
+  if (!dbUrl) {
+    console.log("\n=== פונקציות ו-RLS ===");
+    console.log("  ⚠️  לא ניתן לאמת בלי SUPABASE_DB_URL.");
+    console.log("     יש להריץ: node scripts/db-find-host.mjs");
+  } else {
+    const sql = postgres(dbUrl, { ssl: "require", max: 1, connect_timeout: 20, onnotice: () => {} });
+    try {
+      console.log("\n=== פונקציות ===");
+      const rows = await sql`
+        select p.proname from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+        where n.nspname = 'public'
+      `;
+      const present = new Set(rows.map((row) => row.proname));
+      for (const name of expectedFunctions) {
+        const exists = present.has(name);
+        console.log(`  ${exists ? "✓" : "✗"} ${name}`);
+        if (!exists) missingFunctions.push(name);
+      }
+
+      console.log("\n=== RLS ===");
+      const tables = await sql`
+        select c.relname, c.relrowsecurity,
+               (select count(*) from pg_policies p where p.schemaname='public' and p.tablename=c.relname) as policies
+        from pg_class c join pg_namespace n on n.oid = c.relnamespace
+        where n.nspname='public' and c.relkind='r'
+        order by c.relname
+      `;
+      for (const table of tables) {
+        const ok = table.relrowsecurity;
+        console.log(`  ${ok ? "✓" : "✗"} ${table.relname} — RLS ${ok ? "מופעל" : "כבוי!"}, ${table.policies} מדיניות`);
+      }
+      const unprotected = tables.filter((table) => !table.relrowsecurity);
+      if (unprotected.length) {
+        console.log(`\n  ⚠️  טבלאות ללא RLS: ${unprotected.map((t) => t.relname).join(", ")}`);
+      }
+    } finally {
+      await sql.end().catch(() => {});
+    }
   }
-
-  console.log("\n=== RLS: קריאה אנונימית ===");
-  const { error: anonProfiles } = await anon.from("profiles").select("id").limit(1);
-  if (anonProfiles) console.log("  ✓ profiles חסום ל-anon");
-  else console.log("  ✗ profiles נקרא ל-anon — RLS לא נאכף!");
-
-  const { error: anonLeads } = await anon.from("leads").select("id").limit(1);
-  if (anonLeads) console.log("  ✓ leads חסום ל-anon");
-  else console.log("  ✗ leads נקרא ל-anon — RLS לא נאכף!");
 
   console.log("\n=== Storage ===");
   const { data: buckets } = await admin.storage.listBuckets();

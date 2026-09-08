@@ -18,14 +18,17 @@ on conflict (plan_id) do update set
   allow_lead_export = excluded.allow_lead_export,
   allow_advanced_seo = excluded.allow_advanced_seo;
 
+-- ה-constraint מורחב לפני הוספת השורה, אחרת ההוספה נדחית.
+alter table public.plan_limits drop constraint if exists plan_limits_plan_id_check;
+alter table public.plan_limits add constraint plan_limits_plan_id_check
+  check (plan_id in ('none', 'trial', 'basic', 'pro', 'premium'));
+
 -- מסלול 'none' = לא שילם. אפס יכולות; משמש כשההתנסות פגה.
 insert into public.plan_limits (plan_id, max_cards, max_gallery_items, max_quick_actions, max_files, analytics_days, allow_tracking, allow_carousel, allow_video, allow_files, allow_lead_export, allow_advanced_seo)
 values ('none', 0, 0, 3, 0, 0, false, false, false, false, false, false)
 on conflict (plan_id) do nothing;
 
-alter table public.plan_limits drop constraint if exists plan_limits_plan_id_check;
-alter table public.plan_limits add constraint plan_limits_plan_id_check
-  check (plan_id in ('none', 'trial', 'basic', 'pro', 'premium'));
+
 
 create or replace function public.effective_plan(target_user uuid)
 returns text
