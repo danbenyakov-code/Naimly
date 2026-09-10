@@ -23,6 +23,7 @@
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:types": "node scripts/db-types.mjs",
     "supabase:auth": "node scripts/supabase-auth-config.mjs",
+    "vercel:env": "node scripts/vercel-env.mjs",
     "test:rls": "node --experimental-strip-types --no-warnings --import ./tests/alias-loader.mjs --test tests/rls.test.mts",
     "db:bundle": "node scripts/bundle-migrations.mjs",
     "db:status": "node scripts/db-migrate.mjs --status",
