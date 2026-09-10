@@ -11,6 +11,7 @@ const titles: Record<AccessReason, string> = {
   trial_expired: "תקופת ההתנסות הסתיימה",
   payment_pending: "התשלום ממתין לאישור",
   inactive: "המנוי אינו פעיל",
+  plan_not_selected: "עדיין לא נבחר מסלול",
 };
 
 /**

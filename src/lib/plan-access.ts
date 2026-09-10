@@ -84,7 +84,7 @@ export function isUpgrade(from: PlanId, to: PlanId) {
 export type TrialState = {
   /** ההתנסות פעילה כרגע. */
   active: boolean;
-  /** נרשם אך טרם פרסם — הספירה לא התחילה. */
+  /** נרשם אך טרם בחר מסלול — אין גישה עד לבחירה בשער ההצטרפות. */
   pending: boolean;
   /** ההתנסות הסתיימה ולא נרכש מסלול — המערכת נעולה. */
   expired: boolean;
@@ -98,15 +98,16 @@ export type TrialState = {
 
 const emptyTrial: TrialState = { active: false, pending: false, expired: false, endsAt: null, daysLeft: 0, hoursLeft: 0, totalDays: TRIAL_DAYS, percentUsed: 0 };
 
-export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEndsAt" | "trialPending">, now = Date.now()): TrialState {
+export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEndsAt" | "trialPending" | "planSelectedAt">, now = Date.now()): TrialState {
   if (viewer.subscriptionStatus === "active") return emptyTrial;
 
   /*
-   * ההתנסות מתחילה בפרסום הראשון. עד אז אין תאריך תפוגה, הגישה מלאה,
-   * ולא מוצג טיימר — אין לְמה לספור.
+   * טרם נבחר מסלול. ההתנסות אינה פעילה ואין גישה — בדיוק כמו
+   * effective_plan במסד, שמחזיר 'none' כל עוד plan_selected_at ריק.
+   * חשוב שהממשק לא ירשה את מה שהמסד חוסם.
    */
-  if (viewer.trialPending && viewer.subscriptionStatus === "trialing") {
-    return { ...emptyTrial, active: true, pending: true, daysLeft: TRIAL_DAYS, hoursLeft: TRIAL_DAYS * 24 };
+  if (!viewer.planSelectedAt && viewer.subscriptionStatus === "trialing") {
+    return { ...emptyTrial, pending: true };
   }
 
   const endsAt = viewer.trialEndsAt ? new Date(viewer.trialEndsAt).getTime() : NaN;
@@ -133,7 +134,7 @@ export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEnd
   };
 }
 
-export type AccessReason = "active" | "trial" | "trial_expired" | "payment_pending" | "inactive";
+export type AccessReason = "active" | "trial" | "trial_expired" | "payment_pending" | "inactive" | "plan_not_selected";
 
 export type Access = {
   /** המסלול שקובע יכולות בפועל. */
@@ -155,7 +156,7 @@ const lockedFeatures: FeatureMap = {
  * נקודת הכניסה היחידה להרשאות. כל מסך וכל route נגזרים מכאן, כדי שלא ייווצר
  * מצב שבו הממשק מרשה משהו שהשרת חוסם (או להפך).
  */
-export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending">, now = Date.now()): Access {
+export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending" | "planSelectedAt">, now = Date.now()): Access {
   const trial = trialState(viewer, now);
 
   if (viewer.subscriptionStatus === "active") {
@@ -168,7 +169,9 @@ export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus"
     return { plan: "trial", features: trialFeatures, limits: trialLimits, locked: false, trial, reason: "trial" };
   }
 
-  const reason: AccessReason = trial.expired
+  const reason: AccessReason = trial.pending
+    ? "plan_not_selected"
+    : trial.expired
     ? "trial_expired"
     : viewer.subscriptionStatus === "past_due"
       ? "payment_pending"
@@ -178,7 +181,7 @@ export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus"
 }
 
 /** האם מותר לשמור, להעלות ולפרסם כרגע. */
-export function canEdit(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending">) {
+export function canEdit(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending" | "planSelectedAt">) {
   return !resolveAccess(viewer).locked;
 }
 
@@ -188,6 +191,7 @@ export const lockMessages: Record<AccessReason, string> = {
   trial_expired: `תקופת ההתנסות בת ${TRIAL_DAYS} הימים הסתיימה. הכרטיס הציבורי הושהה והעריכה נעולה עד לבחירת מסלול.`,
   payment_pending: "התשלום טרם אושר. ברגע שנאשר את ההעברה בביט המערכת תיפתח מחדש.",
   inactive: "המנוי אינו פעיל. יש לבחור מסלול כדי להמשיך לערוך ולפרסם.",
+  plan_not_selected: "עדיין לא נבחר מסלול. בחירת מסלול פותחת את המערכת ומתחילה את הספירה.",
 };
 
 // ─────────────────────────────────────────────────────────────────────────────

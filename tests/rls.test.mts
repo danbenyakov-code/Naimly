@@ -72,6 +72,22 @@ async function createUser(label: string): Promise<TestUser> {
   return { id: data.user.id, email, client };
 }
 
+/** מדמה מעבר בשער ההצטרפות: בלי זה אין מסלול ואין מנוי חי. */
+async function selectTrial(userId: string) {
+  const endsAt = new Date(Date.now() + 14 * 86400000).toISOString();
+  const { error } = await admin
+    .from("subscriptions")
+    .update({
+      plan_selected_at: new Date().toISOString(),
+      trial_pending: false,
+      trial_started_at: new Date().toISOString(),
+      trial_ends_at: endsAt,
+      current_period_end: endsAt,
+    })
+    .eq("user_id", userId);
+  if (error) throw new Error(`בחירת מסלול נכשלה: ${error.message}`);
+}
+
 describe("RLS — בידוד נתונים בין משתמשים", { skip: skipReason }, () => {
   before(async () => {
     admin = createClient(url!, serviceKey!, { auth: { persistSession: false, autoRefreshToken: false } });
@@ -79,6 +95,10 @@ describe("RLS — בידוד נתונים בין משתמשים", { skip: skipRe
 
     userA = await createUser("a");
     userB = await createUser("b");
+
+    // שני המשתמשים עברו את שער ההצטרפות ובחרו התנסות.
+    await selectTrial(userA.id);
+    await selectTrial(userB.id);
 
     // כרטיס של משתמש א׳, נוצר עם service-role כדי לעקוף את אכיפת המסלול.
     const { data, error } = await admin
@@ -159,6 +179,14 @@ describe("RLS — בידוד נתונים בין משתמשים", { skip: skipRe
     const { data } = await anon.from("cards").select("slug").eq("id", cardA);
     assert.equal(data?.length ?? 0, 0, "כרטיס לא מפורסם נחשף לציבור!");
     await admin.from("cards").update({ is_published: true }).eq("id", cardA);
+  });
+
+  it("כרטיס של מי שטרם בחר מסלול אינו נקרא לציבור", async () => {
+    // מחזירים את א׳ למצב "טרם בחר" ובודקים שהכרטיס המפורסם נסגר.
+    await admin.from("subscriptions").update({ plan_selected_at: null }).eq("user_id", userA.id);
+    const { data } = await anon.from("cards").select("slug").eq("id", cardA);
+    await selectTrial(userA.id);
+    assert.equal(data?.length ?? 0, 0, "כרטיס נחשף בלי שנבחר מסלול!");
   });
 
   // ── לידים ─────────────────────────────────────────────────────────────────

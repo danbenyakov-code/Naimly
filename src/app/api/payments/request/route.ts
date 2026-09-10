@@ -75,6 +75,13 @@ export async function POST(request: Request) {
   });
   if (error) return NextResponse.json({ error: "לא הצלחנו לפתוח את בקשת התשלום" }, { status: 500 });
 
+  /*
+   * בחירת מסלול בתשלום עוברת את שער ההצטרפות, אבל לא פותחת גישה:
+   * effective_plan נשאר 'none' עד לאישור המנהל. בלי הסימון הזה לקוח
+   * שבחר מסלול בתשלום היה נזרק חזרה לשער בכל כניסה.
+   */
+  await admin.rpc("mark_plan_selected", { target_user: viewer.id, target_plan: plan.id });
+
   if (parsed.data.phone) {
     await admin.from("profiles").update({ phone: parsed.data.phone, updated_at: new Date().toISOString() }).eq("id", viewer.id);
   }

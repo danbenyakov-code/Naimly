@@ -189,8 +189,10 @@ export type Viewer = {
   plan: PlanId;
   subscriptionStatus: "trialing" | "active" | "past_due" | "canceled";
   trialEndsAt?: string;
-  /** נרשם אך טרם פרסם — הספירה תתחיל בפרסום הראשון. */
+  /** נרשם אך טרם בחר מסלול — הספירה מתחילה בבחירה. */
   trialPending?: boolean;
+  /** מתי נבחר המסלול. undefined = טרם בחר, ולכן חסום בשער ההצטרפות. */
+  planSelectedAt?: string;
   demo: boolean;
 };
 

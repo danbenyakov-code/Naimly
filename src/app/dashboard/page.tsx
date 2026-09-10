@@ -5,7 +5,6 @@ import { formatCompact } from "@/lib/utils";
 import { resolveAccess } from "@/lib/plan-access";
 import { TrialTimer } from "@/components/trial-timer";
 import { LockedOverlay } from "@/components/dashboard/locked-overlay";
-import { TrialPendingNotice } from "@/components/dashboard/trial-pending-notice";
 import { PlanSummaryCard } from "@/components/dashboard/plan-summary-card";
 
 export default async function DashboardPage() {
@@ -26,9 +25,7 @@ export default async function DashboardPage() {
       {viewer.demo && <div className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#d8d0ff] bg-[#f3f0ff] p-4 text-sm text-[#4636a6] sm:flex-row sm:items-center"><span><strong>מצב הדגמה:</strong> כל המסכים פעילים עם נתוני דוגמה. חיבור Supabase יפעיל חשבונות ונתונים אמיתיים.</span><Link href="/dashboard/settings" className="font-bold underline underline-offset-4">פרטי החיבור</Link></div>}
       {access.locked
         ? <div className="mb-5"><LockedOverlay reason={access.reason} /></div>
-        : trial.pending
-          ? <div className="mb-5"><TrialPendingNotice /></div>
-          : trial.active && <div className="mb-5"><TrialTimer endsAt={trial.endsAt} /></div>}
+        : trial.active && <div className="mb-5"><TrialTimer endsAt={trial.endsAt} /></div>}
 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div><p className="text-sm font-bold text-[#6d4aff]">סקירת פעילות</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">מה קורה בכרטיס שלך</h1><p className="mt-1 text-sm text-[#718096]">הנתונים החשובים והפעולות הבאות במקום אחד.</p></div>

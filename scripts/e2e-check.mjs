@@ -86,7 +86,7 @@ const permanentRedirects = [
 ];
 
 // מסלולים שדורשים התחברות: מצופה הפניה ל-login (או 200 במצב הדגמה).
-const guardedRoutes = ["/dashboard", "/dashboard/card", "/dashboard/analytics", "/dashboard/leads", "/dashboard/settings", "/admin", "/admin/approvals", "/checkout?plan=pro"];
+const guardedRoutes = ["/dashboard", "/dashboard/card", "/dashboard/analytics", "/dashboard/leads", "/dashboard/settings", "/admin", "/admin/approvals", "/checkout?plan=pro", "/onboarding/plan"];
 
 // נתיבי API ובדיקת ההרשאה שלהם ללא התחברות.
 const apiChecks = [
