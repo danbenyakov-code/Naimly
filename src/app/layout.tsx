@@ -4,6 +4,7 @@ import "./globals.css";
 import { CookieConsent } from "@/components/cookie-consent";
 import { FloatingTools } from "@/components/floating-tools";
 import { brand } from "@/lib/config";
+import { Analytics } from "@vercel/analytics/next";
 
 const rubik = Rubik({
   variable: "--font-rubik",
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} h-full antialiased`}>
-      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /></body>
+      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><Analytics /></body>
     </html>
   );
 }
