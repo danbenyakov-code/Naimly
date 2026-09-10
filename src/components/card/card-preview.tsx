@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import type { CSSProperties, ReactNode } from "react";
+import { useState, type CSSProperties, type ReactNode } from "react";
 import { AtSign, BriefcaseBusiness, CalendarDays, Camera, ExternalLink, FileDown, Globe2, Mail, Map, MapPin, MessageCircle, Phone, PlayCircle, Star, UserPlus, Users } from "lucide-react";
 import type { CardData, CardWidget, QuickAction, QuickActionType, SmartButton } from "@/lib/types";
 import { initials, normalizePhone, whatsappUrl } from "@/lib/utils";
@@ -64,6 +64,20 @@ function defaultActions(card: CardData): QuickAction[] {
   ].filter((action) => Boolean(action.value)) as QuickAction[];
 }
 
+/**
+ * תמונה שנעלמת במקום להישבר.
+ *
+ * מקור התמונה הוא בשליטת הלקוח — קישור חיצוני, קובץ שנמחק או תמונת
+ * דוגמה שטרם הועלתה. אייקון "תמונה שבורה" בכרטיס עסקי גרוע מכלום,
+ * ולכן במקרה כשל מוחזר ה-fallback המקורי של הרכיב.
+ */
+function SafeImage({ src, fallback = null, ...rest }: { src?: string; fallback?: ReactNode } & Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src">) {
+  const [failed, setFailed] = useState(false);
+  const safe = safeSrc(src);
+  if (!safe || failed) return <>{fallback}</>;
+  return <img src={safe} onError={() => setFailed(true)} {...rest} alt={rest.alt ?? ""} />;
+}
+
 export function CardPreview({ card, compact = false, onAction, contactForm }: { card: CardData; compact?: boolean; onAction?: (action: string) => void; contactForm?: ReactNode }) {
   const style = { "--card-primary": card.primaryColor, "--card-accent": card.accentColor, "--card-button": card.buttonColor, "--card-heading": card.headingColor, "--card-body": card.bodyTextColor } as CSSProperties;
   const quickActions = (card.quickActions.length ? card.quickActions : defaultActions(card)).slice(0, card.quickActionsLimit);
@@ -87,9 +101,9 @@ export function CardPreview({ card, compact = false, onAction, contactForm }: { 
   }
 
   return <article className="overflow-hidden bg-white text-[var(--card-heading)]" style={style}>
-    <div className="relative h-36 overflow-hidden bg-[linear-gradient(135deg,var(--card-primary),#111b3b)]">{safeSrc(card.coverUrl) ? <img src={safeSrc(card.coverUrl)} alt={card.coverAlt} className="h-full w-full object-cover" /> : <><div className="absolute -left-8 -top-10 h-32 w-32 rounded-full bg-white/10" /><div className="absolute bottom-[-42px] right-[-25px] h-28 w-28 rounded-full bg-[var(--card-accent)]/40 blur-sm" /></>}</div>
+    <div className="relative h-36 overflow-hidden bg-[linear-gradient(135deg,var(--card-primary),#111b3b)]"><SafeImage src={card.coverUrl} alt={card.coverAlt} className="h-full w-full object-cover" fallback={<><div className="absolute -left-8 -top-10 h-32 w-32 rounded-full bg-white/10" /><div className="absolute bottom-[-42px] right-[-25px] h-28 w-28 rounded-full bg-[var(--card-accent)]/40 blur-sm" /></>} /></div>
     <div className="relative px-5 pb-6">
-      <div className="-mt-11 flex items-end justify-between gap-3"><div className={`grid h-[88px] w-[88px] shrink-0 place-items-center overflow-hidden border-4 border-white bg-[#eef0ff] text-2xl font-extrabold text-[var(--card-primary)] shadow-lg ${card.logoShape === "circle" ? "rounded-full" : card.logoShape === "square" ? "rounded-none" : "rounded-[25px]"}`}>{safeSrc(card.logoUrl || card.avatarUrl) ? <img src={safeSrc(card.logoUrl || card.avatarUrl)} alt={card.logoUrl ? card.logoAlt : card.avatarAlt} className="h-full w-full object-cover" /> : initials(card.ownerName)}</div><span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-[#e9fbf7] px-2.5 py-1 text-[11px] font-bold text-[#08735f]"><span className="h-1.5 w-1.5 rounded-full bg-[#14b89d]" /> זמין לפניות</span></div>
+      <div className="-mt-11 flex items-end justify-between gap-3"><div className={`grid h-[88px] w-[88px] shrink-0 place-items-center overflow-hidden border-4 border-white bg-[#eef0ff] text-2xl font-extrabold text-[var(--card-primary)] shadow-lg ${card.logoShape === "circle" ? "rounded-full" : card.logoShape === "square" ? "rounded-none" : "rounded-[25px]"}`}><SafeImage src={card.logoUrl || card.avatarUrl} alt={card.logoUrl ? card.logoAlt : card.avatarAlt} className="h-full w-full object-cover" fallback={initials(card.ownerName)} /></div><span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-[#e9fbf7] px-2.5 py-1 text-[11px] font-bold text-[#08735f]"><span className="h-1.5 w-1.5 rounded-full bg-[#14b89d]" /> זמין לפניות</span></div>
       <div className="mt-4"><p className="text-xs font-bold uppercase tracking-wide text-[var(--card-primary)]">{card.businessName}</p><h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-[var(--card-heading)]">{card.ownerName}</h2><p className="text-sm font-medium text-[var(--card-body)]">{card.roleTitle}</p>{card.slogan && <p className="mt-2 text-sm font-extrabold text-[var(--card-primary)]">{card.slogan}</p>}<p className="mt-3 text-[13px] leading-6 text-[var(--card-body)]">{card.bio}</p></div>
       <div className="mt-5 grid grid-cols-3 gap-2" aria-label="פעולות מהירות">{quickActions.map((action) => { const Icon = actionIcons[action.type] ?? ExternalLink; return <a key={action.id} href={actionHref(action, card)} target={["phone", "whatsapp", "email", "save_contact"].includes(action.type) ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => onAction?.(action.type === "save_contact" ? "contact_save" : action.type)} className="grid min-h-16 place-items-center gap-1 rounded-xl bg-[#f2f4f8] px-1 text-[11px] font-bold text-[var(--card-primary)]"><Icon size={19} /><span className="max-w-full truncate">{action.label}</span></a>; })}</div>
       {card.whatsapp && <a href={whatsappUrl(card.whatsapp, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`)} onClick={() => onAction?.("whatsapp_primary")} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--card-button)] px-4 font-bold text-white">{card.ctaLabel || "בואו נדבר"} <MessageCircle size={17} /></a>}

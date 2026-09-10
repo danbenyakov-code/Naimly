@@ -4,6 +4,7 @@ import { useActionState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Loader2, Sparkles } from "lucide-react";
 import { FormAlert } from "@/components/ui/field";
+import { legalDocuments } from "@/lib/legal";
 import { plans } from "@/lib/config";
 import { TRIAL_DAYS } from "@/lib/plan-access";
 import { formatCurrency } from "@/lib/utils";
@@ -22,13 +23,13 @@ const paid = plans.filter((plan) => plan.id !== "trial");
  */
 export function PlanChoice({ fullName }: { fullName: string }) {
   const [state, submit, pending] = useActionState<SelectPlanResult, FormData>(
-    async () => {
+    async (previous, formData) => {
       /*
-       * הפעולה מסתיימת ב-redirect ולכן אין "אחרי". הזיקוקים יוצאים כאן,
-       * ורצים על ה-canvas הגלובלי גם תוך כדי המעבר לדשבורד.
+       * הזיקוקים יוצאים רק כשהאישור סומן. הפעולה מסתיימת ב-redirect
+       * ולכן אין "אחרי" — אבל אין טעם לחגוג בקשה שתידחה.
        */
-      fireworks({ bursts: 4 });
-      return startTrialAction();
+      if (formData.get("terms")) fireworks({ bursts: 4 });
+      return startTrialAction(previous, formData);
     },
     null,
   );
@@ -86,6 +87,32 @@ export function PlanChoice({ fullName }: { fullName: string }) {
                 <strong className="text-4xl">חינם</strong>
                 <span className="block text-sm text-[#6b778d]">ללא כרטיס אשראי</span>
               </p>
+              <label
+                className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-right text-xs leading-6"
+                style={{ borderColor: state?.field === "terms" ? "#c9304a" : "#dfe4ec" }}
+              >
+                <input
+                  type="checkbox"
+                  name="terms"
+                  required
+                  className="mt-0.5 h-5 w-5 shrink-0 accent-[#6d4aff]"
+                  aria-invalid={state?.field === "terms"}
+                  aria-describedby={state?.field === "terms" ? "onboarding-terms-error" : undefined}
+                />
+                <span className="text-[#4a5871]">
+                  קראתי ואני מאשר/ת את{" "}
+                  {legalDocuments.map((doc, index) => (
+                    <span key={doc.id}>
+                      <Link href={doc.href} target="_blank" className="font-bold text-[#6d4aff] underline underline-offset-2">
+                        {doc.title}
+                      </Link>
+                      {index < legalDocuments.length - 2 ? ", " : index === legalDocuments.length - 2 ? " ו" : ""}
+                    </span>
+                  ))}
+                  .
+                </span>
+              </label>
+
               <button type="submit" disabled={pending} className="button-primary mt-4 min-h-12 w-full">
                 {pending ? (
                   <>
@@ -99,6 +126,11 @@ export function PlanChoice({ fullName }: { fullName: string }) {
                   </>
                 )}
               </button>
+              {state?.field === "terms" && (
+                <p id="onboarding-terms-error" role="alert" className="mt-2 text-xs font-bold text-[#a4243b]">
+                  {state.error}
+                </p>
+              )}
               <p className="mt-2 text-center text-xs leading-5 text-[#6b778d] lg:text-right">
                 השעון מתחיל עכשיו, ברגע הבחירה.
               </p>

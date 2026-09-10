@@ -4,7 +4,8 @@ import { billing, isBillingConfigured, plans } from "@/lib/config";
 import { getViewer } from "@/lib/data";
 import { buildReference, whatsappPaymentLink } from "@/lib/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { LEGAL_VERSION } from "@/lib/legal";
 import { adminNotificationEmail } from "@/lib/config";
 import { sendPaymentRequestNotification } from "@/lib/email";
 
@@ -81,6 +82,15 @@ export async function POST(request: Request) {
    * שבחר מסלול בתשלום היה נזרק חזרה לשער בכל כניסה.
    */
   await admin.rpc("mark_plan_selected", { target_user: viewer.id, target_plan: plan.id });
+
+  // תיעוד ההסכמה למסמכים, עם גרסה ו-IP. ראיה, לא תיבת סימון בממשק.
+  await admin.rpc("record_legal_acceptance", {
+    target_user: viewer.id,
+    acceptance_context: "plan",
+    accepted_version: LEGAL_VERSION,
+    client_ip: await clientIp(),
+    client_agent: request.headers.get("user-agent")?.slice(0, 400) || null,
+  });
 
   if (parsed.data.phone) {
     await admin.from("profiles").update({ phone: parsed.data.phone, updated_at: new Date().toISOString() }).eq("id", viewer.id);

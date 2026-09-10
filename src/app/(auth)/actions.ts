@@ -1,6 +1,9 @@
 "use server";
 
 import { redirect } from "next/navigation";
+import { headers } from "next/headers";
+import { LEGAL_VERSION } from "@/lib/legal";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { resolveOrigin } from "@/lib/origin";
@@ -140,6 +143,25 @@ export async function signupAction(_prev: AuthResult | null, formData: FormData)
       return { ok: false, error: "הסיסמה נדחתה על ידי שירות האימות. יש לבחור סיסמה אחרת שעומדת בדרישות.", field: "password" };
     }
     return { ok: false, error: "לא הצלחנו ליצור את החשבון. אפשר לנסות שוב או לפנות לתמיכה.", field: "email" };
+  }
+
+  /*
+   * תיבת הסימון נבדקה למעלה; כאן ההסכמה הופכת לראיה. בלי גרסה, חותמת
+   * זמן ו-IP אי אפשר להוכיח למה בדיוק הלקוח הסכים.
+   * כישלון בתיעוד לא חוסם הרשמה — אבל הוא נרשם ביומן ולא נבלע.
+   */
+  if (data.user) {
+    const admin = createSupabaseAdminClient();
+    if (admin) {
+      const { error: acceptError } = await admin.rpc("record_legal_acceptance", {
+        target_user: data.user.id,
+        acceptance_context: "signup",
+        accepted_version: LEGAL_VERSION,
+        client_ip: await clientIp(),
+        client_agent: (await headers()).get("user-agent")?.slice(0, 400) || null,
+      });
+      if (acceptError) console.error("record_legal_acceptance failed", acceptError.message);
+    }
   }
 
   // כשאישור מייל פעיל אין session — ממשיכים לשלב הקוד.

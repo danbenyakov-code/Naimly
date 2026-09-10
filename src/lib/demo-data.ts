@@ -1,3 +1,4 @@
+import { SAMPLE_COVER, SAMPLE_LOGO } from "@/lib/sample-media";
 import type { AnalyticsSummary, CardData, Viewer } from "@/lib/types";
 
 // ההתנסות בהדגמה מתחילה בכל טעינה, כדי שהטיימר יציג תמיד מצב חי ותקין.
@@ -32,8 +33,10 @@ export const demoCard: CardData = {
   email: "hello@example.com",
   website: "https://example.com",
   address: "רח׳ החשמונאים 100, תל אביב",
-  avatarUrl: "",
-  coverUrl: "",
+  // תמונות הדוגמה מ-public/samples. אם הקבצים אינם קיימים, SafeImage
+  // נופל אוטומטית לרקע הגרדיאנט ולראשי התיבות — שום דבר לא נשבר.
+  avatarUrl: SAMPLE_LOGO,
+  coverUrl: SAMPLE_COVER,
   logoUrl: "",
   logoShape: "rounded",
   videoUrl: "",

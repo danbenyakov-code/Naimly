@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowLeft, Check, Copy, Loader2, MessageCircle, ShieldCheck } from "lucide-react";
 import type { PlanId } from "@/lib/types";
 import { fireworks } from "@/lib/celebrate";
+import { legalDocuments } from "@/lib/legal";
 
 type Opened = { reference: string; whatsappUrl: string; bitPhone: string; reused?: boolean };
 
@@ -13,6 +14,7 @@ type Opened = { reference: string; whatsappUrl: string; bitPhone: string; reused
  * כדי להשלים את ההעברה בביט מול העסק. ההפעלה מתבצעת לאחר אישור מנהל.
  */
 export function CheckoutButton({ planId, planName, price }: { planId: PlanId; planName: string; price: number }) {
+  const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [phone, setPhone] = useState("");
@@ -20,6 +22,8 @@ export function CheckoutButton({ planId, planName, price }: { planId: PlanId; pl
   const [copied, setCopied] = useState(false);
 
   async function start() {
+    // האישור נאכף גם בשרת; כאן רק מונעים בקשה שתידחה ממילא.
+    if (!accepted) return;
     setLoading(true);
     setError("");
     try {
@@ -104,7 +108,26 @@ export function CheckoutButton({ planId, planName, price }: { planId: PlanId; pl
         />
       </label>
 
-      <button type="button" className="button-primary mt-4 min-h-14 w-full" onClick={start} disabled={loading}>
+      <label className="mt-5 flex cursor-pointer items-start gap-2.5 rounded-xl border border-[#dfe4ec] p-3 text-xs leading-6">
+        <input
+          type="checkbox"
+          checked={accepted}
+          onChange={(event) => setAccepted(event.target.checked)}
+          className="mt-0.5 h-5 w-5 shrink-0 accent-[#6d4aff]"
+        />
+        <span className="text-[#4a5871]">
+          קראתי ואני מאשר/ת את{" "}
+          {legalDocuments.map((doc, index) => (
+            <span key={doc.id}>
+              <Link href={doc.href} target="_blank" className="font-bold text-[#6d4aff] underline underline-offset-2">{doc.title}</Link>
+              {index < legalDocuments.length - 2 ? ", " : index === legalDocuments.length - 2 ? " ו" : ""}
+            </span>
+          ))}
+          , ואני מודע/ת לכך שהמנוי מתחדש אוטומטית עד לביטולו.
+        </span>
+      </label>
+
+      <button type="button" className="button-primary mt-4 min-h-14 w-full" onClick={start} disabled={loading || !accepted}>
         {loading ? <Loader2 size={18} className="animate-spin" /> : <MessageCircle size={18} />}
         {loading ? "פותחים בקשה..." : `תשלום בביט — ${planName}`}
         {!loading && <ArrowLeft size={18} />}
