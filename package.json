@@ -22,6 +22,7 @@
     "db:verify": "node scripts/db-setup.mjs verify",
     "db:migrate": "node scripts/db-migrate.mjs",
     "db:types": "node scripts/db-types.mjs",
+    "supabase:auth": "node scripts/supabase-auth-config.mjs",
     "test:rls": "node --experimental-strip-types --no-warnings --import ./tests/alias-loader.mjs --test tests/rls.test.mts",
     "db:bundle": "node scripts/bundle-migrations.mjs",
     "db:status": "node scripts/db-migrate.mjs --status",
