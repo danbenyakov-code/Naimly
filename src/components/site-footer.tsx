@@ -24,6 +24,8 @@ export function SiteFooter() {
             <Link href="/legal/terms">תנאי שימוש</Link>
             <Link href="/legal/privacy">מדיניות פרטיות</Link>
             <Link href="/legal/cookies">מדיניות עוגיות</Link>
+            <Link href="/legal/acceptable-use">מדיניות שימוש מותר</Link>
+            <Link href="/legal/refund">ביטול והחזרים</Link>
             <Link href="/accessibility">הצהרת נגישות</Link>
             <a href={`mailto:${brand.supportEmail}`}>יצירת קשר</a>
           </div>

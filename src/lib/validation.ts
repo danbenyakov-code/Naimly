@@ -9,7 +9,7 @@ const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע �
 // z.string().url() מאשר גם javascript: ו‑data: — ולכן נדרשת בדיקת סכימה מפורשת.
 const httpUrl = z.string().max(2000).refine(isHttpUrl, "כתובת חייבת להתחיל ב‑http:// או https://");
 const optionalUrl = z.union([z.literal(""), httpUrl]);
-const reservedSlugs = new Set(["admin", "api", "auth", "checkout", "dashboard", "login", "signup", "pricing", "legal", "accessibility", "robots.txt", "sitemap.xml", "forgot-password", "reset-password", "_next", "well-known", "favicon.ico", "manifest.webmanifest", "icon.svg"]);
+const reservedSlugs = new Set(["admin", "api", "auth", "checkout", "dashboard", "login", "signup", "pricing", "legal", "accessibility", "robots.txt", "sitemap.xml", "forgot-password", "reset-password", "_next", "well-known", "favicon.ico", "manifest.webmanifest", "icon.svg", "noa-design", "onboarding", "contact"]);
 
 // רק פעולות שמתורגמות ל‑href חופשי נדרשות לבדיקת URL מלאה.
 const freeLinkActions = new Set(["website", "instagram", "facebook", "linkedin", "tiktok", "youtube", "calendar"]);

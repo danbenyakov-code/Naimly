@@ -69,6 +69,8 @@ const publicRoutes = [
   "/legal/privacy",
   "/legal/terms",
   "/legal/cookies",
+  "/legal/acceptable-use",
+  "/legal/refund",
   "/login",
   "/signup",
   "/contact",
@@ -170,19 +172,17 @@ async function main() {
   console.log("\n== כרטיס ציבורי ==");
   {
     /*
-     * הכרטיס לדוגמה קיים רק במצב הדגמה. כשמוגדר Supabase — גם אם המסד ריק —
-     * getPublicCard פונה למסד ומחזיר 404, וזו התנהגות נכונה. הבדיקה מקבלת
-     * את שני המצבים במקום להניח שהדמו תמיד קיים.
+     * הכרטיס לדוגמה חייב להיות זמין תמיד — הוא ה-CTA "צפייה בכרטיס חי"
+     * בדף הנחיתה. הבדיקה הקודמת קיבלה גם 404, ולכן אישרה במשך זמן
+     * קישור שבור בדף הבית במקום להכשיל עליו.
      */
     const demo = await fetch(base + "/noa-design", { redirect: "manual" });
     if (demo.status === 200) {
       ok("/noa-design → 200 (כרטיס לדוגמה זמין)");
       pages.set("/noa-design", await demo.text());
       demoCardAvailable = true;
-    } else if (demo.status === 404) {
-      ok("/noa-design → 404 (Supabase מוגדר והכרטיס אינו במסד — תקין)");
     } else {
-      fail("/noa-design", `סטטוס לא צפוי ${demo.status}`);
+      fail("/noa-design", `הכרטיס לדוגמה חייב לענות 200 — קיבלנו ${demo.status}`);
     }
 
     // סלאג שאינו קיים חייב להחזיר 404 בכל מצב.

@@ -8,13 +8,15 @@ import { isBackgroundId } from "@/lib/backgrounds";
 import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
 
-type SubscriptionRow = { status?: string | null; current_period_end?: string | null } | null | undefined;
+type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null } | null | undefined;
 
 /** מנוי פעיל, או התנסות שטרם הסתיימה. מרוכז כאן כדי שכל הנתיבים יסכימו. */
 export function isSubscriptionLive(subscription: SubscriptionRow) {
   if (!subscription) return false;
   if (subscription.status === "active") return true;
   if (subscription.status !== "trialing") return false;
+  // אותה הגדרה כמו public.subscription_live במסד: בלי בחירת מסלול אין מנוי חי.
+  if (!subscription.plan_selected_at) return false;
   return Boolean(subscription.current_period_end && new Date(subscription.current_period_end).getTime() > Date.now());
 }
 
@@ -226,12 +228,18 @@ function starterCard(viewer: Viewer): CardData {
 export async function getPublicCard(slug: string): Promise<CardData | null> {
   noStore();
   if (!/^[a-z0-9-]{3,60}$/.test(slug)) return null;
-  if (!isSupabaseConfigured) return slug === demoCard.slug ? demoCard : null;
+  /*
+   * כרטיס ההדגמה זמין תמיד, גם כשהמסד מחובר. עד היום הוא הוחזר רק
+   * במצב הדגמה, ולכן ה-CTA "צפייה בכרטיס חי" בדף הנחיתה החזיר 404
+   * מהרגע שחיברנו את Supabase לפרודקשן.
+   */
+  if (slug === demoCard.slug) return demoCard;
+  if (!isSupabaseConfigured) return null;
   const admin = createSupabaseAdminClient();
   if (admin) {
     const { data } = await admin.from("cards").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
     if (!data) return null;
-    const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end").eq("user_id", data.user_id).maybeSingle();
+    const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
     if (!isSubscriptionLive(subscription)) return null;
     return normalizeCard(data);
   }
@@ -240,7 +248,7 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   const { data } = await supabase.from("cards").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
   if (!data) return null;
   // אותה בדיקת מנוי כמו במסלול ה‑service-role, כדי שכרטיס של מנוי שפג לא יישאר חשוף.
-  const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end").eq("user_id", data.user_id).maybeSingle();
+  const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
   if (subscription && !isSubscriptionLive(subscription)) return null;
   return normalizeCard(data);
 }
