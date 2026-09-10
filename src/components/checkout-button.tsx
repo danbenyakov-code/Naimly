@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Copy, Loader2, MessageCircle, ShieldCheck } from "lucide-react";
 import type { PlanId } from "@/lib/types";
+import { fireworks } from "@/lib/celebrate";
 
 type Opened = { reference: string; whatsappUrl: string; bitPhone: string; reused?: boolean };
 
@@ -30,6 +31,7 @@ export function CheckoutButton({ planId, planName, price }: { planId: PlanId; pl
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "לא הצלחנו לפתוח את בקשת התשלום");
       setOpened(result);
+      fireworks({ bursts: 3 });
       // פתיחה בלשונית חדשה כדי שדף ההזמנה יישאר פתוח עם האסמכתא.
       if (result.whatsappUrl) window.open(result.whatsappUrl, "_blank", "noopener,noreferrer");
     } catch (caught) {

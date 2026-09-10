@@ -53,9 +53,11 @@ export function DashboardShell({ viewer, children }: { viewer: Viewer; children:
         <div className="rounded-2xl bg-[#0b1020] p-4 text-white">
           <p className="text-xs font-bold text-[#74e5d5]">מסלול {planName(access.plan)}</p>
           <p className="mt-1 text-sm text-white/75">
-            {trial.expired ? "ההתנסות הסתיימה" : trial.active ? "תקופת ההתנסות פעילה" : viewer.subscriptionStatus === "active" ? "המנוי פעיל" : "המנוי אינו פעיל"}
+            {trial.expired ? "ההתנסות הסתיימה" : trial.pending ? "ההתנסות טרם התחילה" : trial.active ? "תקופת ההתנסות פעילה" : viewer.subscriptionStatus === "active" ? "המנוי פעיל" : "המנוי אינו פעיל"}
           </p>
-          {(trial.active || trial.expired) && <div className="mt-3"><TrialTimer endsAt={trial.endsAt} variant="compact" /></div>}
+          {trial.pending
+            ? <p className="mt-3 rounded-xl bg-white/10 px-3 py-2 text-xs leading-5 text-white/75">הספירה תתחיל בפרסום הראשון של הכרטיס.</p>
+            : (trial.active || trial.expired) && <div className="mt-3"><TrialTimer endsAt={trial.endsAt} variant="compact" /></div>}
           <Link href="/pricing" className="mt-3 inline-flex text-xs font-bold text-white underline underline-offset-4">
             {trial.active || trial.expired ? "בחירת מסלול" : "ניהול המסלול"}
           </Link>

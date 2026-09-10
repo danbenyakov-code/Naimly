@@ -38,6 +38,8 @@ export type QuickAction = {
 
 export type SmartButtonAction = "url" | "phone" | "whatsapp" | "email" | "waze" | "google_maps" | "booking" | "image" | "menu";
 
+export type ButtonShape = "rounded" | "pill" | "square";
+
 export type SmartButton = {
   id: string;
   label: string;
@@ -45,6 +47,14 @@ export type SmartButton = {
   action: SmartButtonAction;
   value: string;
   imageUrl?: string;
+  /** מזהה מתוך src/lib/icons.ts. */
+  icon?: string;
+  /** צבע רקע. כשריק — נגזר מצבע המותג. */
+  backgroundColor?: string;
+  /** צבע טקסט ואייקון. כשריק — נבחר אוטומטית לפי הניגודיות. */
+  textColor?: string;
+  shape?: ButtonShape;
+  enabled?: boolean;
 };
 
 export type CardWidgetType = "smart_buttons" | "services" | "gallery" | "video" | "testimonials" | "hours" | "files" | "contact_form";
@@ -71,13 +81,34 @@ export type TrackingSettings = {
 };
 
 export type VCardSettings = {
+  /** שם לתצוגה. כשריק — מורכב מפרטי ומשפחה. */
   fullName: string;
+  firstName: string;
+  lastName: string;
   organization: string;
   title: string;
+  /** נייד — הטלפון הראשי בכרטיס איש הקשר. */
   phone: string;
+  /** טלפון נוסף (קווי/משרד). */
+  phoneSecondary: string;
   email: string;
   website: string;
+  /** נשמר לתאימות. הכתובת המובנית היא cardAddress. */
   address: string;
+  note: string;
+  /** האם לצרף את הלוגו/תמונה לאיש הקשר. */
+  includePhoto: boolean;
+};
+
+/** כתובת מובנית לניווט ולכרטיס איש הקשר. */
+export type CardAddress = {
+  country: string;
+  city: string;
+  street: string;
+  houseNumber: string;
+  postalCode: string;
+  latitude: string;
+  longitude: string;
   note: string;
 };
 
@@ -108,7 +139,8 @@ export type CardData = {
   buttonColor: string;
   headingColor: string;
   bodyTextColor: string;
-  backgroundPreset: "aurora" | "midnight" | "paper" | "sunset" | "ocean" | "minimal";
+  /** מזהה מתוך src/lib/backgrounds.ts. נבדק מול הרישום בוולידציה. */
+  backgroundPreset: string;
   template: "spotlight" | "clean" | "bold";
   isPublished: boolean;
   allowIndexing: boolean;
@@ -130,6 +162,8 @@ export type CardData = {
   galleryStyle: "grid" | "carousel";
   tracking: TrackingSettings;
   vcard: VCardSettings;
+  /** כתובת מובנית. ממנה נבנים Waze, Maps וה-vCard. */
+  cardAddress: CardAddress;
   services: ServiceItem[];
   testimonials: Testimonial[];
   businessHours: Array<{ day: string; hours: string }>;
@@ -155,6 +189,8 @@ export type Viewer = {
   plan: PlanId;
   subscriptionStatus: "trialing" | "active" | "past_due" | "canceled";
   trialEndsAt?: string;
+  /** נרשם אך טרם פרסם — הספירה תתחיל בפרסום הראשון. */
+  trialPending?: boolean;
   demo: boolean;
 };
 

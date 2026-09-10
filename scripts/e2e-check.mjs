@@ -71,12 +71,18 @@ const publicRoutes = [
   "/legal/cookies",
   "/login",
   "/signup",
-  "/forgot-password",
-  "/reset-password",
+  "/contact",
+  "/contact?topic=technical",
   "/robots.txt",
   "/sitemap.xml",
   "/manifest.webmanifest",
   "/icon.svg",
+];
+
+// כתובות ישנות שנשמרו לתאימות ומפנות ליעד החדש.
+const permanentRedirects = [
+  { from: "/forgot-password", to: "/login?mode=forgot" },
+  { from: "/reset-password", to: "/login?mode=forgot" },
 ];
 
 // מסלולים שדורשים התחברות: מצופה הפניה ל-login (או 200 במצב הדגמה).
@@ -93,6 +99,8 @@ const apiChecks = [
   { path: "/api/events", method: "POST", body: { slug: "noa-design", type: "view" }, expect: [200, 400, 404, 503] },
   { path: "/api/leads", method: "POST", body: { slug: "noa-design", name: "בדיקה", phone: "0500000000", email: "", message: "" }, expect: [200, 400, 404, 503] },
   { path: "/api/vcard/noa-design", method: "GET", expect: [200, 404] },
+  { path: "/api/contact", method: "POST", body: { topic: "general", name: "בודק", email: "t@e.com", message: "הודעת בדיקה ארוכה מספיק" }, expect: [200, 400, 429, 503] },
+  { path: "/api/contact", method: "POST", body: { topic: "nope" }, expect: [400] },
   { path: "/api/vcard/does-not-exist-xyz", method: "GET", expect: [404] },
   // נתיבים שהוסרו — לא אמורים להתקיים יותר
   { path: "/api/payments/checkout", method: "POST", body: {}, expect: [404, 405] },
@@ -138,6 +146,8 @@ async function main() {
   }
 
   const pages = new Map();
+  // האם הכרטיס לדוגמה זמין. קובע אילו קישורים שתלויים בו נבדקים.
+  let demoCardAvailable = false;
 
   // ── 1. עמודים ציבוריים ────────────────────────────────────────────────────
   console.log("== עמודים ציבוריים ==");
@@ -156,15 +166,40 @@ async function main() {
     }
   }
 
-  // ── 2. עמוד כרטיס ציבורי (הדגמה) ─────────────────────────────────────────
+  // ── 2. עמוד כרטיס ציבורי ─────────────────────────────────────────────────
   console.log("\n== כרטיס ציבורי ==");
-  for (const [route, expected] of [["/noa-design", 200], ["/definitely-not-a-real-slug", 404]]) {
-    const response = await fetch(base + route, { redirect: "manual" });
-    if (response.status === expected) {
-      ok(`${route} → ${response.status}`);
-      if (expected === 200) pages.set(route, await response.text());
+  {
+    /*
+     * הכרטיס לדוגמה קיים רק במצב הדגמה. כשמוגדר Supabase — גם אם המסד ריק —
+     * getPublicCard פונה למסד ומחזיר 404, וזו התנהגות נכונה. הבדיקה מקבלת
+     * את שני המצבים במקום להניח שהדמו תמיד קיים.
+     */
+    const demo = await fetch(base + "/noa-design", { redirect: "manual" });
+    if (demo.status === 200) {
+      ok("/noa-design → 200 (כרטיס לדוגמה זמין)");
+      pages.set("/noa-design", await demo.text());
+      demoCardAvailable = true;
+    } else if (demo.status === 404) {
+      ok("/noa-design → 404 (Supabase מוגדר והכרטיס אינו במסד — תקין)");
     } else {
-      fail(route, `ציפינו ל-${expected}, קיבלנו ${response.status}`);
+      fail("/noa-design", `סטטוס לא צפוי ${demo.status}`);
+    }
+
+    // סלאג שאינו קיים חייב להחזיר 404 בכל מצב.
+    const missing = await fetch(base + "/definitely-not-a-real-slug", { redirect: "manual" });
+    if (missing.status === 404) ok("/definitely-not-a-real-slug → 404");
+    else fail("/definitely-not-a-real-slug", `ציפינו ל-404, קיבלנו ${missing.status}`);
+  }
+
+  // ── 2b. הפניות תאימות ────────────────────────────────────────────────────
+  console.log("\n== הפניות תאימות ==");
+  for (const rule of permanentRedirects) {
+    const response = await fetch(base + rule.from, { redirect: "manual" });
+    const target = response.headers.get("location") || "";
+    if ([301, 302, 307, 308].includes(response.status) && target.includes(rule.to.split("?")[0])) {
+      ok(`${rule.from} → ${response.status} → ${target}`);
+    } else {
+      fail(rule.from, `ציפינו להפניה אל ${rule.to}, קיבלנו ${response.status} ${target}`);
     }
   }
 
@@ -220,7 +255,10 @@ async function main() {
     const target = pathPart || "/";
     try {
       const response = await fetch(base + target, { redirect: "manual" });
-      const good = [200, 301, 302, 307, 308].includes(response.status);
+      // קישורים לכרטיס לדוגמה אינם "שבורים" כשהדמו אינו זמין בסביבה הזו.
+      const demoDependent = href.includes("noa-design");
+      const good = [200, 301, 302, 307, 308].includes(response.status)
+        || (demoDependent && !demoCardAvailable && response.status === 404);
       if (good) {
         ok(`קישור ${href} (מתוך ${[...sources][0]})`);
         if (hash && response.status === 200) anchorChecks.push({ target, hash, href });

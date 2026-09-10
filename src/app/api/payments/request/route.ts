@@ -5,6 +5,8 @@ import { getViewer } from "@/lib/data";
 import { buildReference, whatsappPaymentLink } from "@/lib/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { adminNotificationEmail } from "@/lib/config";
+import { sendPaymentRequestNotification } from "@/lib/email";
 
 const schema = z.object({
   planId: z.enum(["basic", "pro", "premium"]),
@@ -76,6 +78,16 @@ export async function POST(request: Request) {
   if (parsed.data.phone) {
     await admin.from("profiles").update({ phone: parsed.data.phone, updated_at: new Date().toISOString() }).eq("id", viewer.id);
   }
+
+  // המנהל מקבל התראה כדי שלא יצטרך לרענן את מסך האישורים.
+  await sendPaymentRequestNotification({
+    to: adminNotificationEmail,
+    customerName: viewer.fullName,
+    customerEmail: viewer.email,
+    planName: plan.name,
+    amount: plan.price,
+    reference,
+  }).catch(() => null);
 
   return NextResponse.json({ reference, whatsappUrl: link, bitPhone: billing.bitPhone });
 }

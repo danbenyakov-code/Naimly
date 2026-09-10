@@ -13,6 +13,7 @@ export const demoViewer: Viewer = {
   plan: "pro",
   subscriptionStatus: "trialing",
   get trialEndsAt() { return demoTrialEndsAt(); },
+  trialPending: false,
   demo: true,
 };
 
@@ -92,7 +93,21 @@ export const demoCard: CardData = {
   ],
   galleryStyle: "carousel",
   tracking: { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" },
+  cardAddress: {
+    country: "ישראל",
+    city: "תל אביב",
+    street: "החשמונאים",
+    houseNumber: "100",
+    postalCode: "6713303",
+    latitude: "32.0733",
+    longitude: "34.7818",
+    note: "קומה 3, כניסה ב׳",
+  },
   vcard: {
+    firstName: "נועה",
+    lastName: "כהן",
+    phoneSecondary: "03-7654321",
+    includePhoto: true,
     fullName: "נועה כהן",
     organization: "NOA Studio",
     title: "מיתוג ועיצוב לעסקים",

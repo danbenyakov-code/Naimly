@@ -7,6 +7,7 @@ import type { AdminCustomer, PaymentRequestRecord } from "@/lib/admin-data";
 import type { PlanId } from "@/lib/types";
 import { planName } from "@/lib/plan-access";
 import { cn, formatCurrency } from "@/lib/utils";
+import { burst } from "@/lib/celebrate";
 
 type Tab = "pending" | "customers" | "create";
 
@@ -56,13 +57,14 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
   async function review(request: PaymentRequestRecord, action: "approve" | "reject") {
     const result = await call(`/api/admin/payment-requests/${request.id}`, "POST", { action, months: 1 }, request.id);
     if (!result) return;
+    if (action === "approve") burst(undefined, { count: 80 });
     const trimmed = Array.isArray(result.trimmed) && result.trimmed.length ? ` הכרטיס הותאם למסלול: ${result.trimmed.join(", ")}.` : "";
     setNotice(action === "approve" ? `המסלול הופעל עבור ${request.customerName}.${trimmed}` : `הבקשה של ${request.customerName} נדחתה.`);
     router.refresh();
   }
 
-  async function sendCredentials(customer: AdminCustomer, mode: "magic_link" | "reset_password") {
-    const result = await call("/api/admin/users", "PATCH", { userId: customer.id, mode, phone: customer.phone }, customer.id);
+  async function sendCredentials(customer: AdminCustomer) {
+    const result = await call("/api/admin/users", "PATCH", { userId: customer.id, mode: "reset_password", phone: customer.phone }, customer.id);
     if (!result) return;
     setCredentials({ email: customer.email, message: result.message, whatsappUrl: result.whatsappUrl, actionLink: result.actionLink });
     router.refresh();
@@ -222,18 +224,11 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
                 <button
                   type="button"
                   disabled={busy === customer.id || demo}
-                  onClick={() => sendCredentials(customer, "magic_link")}
+                  onClick={() => sendCredentials(customer)}
                   className="button-primary min-h-12 flex-1"
                 >
-                  {busy === customer.id ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />}קישור כניסה
-                </button>
-                <button
-                  type="button"
-                  disabled={busy === customer.id || demo}
-                  onClick={() => sendCredentials(customer, "reset_password")}
-                  className="button-secondary min-h-12 flex-1"
-                >
-                  איפוס סיסמה
+                  {busy === customer.id ? <Loader2 size={17} className="animate-spin" /> : <KeyRound size={17} />}
+                  שליחת קישור לקביעת סיסמה
                 </button>
               </div>
             </article>

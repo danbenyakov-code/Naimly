@@ -6,6 +6,7 @@ import { AtSign, BriefcaseBusiness, CalendarDays, Camera, ExternalLink, FileDown
 import type { CardData, CardWidget, QuickAction, QuickActionType, SmartButton } from "@/lib/types";
 import { initials, normalizePhone, whatsappUrl } from "@/lib/utils";
 import { safeHref, safeSrc } from "@/lib/safe-url";
+import { googleMapsUrl, wazeUrl } from "@/lib/address";
 
 const actionIcons: Record<QuickActionType, typeof Phone> = {
   phone: Phone, whatsapp: MessageCircle, email: Mail, website: Globe2, waze: Map, google_maps: MapPin, save_contact: UserPlus,
@@ -18,8 +19,9 @@ function actionHref(action: QuickAction, card: CardData) {
   if (action.type === "whatsapp") return whatsappUrl(value || card.whatsapp, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`);
   if (action.type === "email") return `mailto:${value || card.email}`;
   if (action.type === "save_contact") return `/api/vcard/${card.slug}`;
-  if (action.type === "waze") return `https://www.waze.com/ul?q=${encodeURIComponent(value)}&navigate=yes`;
-  if (action.type === "google_maps") return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
+  // הכתובת המובנית עדיפה. הערך שהוזן בפעולה משמש רק כגיבוי לכרטיסים ותיקים.
+  if (action.type === "waze") return wazeUrl(card.cardAddress) || `https://www.waze.com/ul?q=${encodeURIComponent(value)}&navigate=yes`;
+  if (action.type === "google_maps") return googleMapsUrl(card.cardAddress) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
   return safeHref(value) || "#";
 }
 

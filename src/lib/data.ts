@@ -4,6 +4,8 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveAccess } from "@/lib/plan-access";
+import { isBackgroundId } from "@/lib/backgrounds";
+import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
 
 type SubscriptionRow = { status?: string | null; current_period_end?: string | null } | null | undefined;
@@ -22,6 +24,53 @@ function stringValue(value: unknown, fallback = "") {
 
 function arrayValue<T>(value: unknown, fallback: T[]): T[] {
   return Array.isArray(value) ? (value as T[]) : fallback;
+}
+
+/**
+ * כרטיס איש הקשר. שדות שנוספו מאוחר יותר נגזרים מהנתונים הקיימים,
+ * כדי שכרטיסים ותיקים לא יאבדו מידע ולא יישברו.
+ */
+function normalizeVCard(row: Record<string, unknown>): CardData["vcard"] {
+  const saved = (row.vcard && typeof row.vcard === "object" ? row.vcard : {}) as Partial<CardData["vcard"]>;
+  const ownerName = stringValue(row.owner_name, "השם שלך");
+  const [derivedFirst, ...restName] = ownerName.split(/\s+/).filter(Boolean);
+
+  return {
+    fullName: stringValue(saved.fullName, ownerName),
+    firstName: stringValue(saved.firstName, derivedFirst || ""),
+    lastName: stringValue(saved.lastName, restName.join(" ")),
+    organization: stringValue(saved.organization, stringValue(row.business_name, "העסק שלי")),
+    title: stringValue(saved.title, stringValue(row.role_title)),
+    phone: stringValue(saved.phone, stringValue(row.phone)),
+    phoneSecondary: stringValue(saved.phoneSecondary),
+    email: stringValue(saved.email, stringValue(row.email)),
+    website: stringValue(saved.website, stringValue(row.website)),
+    address: stringValue(saved.address, stringValue(row.address)),
+    note: stringValue(saved.note),
+    includePhoto: saved.includePhoto !== false,
+  };
+}
+
+/**
+ * כתובת מובנית. כשאין רשומה שמורה — מפרקים את כתובת הטקסט הקיימת,
+ * כדי שקישורי הניווט ימשיכו לעבוד ללא הזנה מחדש.
+ */
+function normalizeCardAddress(row: Record<string, unknown>): CardData["cardAddress"] {
+  const saved = (row.card_address && typeof row.card_address === "object" ? row.card_address : null) as Partial<CardData["cardAddress"]> | null;
+  if (saved && Object.values(saved).some((value) => String(value || "").trim())) {
+    return {
+      country: stringValue(saved.country, "ישראל"),
+      city: stringValue(saved.city),
+      street: stringValue(saved.street),
+      houseNumber: stringValue(saved.houseNumber),
+      postalCode: stringValue(saved.postalCode),
+      latitude: stringValue(saved.latitude),
+      longitude: stringValue(saved.longitude),
+      note: stringValue(saved.note),
+    };
+  }
+  const legacy = stringValue(row.address);
+  return legacy ? parseFreeTextAddress(legacy) : { ...emptyAddress };
 }
 
 export function normalizeCard(row: Record<string, unknown>): CardData {
@@ -52,7 +101,7 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     buttonColor: stringValue(row.button_color, stringValue(row.primary_color, "#6d4aff")),
     headingColor: stringValue(row.heading_color, "#142038"),
     bodyTextColor: stringValue(row.body_text_color, "#53627a"),
-    backgroundPreset: (["aurora", "midnight", "paper", "sunset", "ocean", "minimal"].includes(stringValue(row.background_preset)) ? stringValue(row.background_preset) : "aurora") as CardData["backgroundPreset"],
+    backgroundPreset: isBackgroundId(stringValue(row.background_preset)) ? stringValue(row.background_preset) : "aurora",
     template: (["spotlight", "clean", "bold"].includes(stringValue(row.template)) ? stringValue(row.template) : "spotlight") as CardData["template"],
     isPublished: Boolean(row.is_published),
     allowIndexing: row.allow_indexing !== false,
@@ -81,10 +130,8 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     ]),
     galleryStyle: (stringValue(row.gallery_style) === "carousel" ? "carousel" : "grid") as CardData["galleryStyle"],
     tracking: (row.tracking && typeof row.tracking === "object" ? row.tracking : { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" }) as CardData["tracking"],
-    vcard: (row.vcard && typeof row.vcard === "object" ? row.vcard : {
-      fullName: stringValue(row.owner_name, "השם שלך"), organization: stringValue(row.business_name, "העסק שלי"), title: stringValue(row.role_title),
-      phone: stringValue(row.phone), email: stringValue(row.email), website: stringValue(row.website), address: stringValue(row.address), note: "",
-    }) as CardData["vcard"],
+    vcard: normalizeVCard(row),
+    cardAddress: normalizeCardAddress(row),
     services: arrayValue(row.services, []),
     testimonials: arrayValue(row.testimonials, []),
     businessHours: arrayValue(row.business_hours, []),
@@ -109,7 +156,7 @@ export async function getViewer(): Promise<Viewer | null> {
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
     supabase.from("profiles").select("full_name,role,plan_id").eq("id", authData.user.id).maybeSingle(),
-    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at").eq("user_id", authData.user.id).maybeSingle(),
+    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending").eq("user_id", authData.user.id).maybeSingle(),
   ]);
 
   // הסטטוס נשמר כפי שהוא. תפוגת ההתנסות נגזרת מ‑trialEndsAt דרך plan-access,
@@ -122,7 +169,8 @@ export async function getViewer(): Promise<Viewer | null> {
     role: profile?.role === "admin" ? "admin" : "customer",
     plan: ((subscription?.plan_id || profile?.plan_id || "trial") as PlanId),
     subscriptionStatus,
-    trialEndsAt: subscription?.trial_ends_at || subscription?.current_period_end || undefined,
+    trialEndsAt: subscription?.trial_ends_at || undefined,
+    trialPending: subscription?.trial_pending === true,
     demo: false,
   };
 }

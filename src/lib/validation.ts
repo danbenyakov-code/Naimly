@@ -1,5 +1,10 @@
 import { z } from "zod";
 import { isHttpUrl } from "@/lib/safe-url";
+import { isBackgroundId } from "@/lib/backgrounds";
+import { isIconId } from "@/lib/icons";
+
+/** צבע hex בן 6 ספרות. */
+const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע תקין");
 
 // z.string().url() מאשר גם javascript: ו‑data: — ולכן נדרשת בדיקת סכימה מפורשת.
 const httpUrl = z.string().max(2000).refine(isHttpUrl, "כתובת חייבת להתחיל ב‑http:// או https://");
@@ -41,7 +46,7 @@ export const cardSchema = z.object({
   buttonColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   headingColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   bodyTextColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
-  backgroundPreset: z.enum(["aurora", "midnight", "paper", "sunset", "ocean", "minimal"]),
+  backgroundPreset: z.string().max(60).refine(isBackgroundId, "הרקע שנבחר אינו קיים בספרייה"),
   template: z.enum(["spotlight", "clean", "bold"]),
   isPublished: z.boolean(),
   allowIndexing: z.boolean(),
@@ -71,6 +76,11 @@ export const cardSchema = z.object({
     action: z.enum(["url", "phone", "whatsapp", "email", "waze", "google_maps", "booking", "image", "menu"]),
     value: z.string().max(1000),
     imageUrl: optionalUrl.optional(),
+    icon: z.string().max(60).refine((id) => !id || isIconId(id), "האייקון שנבחר אינו קיים").optional(),
+    backgroundColor: z.union([z.literal(""), hexColor]).optional(),
+    textColor: z.union([z.literal(""), hexColor]).optional(),
+    shape: z.enum(["rounded", "pill", "square"]).optional(),
+    enabled: z.boolean().optional(),
   }).superRefine((button, ctx) => {
     if (freeLinkButtonActions.has(button.action) && button.value && !isHttpUrl(button.value)) {
       ctx.addIssue({ code: "custom", path: ["value"], message: `הקישור של הכפתור „${button.label}” חייב להתחיל ב‑https://` });
@@ -101,10 +111,44 @@ export const cardSchema = z.object({
     metaPixelId: z.union([z.literal(""), z.string().regex(/^\d{5,25}$/, "מזהה Meta Pixel אינו תקין")]),
   }),
   vcard: z.object({
-    fullName: z.string().min(1).max(100), organization: z.string().max(100), title: z.string().max(100),
-    phone: z.string().max(30), email: z.union([z.literal(""), z.string().email()]), website: optionalUrl,
-    address: z.string().max(200), note: z.string().max(300),
-  }),
+    fullName: z.string().max(100),
+    firstName: z.string().max(60),
+    lastName: z.string().max(60),
+    organization: z.string().max(100),
+    title: z.string().max(100),
+    phone: z.string().max(30),
+    phoneSecondary: z.string().max(30),
+    email: z.union([z.literal(""), z.string().email("כתובת האימייל בכרטיס איש הקשר אינה תקינה")]),
+    website: optionalUrl,
+    address: z.string().max(200),
+    note: z.string().max(300),
+    includePhoto: z.boolean(),
+  }).refine(
+    (vcard) => Boolean(vcard.fullName.trim() || vcard.firstName.trim() || vcard.lastName.trim()),
+    { message: "יש להזין שם פרטי, שם משפחה או שם לתצוגה לכרטיס איש הקשר", path: ["firstName"] },
+  ),
+  cardAddress: z.object({
+    country: z.string().max(60),
+    city: z.string().max(80),
+    street: z.string().max(120),
+    houseNumber: z.string().max(20),
+    postalCode: z.string().max(20),
+    latitude: z.string().max(20),
+    longitude: z.string().max(20),
+    note: z.string().max(120),
+  }).refine(
+    (address) => {
+      // נ.צ. חייבים להיות שניהם או אף אחד, ובטווח תקין.
+      const hasLat = Boolean(address.latitude.trim());
+      const hasLon = Boolean(address.longitude.trim());
+      if (!hasLat && !hasLon) return true;
+      if (hasLat !== hasLon) return false;
+      const lat = Number(address.latitude);
+      const lon = Number(address.longitude);
+      return Number.isFinite(lat) && Number.isFinite(lon) && Math.abs(lat) <= 90 && Math.abs(lon) <= 180;
+    },
+    { message: "נדרשים שני שדות הנ.צ. יחד, בטווח תקין (רוחב ±90, אורך ±180)", path: ["latitude"] },
+  ),
   services: z.array(z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(80), description: z.string().max(300), price: z.string().max(50).optional() })).max(30),
   testimonials: z.array(z.object({ id: z.string().min(1).max(100), name: z.string().min(1).max(80), text: z.string().max(500), rating: z.number().int().min(1).max(5) })).max(30),
   businessHours: z.array(z.object({ day: z.string().max(30), hours: z.string().max(50) })).max(10),

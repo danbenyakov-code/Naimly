@@ -24,6 +24,12 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: "לא הצלחנו לשלוח את הפנייה" }, { status: 500 });
   await admin.from("card_events").insert({ card_id: card.id, event_type: "lead", metadata: {} });
   const { data: owner } = await admin.from("profiles").select("email").eq("id", card.user_id).maybeSingle();
-  await sendLeadNotification({ to: owner?.email || "", businessName: card.business_name, lead: { name: parsed.data.name, phone: parsed.data.phone, email: parsed.data.email, message: parsed.data.message } }).catch(() => null);
+  // ההתראה לא חוסמת את התשובה ללקוח — פנייה נשמרת גם אם המייל נכשל.
+  await sendLeadNotification({
+    to: owner?.email || "",
+    businessName: card.business_name,
+    cardSlug: parsed.data.slug,
+    lead: { name: parsed.data.name, phone: parsed.data.phone, email: parsed.data.email, message: parsed.data.message },
+  }).catch(() => null);
   return NextResponse.json({ ok: true });
 }
