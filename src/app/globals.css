@@ -359,3 +359,55 @@ a {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   הנפשות אווירה
+   כולן מכבדות את מתג הנגישות ואת prefers-reduced-motion דרך הכללים
+   הקיימים למעלה, שמאפסים animation ו-transition גלובלית.
+   ───────────────────────────────────────────────────────────────────────── */
+
+@keyframes naimly-float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-9px); }
+}
+
+@keyframes naimly-drift {
+  0%, 100% { transform: translate3d(0, 0, 0) scale(1); }
+  50%      { transform: translate3d(14px, -18px, 0) scale(1.06); }
+}
+
+@keyframes naimly-shimmer {
+  0%   { background-position: 200% 50%; }
+  100% { background-position: -60% 50%; }
+}
+
+@keyframes naimly-pulse-ring {
+  0%   { transform: scale(.85); opacity: .55; }
+  70%  { transform: scale(1.6);  opacity: 0; }
+  100% { transform: scale(1.6);  opacity: 0; }
+}
+
+/* ריחוף עדין. ה-delay מונע מכל האלמנטים לנוע כגוש אחד. */
+.anim-float   { animation: naimly-float 5.5s ease-in-out infinite; }
+.anim-float-2 { animation: naimly-float 6.8s ease-in-out infinite; animation-delay: -1.8s; }
+.anim-float-3 { animation: naimly-float 7.6s ease-in-out infinite; animation-delay: -3.4s; }
+
+/* כתמי האור ברקע ה-hero. איטי במכוון — תנועה מהירה ברקע מתישה. */
+.anim-drift   { animation: naimly-drift 18s ease-in-out infinite; }
+.anim-drift-2 { animation: naimly-drift 24s ease-in-out infinite; animation-delay: -9s; }
+
+/* ברק שעובר על טקסט הגרדיאנט בכותרת. */
+.anim-shimmer {
+  background-size: 220% 100%;
+  animation: naimly-shimmer 7s linear infinite;
+}
+
+/* טבעת שמתפשטת סביב נקודת "חי". */
+.anim-pulse-ring::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  background: currentColor;
+  animation: naimly-pulse-ring 2.4s ease-out infinite;
+}

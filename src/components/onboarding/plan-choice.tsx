@@ -8,6 +8,8 @@ import { plans } from "@/lib/config";
 import { TRIAL_DAYS } from "@/lib/plan-access";
 import { formatCurrency } from "@/lib/utils";
 import { startTrialAction, type SelectPlanResult } from "@/app/onboarding/plan/actions";
+import { fireworks } from "@/lib/celebrate";
+import { PortraitStack } from "@/components/marketing/portrait";
 
 const trial = plans.find((plan) => plan.id === "trial")!;
 const paid = plans.filter((plan) => plan.id !== "trial");
@@ -20,7 +22,14 @@ const paid = plans.filter((plan) => plan.id !== "trial");
  */
 export function PlanChoice({ fullName }: { fullName: string }) {
   const [state, submit, pending] = useActionState<SelectPlanResult, FormData>(
-    async () => startTrialAction(),
+    async () => {
+      /*
+       * הפעולה מסתיימת ב-redirect ולכן אין "אחרי". הזיקוקים יוצאים כאן,
+       * ורצים על ה-canvas הגלובלי גם תוך כדי המעבר לדשבורד.
+       */
+      fireworks({ bursts: 4 });
+      return startTrialAction();
+    },
     null,
   );
 
@@ -35,6 +44,11 @@ export function PlanChoice({ fullName }: { fullName: string }) {
           אי אפשר להיכנס למערכת בלי לבחור — כך תמיד ברור מה כלול ומה השעון מראה.
           אפשר להחליף מסלול בכל רגע, והכרטיס שבנית נשמר.
         </p>
+
+        <div className="mt-6 flex items-center justify-center gap-3">
+          <PortraitStack ids={["noa", "amir", "maya", "roni", "yael"]} size={36} />
+          <span className="text-sm font-bold text-[#607087]">מצטרפים לעסקים שכבר בנו כרטיס</span>
+        </div>
       </header>
 
       {state?.ok === false && (
