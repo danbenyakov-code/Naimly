@@ -38,12 +38,15 @@ export function Reveal({
   delay = 0,
   direction = "up",
   className,
+  id,
   as: Tag = "div",
 }: {
   children: React.ReactNode;
   delay?: number;
   direction?: "up" | "right" | "scale";
   className?: string;
+  /** נדרש כשהסקשן משמש יעד לעוגן, למשל #faq. */
+  id?: string;
   as?: "div" | "li" | "section" | "article";
 }) {
   const ref = useRef<HTMLElement>(null);
@@ -78,6 +81,7 @@ export function Reveal({
 
   return (
     <Tag
+      id={id}
       ref={ref as React.Ref<never>}
       style={{ transitionDelay: `${delay}ms` }}
       className={cn(

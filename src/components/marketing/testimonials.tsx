@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
 import { CountUp, Reveal } from "@/components/ui/reveal";
+import { Portrait, type PortraitId } from "@/components/marketing/portrait";
 import { cn } from "@/lib/utils";
 
 /**
@@ -13,7 +14,7 @@ const testimonials = [
   {
     name: "נועה כהן",
     role: "מיתוג ועיצוב לעסקים",
-    initials: "נכ",
+    portrait: "noa" as PortraitId,
     rating: 5,
     text: "תוך רבע שעה היה לי כרטיס שנראה יותר טוב מהאתר שלי. מאז כל פגישה מסתיימת בסריקה של ה‑QR, ואני רואה בדיוק מי חזר אליי.",
     highlight: "פי 3 יותר פניות מהטלפון",
@@ -21,7 +22,7 @@ const testimonials = [
   {
     name: "איתי ברק",
     role: "יועץ משכנתאות",
-    initials: "אב",
+    portrait: "amir" as PortraitId,
     rating: 5,
     text: "הכי אהבתי שאני מעדכן מחיר או שירות והקישור נשאר אותו קישור. לא צריך להדפיס כרטיסים מחדש בכל שינוי.",
     highlight: "חסך לי הדפסות בכל רבעון",
@@ -29,7 +30,7 @@ const testimonials = [
   {
     name: "מאיה עזר",
     role: "סטודיו לפילאטיס",
-    initials: "מע",
+    portrait: "maya" as PortraitId,
     rating: 5,
     text: "הטופס בכרטיס מביא לי לידים גם כשאני באימון. הכול מגיע מסודר לאזור האישי ואני חוזרת אליהם בערב.",
     highlight: "לידים גם בשעות שאני לא זמינה",
@@ -37,7 +38,7 @@ const testimonials = [
   {
     name: "רוני שלו",
     role: "קבלן שיפוצים",
-    initials: "רש",
+    portrait: "roni" as PortraitId,
     rating: 5,
     text: "אני לא איש מחשבים בכלל. בניתי את הכרטיס לבד מהנייד, בלי שאף אחד יעזור לי. זה באמת פשוט.",
     highlight: "נבנה לגמרי מהנייד",
@@ -105,9 +106,7 @@ export function Testimonials() {
                 <p className="mt-3 flex-1 text-sm leading-7 text-[#4a5871]">״{item.text}״</p>
                 <p className="mt-4 rounded-xl bg-[#f1efff] px-3 py-2 text-xs font-bold text-[#4b3bad]">{item.highlight}</p>
                 <footer className="mt-4 flex items-center gap-3 border-t border-[#eef0f5] pt-4">
-                  <span className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-[#eae7ff] text-sm font-extrabold text-[#4d3db5]">
-                    {item.initials}
-                  </span>
+                  <Portrait id={item.portrait} size={44} className="shrink-0 rounded-full ring-2 ring-[#eae7ff]" />
                   <span className="min-w-0">
                     <strong className="block text-sm">{item.name}</strong>
                     <span className="block text-xs text-[#78859a]">{item.role}</span>
