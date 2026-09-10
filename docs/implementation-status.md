@@ -27,16 +27,25 @@
 | # | חוסם | מה נדרש ממך | מה תלוי בזה |
 |---|-------|--------------|--------------|
 | ~~B1~~ | ~~**אין חיבור Supabase**~~ | ✅ הושלם — 9 מיגרציות רצו מול המסד החי, `npm run db:verify` עובר, 16/16 בדיקות RLS | — |
-| B2 | **תבנית מייל OTP** | Supabase → Authentication → **Emails** → הטאבים **Confirm signup** ו-**Reset password**: להדביק את התבניות מ-[`docs/email-templates/`](email-templates/README.md) | קוד האימות לא יישלח בלי `{{ .Token }}` — יישלח רק קישור, ו-`verifyOtp` ייכשל |
+| ~~B2~~ | ~~**תבנית מייל OTP**~~ | ✅ הוחל — `npm run supabase:auth`. שתי התבניות בשרת מכילות `{{ .Token }}` | — |
 | B3 | **ספק תרגום** | מפתח API (או אישור לחיוב) | תרגום אוטומטי בפאזה 6 |
 | B4a | ~~**SMTP לאפליקציה**~~ | ✅ הושלם — Gmail SMTP ב-`.env.local`, `npm run email:check --send` שלח מייל אמיתי | — |
-| B4b | **SMTP ל-Supabase Auth** | אותם פרטי Gmail בלשונית **SMTP Settings** באותו מסך | בלי זה מיילי ההרשמה עוברים בשרת המובנה של Supabase, שמוגבל למספר זעום בשעה ונכשל בשקט |
+| ~~B4b~~ | ~~**SMTP ל-Supabase Auth**~~ | ✅ הוחל ואומת בשליחה אמיתית — Supabase מסרה ל-Gmail ללא שגיאה | — |
 | B5 | **Deployment Protection ב-Vercel** | Settings → Deployment Protection → Vercel Authentication → **Only Preview Deployments** | הפרודקשן מחזיר כרגע `302 → vercel.com/sso-api` לכל מבקר. אף לקוח לא יכול לראות כרטיס |
-| B6 | **רוטציית סודות** | מפתח `sb_secret_`, סיסמת המסד וסיסמת האפליקציה של Gmail נחשפו בצ׳אט | חובה לפני פתיחת האתר לציבור |
+| B6 | **רוטציית סודות** | ארבעה נחשפו בצ׳אט: מפתח `sb_secret_`, סיסמת המסד, סיסמת האפליקציה של Gmail, וה-`sbp_` Access Token | חובה לפני פתיחת האתר לציבור |
 
-B2 ו-B4b נמצאים באותו מסך בדשבורד — כדאי לסגור את שניהם בביקור אחד.
-ההסבר המלא, כולל למה ה-SMTP שב-`.env.local` **אינו** משרת את מיילי ההרשמה,
-נמצא ב-[`docs/email-templates/README.md`](email-templates/README.md).
+B2 ו-B4b נסגרו ב-`npm run supabase:auth`. הערכים שהוחלו בפועל:
+
+| הגדרה | היה | עכשיו |
+|---|---|---|
+| `mailer_otp_length` | **8** | 6 |
+| `mailer_otp_exp` | 3600 שנ׳ | 600 שנ׳ |
+| תבנית Confirm signup | 254 תווים, בלי `{{ .Token }}` | 1,495 תווים, עם הקוד |
+| תבנית Reset password | ברירת מחדל | 1,523 תווים, עם הקוד |
+| SMTP | ריק (שרת מובנה) | Gmail, אומת בשליחה |
+
+`mailer_otp_length` היה **8** בעוד `otpSchema` דורש בדיוק 6 — כלומר גם עם
+תבנית תקינה כל הרשמה הייתה נדחית. ההסבר המלא ב-[`docs/email-templates/README.md`](email-templates/README.md).
 
 לא אצהיר שמסירת מייל, RLS או תרגום אוטומטי "עובדים" לפני שנבדקו מול פרויקט אמיתי.
 

@@ -26,6 +26,8 @@ for (const file of [".env.local", ".env"]) {
 }
 
 const apply = process.argv.includes("--apply");
+const testIndex = process.argv.indexOf("--test-email");
+const testEmail = testIndex > -1 ? process.argv[testIndex + 1] : "";
 const token = process.env.SUPABASE_ACCESS_TOKEN;
 const ref =
   process.env.SUPABASE_PROJECT_REF ||
@@ -116,35 +118,90 @@ const show = (key, value) =>
 console.log(`\n=== הגדרות Auth בפרויקט ${ref} ===\n`);
 const current = await request("GET");
 
-const changes = Object.entries(desired).filter(([key, value]) => String(current[key] ?? "") !== String(value));
+/*
+ * smtp_pass הוא write-only: ה-API מחזיר digest ולא את הערך שנכתב, ולכן
+ * השוואה עליו תמיד "נכשלת". הוא נכתב תמיד ומאומת פונקציונלית בסוף,
+ * בשליחת מייל אמיתי — לא בהשוואת מחרוזות.
+ */
+const WRITE_ONLY = new Set(["smtp_pass"]);
 
-if (!changes.length) {
-  console.log("✅ כל ההגדרות כבר תואמות. אין מה לשנות.\n");
+const changes = Object.entries(desired).filter(
+  ([key, value]) => WRITE_ONLY.has(key) || String(current[key] ?? "") !== String(value),
+);
+
+const readable = changes.filter(([key]) => !WRITE_ONLY.has(key));
+
+if (!readable.length && !apply && !testEmail) {
+  console.log("✅ כל ההגדרות שניתן לקרוא כבר תואמות.");
+  console.log("   (smtp_pass אינו ניתן לקריאה מהשרת — כתיבה מחדש: --apply)\n");
   process.exit(0);
 }
 
 for (const [key, value] of changes) {
-  console.log(`  ${key}`);
+  console.log(`  ${key}${WRITE_ONLY.has(key) ? "  (write-only — נכתב תמיד)" : ""}`);
   console.log(`     מ:  ${show(key, current[key] ?? "(ריק)")}`);
   console.log(`     ל:  ${show(key, value)}`);
 }
 
 if (!apply) {
-  console.log(`\n${changes.length} שינויים ממתינים. להחלה:  npm run supabase:auth -- --apply\n`);
-  process.exit(0);
+  if (!testEmail) {
+    console.log(`\n${changes.length} שינויים ממתינים. להחלה:  npm run supabase:auth -- --apply\n`);
+    process.exit(0);
+  }
+} else {
+  console.log("\nכותב…");
+  await request("PATCH", Object.fromEntries(changes));
+
+  // אימות: קריאה חוזרת והשוואה. בלי זה אין ראיה שהשינוי נתפס.
+  const after = await request("GET");
+  const failed = changes.filter(
+    ([key, value]) => !WRITE_ONLY.has(key) && String(after[key] ?? "") !== String(value),
+  );
+
+  if (failed.length) {
+    console.error(`\n❌ ${failed.length} הגדרות לא נשמרו: ${failed.map(([key]) => key).join(", ")}`);
+    process.exit(1);
+  }
+
+  console.log(`\n✅ ${changes.length} הגדרות נכתבו, ${readable.length} מהן אומתו בקריאה חוזרת.`);
+  if (readable.length < changes.length) {
+    console.log("   smtp_pass נכתב אך השרת מחזיר digest ולא את הערך, ולכן");
+    console.log("   אי אפשר לאמת אותו בהשוואה. אימות אמיתי:");
+    console.log("     npm run supabase:auth -- --test-email you@example.com");
+  }
+  console.log();
 }
 
-console.log("\nכותב…");
-await request("PATCH", Object.fromEntries(changes));
+/*
+ * אימות פונקציונלי של ה-SMTP.
+ *
+ * זו הבדיקה היחידה שמוכיחה ש-smtp_pass נכון: אם האימות מול Gmail נכשל,
+ * Supabase מחזירה שגיאת שרת במקום לקבל את הבקשה.
+ */
+if (testEmail) {
+  const projectUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
+  if (!projectUrl || !anonKey) {
+    console.error("❌ חסרים NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY.");
+    process.exit(1);
+  }
 
-// אימות: קריאה חוזרת והשוואה. בלי זה אין ראיה שהשינוי נתפס.
-const after = await request("GET");
-const failed = changes.filter(([key, value]) => String(after[key] ?? "") !== String(value));
+  console.log(`=== שליחת מייל שחזור אמיתי אל ${testEmail} ===`);
+  const response = await fetch(`${projectUrl}/auth/v1/recover`, {
+    method: "POST",
+    headers: { apikey: anonKey, "Content-Type": "application/json" },
+    body: JSON.stringify({ email: testEmail }),
+  });
+  const body = await response.text();
 
-if (failed.length) {
-  console.error(`\n❌ ${failed.length} הגדרות לא נשמרו: ${failed.map(([key]) => key).join(", ")}`);
-  process.exit(1);
+  if (response.ok) {
+    console.log("  ✅ Supabase מסרה את המייל ל-SMTP בלי שגיאה.");
+    console.log("     יש לוודא בתיבה שהתקבל מייל עם קוד בן 6 ספרות (גם בספאם).");
+  } else {
+    console.error(`  ❌ נכשל (HTTP ${response.status}): ${body.slice(0, 300)}`);
+    if (/smtp|send|mail/i.test(body)) {
+      console.error("     נראה שפרטי ה-SMTP שגויים — יש לבדוק את סיסמת האפליקציה.");
+    }
+    process.exit(1);
+  }
 }
-
-console.log(`\n✅ ${changes.length} הגדרות נכתבו ואומתו מול השרת.`);
-console.log("   נותר לבדוק הרשמה אמיתית ולוודא שהמייל מכיל קוד בן 6 ספרות.\n");
