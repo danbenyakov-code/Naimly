@@ -133,11 +133,13 @@ for (const [key, value] of Object.entries(desired)) {
 const skipped = Object.keys(process.env).filter((key) => LOCAL_ONLY.has(key));
 if (skipped.length) console.log(`\n  מדולגים במכוון (מקומי בלבד): ${skipped.join(", ")}`);
 
-if (!apply) {
+// --redeploy לבדו לגיטימי: הערכים כבר נכתבו בהרצה קודמת.
+if (!apply && !redeploy) {
   console.log(`\n${Object.keys(desired).length} משתנים ממתינים. להחלה:  npm run vercel:env -- --apply\n`);
   process.exit(0);
 }
 
+if (apply) {
 console.log("\nכותב…");
 for (const [key, value] of Object.entries(desired)) {
   await api("POST", `/v10/projects/${project.id}/env?upsert=true`, {
@@ -166,6 +168,7 @@ if (failed.length) {
 console.log(`\n✅ ${Object.keys(desired).length} משתנים נכתבו ואומתו ליעד production.`);
 console.log("   משתני סביבה אינם חלים על דפלוי קיים — נדרש Redeploy:");
 console.log("     node scripts/vercel-env.mjs --redeploy\n");
+}
 
 /**
  * הפעלת דפלוי חדש לפרודקשן.
