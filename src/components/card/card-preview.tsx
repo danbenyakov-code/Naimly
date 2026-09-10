@@ -8,6 +8,11 @@ import { initials, normalizePhone, whatsappUrl } from "@/lib/utils";
 import { safeHref, safeSrc } from "@/lib/safe-url";
 import { googleMapsUrl, wazeUrl } from "@/lib/address";
 
+/**
+ * נתוני הכרטיס נשמרים כ-JSONB בלי אילוץ על סוג הפעולה, ולכן ערך לא מוכר
+ * יכול להגיע מייבוא, מלקוח ישן או מתיקון ידני. הרינדור חייב לשרוד אותו:
+ * אייקון ברירת מחדל עדיף על עמוד שקורס.
+ */
 const actionIcons: Record<QuickActionType, typeof Phone> = {
   phone: Phone, whatsapp: MessageCircle, email: Mail, website: Globe2, waze: Map, google_maps: MapPin, save_contact: UserPlus,
   instagram: Camera, facebook: Users, linkedin: BriefcaseBusiness, tiktok: AtSign, youtube: PlayCircle, calendar: CalendarDays,
@@ -86,7 +91,7 @@ export function CardPreview({ card, compact = false, onAction, contactForm }: { 
     <div className="relative px-5 pb-6">
       <div className="-mt-11 flex items-end justify-between gap-3"><div className={`grid h-[88px] w-[88px] shrink-0 place-items-center overflow-hidden border-4 border-white bg-[#eef0ff] text-2xl font-extrabold text-[var(--card-primary)] shadow-lg ${card.logoShape === "circle" ? "rounded-full" : card.logoShape === "square" ? "rounded-none" : "rounded-[25px]"}`}>{safeSrc(card.logoUrl || card.avatarUrl) ? <img src={safeSrc(card.logoUrl || card.avatarUrl)} alt={card.logoUrl ? card.logoAlt : card.avatarAlt} className="h-full w-full object-cover" /> : initials(card.ownerName)}</div><span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-[#e9fbf7] px-2.5 py-1 text-[11px] font-bold text-[#08735f]"><span className="h-1.5 w-1.5 rounded-full bg-[#14b89d]" /> זמין לפניות</span></div>
       <div className="mt-4"><p className="text-xs font-bold uppercase tracking-wide text-[var(--card-primary)]">{card.businessName}</p><h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-[var(--card-heading)]">{card.ownerName}</h2><p className="text-sm font-medium text-[var(--card-body)]">{card.roleTitle}</p>{card.slogan && <p className="mt-2 text-sm font-extrabold text-[var(--card-primary)]">{card.slogan}</p>}<p className="mt-3 text-[13px] leading-6 text-[var(--card-body)]">{card.bio}</p></div>
-      <div className="mt-5 grid grid-cols-3 gap-2" aria-label="פעולות מהירות">{quickActions.map((action) => { const Icon = actionIcons[action.type]; return <a key={action.id} href={actionHref(action, card)} target={["phone", "whatsapp", "email", "save_contact"].includes(action.type) ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => onAction?.(action.type === "save_contact" ? "contact_save" : action.type)} className="grid min-h-16 place-items-center gap-1 rounded-xl bg-[#f2f4f8] px-1 text-[11px] font-bold text-[var(--card-primary)]"><Icon size={19} /><span className="max-w-full truncate">{action.label}</span></a>; })}</div>
+      <div className="mt-5 grid grid-cols-3 gap-2" aria-label="פעולות מהירות">{quickActions.map((action) => { const Icon = actionIcons[action.type] ?? ExternalLink; return <a key={action.id} href={actionHref(action, card)} target={["phone", "whatsapp", "email", "save_contact"].includes(action.type) ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => onAction?.(action.type === "save_contact" ? "contact_save" : action.type)} className="grid min-h-16 place-items-center gap-1 rounded-xl bg-[#f2f4f8] px-1 text-[11px] font-bold text-[var(--card-primary)]"><Icon size={19} /><span className="max-w-full truncate">{action.label}</span></a>; })}</div>
       {card.whatsapp && <a href={whatsappUrl(card.whatsapp, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`)} onClick={() => onAction?.("whatsapp_primary")} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--card-button)] px-4 font-bold text-white">{card.ctaLabel || "בואו נדבר"} <MessageCircle size={17} /></a>}
       {!compact && widgets.map(renderWidget)}
     </div>
