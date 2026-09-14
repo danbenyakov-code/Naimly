@@ -69,6 +69,15 @@ async function send(input: { to: string; subject: string; html: string; text: st
         subject: input.subject,
         text: input.text,
         html: input.html,
+        /*
+         * base64 לחלקי הטקסט: משמר בתי UTF-8 במקום quoted-printable
+         * שאיבד תווים עבריים והפך אותם לסימני שאלה.
+         *
+         * לא לגעת כאן ב-headers או ב-encoding: headers.Content-Type דורס
+         * את ה-Content-Type של ההודעה כולה ומוחק את מבנה ה-multipart,
+         * ואז הלקוח מציג את המקור כטקסט גולמי במקום מייל.
+         */
+        textEncoding: "base64",
       });
       return { sent: true, via: "smtp" };
     } catch (error) {
@@ -107,22 +116,55 @@ function escapeHtml(value: string) {
     .replace(/'/g, "&#39;");
 }
 
+/**
+ * מעטפת המייל.
+ *
+ * Gmail ולקוחות רבים מסירים את תגי <html> ו-<body> ומשתילים רק את
+ * התוכן בתוך המיכל שלהם. לכן dir="rtl" ברמת ה-<html> נעלם, וכל
+ * הטקסט נראה מיושר לשמאל. הכיוון והיישור מוגדרים גם על כל div פנימי,
+ * inline, כי זה מה ששורד את החיתוך.
+ */
+/**
+ * מעטפת המייל, בנויה על טבלאות.
+ *
+ * לקוחות דואר — Gmail בראשם — מסירים <html> ו-<body>, מזריקים CSS
+ * משלהם ודורסים text-align על <div>. תכונות HTML על <table> ו-<td>
+ * (dir ו-align) שורדות את זה, ולכן הפריסה נשענת עליהן ולא על CSS.
+ * זו הסיבה שכל מייל שיווקי רציני בנוי מטבלאות ב-2026.
+ */
 function layout(title: string, bodyHtml: string) {
   return `<!doctype html>
 <html lang="he" dir="rtl">
-<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>${escapeHtml(title)}</title></head>
-<body style="margin:0;background:#f4f6fa;font-family:Arial,Helvetica,sans-serif;color:#0b1020">
-  <div style="max-width:560px;margin:0 auto;padding:24px 16px">
-    <div style="background:#0b1020;border-radius:18px 18px 0 0;padding:20px 24px">
-      <span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:-0.5px">${escapeHtml(brand.name)}</span>
-    </div>
-    <div style="background:#ffffff;border-radius:0 0 18px 18px;padding:24px">
-      ${bodyHtml}
-    </div>
-    <p style="margin:16px 0 0;text-align:center;font-size:12px;color:#8b96a8">
-      ${escapeHtml(brand.name)} · <a href="${brand.siteUrl}" style="color:#6d4aff">${escapeHtml(brand.siteUrl)}</a>
-    </p>
-  </div>
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${escapeHtml(title)}</title>
+</head>
+<body dir="rtl" style="margin:0;padding:0;background:#f4f6fa">
+<table dir="rtl" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#f4f6fa;direction:rtl">
+  <tr>
+    <td align="center" dir="rtl" style="padding:24px 16px;direction:rtl">
+      <table dir="rtl" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="max-width:560px;direction:rtl;font-family:Arial,Helvetica,sans-serif;color:#0b1020">
+        <tr>
+          <td dir="rtl" align="right" style="background:#0b1020;border-radius:18px 18px 0 0;padding:20px 24px;text-align:right;direction:rtl">
+            <span style="color:#ffffff;font-size:20px;font-weight:800;letter-spacing:-0.5px">${escapeHtml(brand.name)}</span>
+          </td>
+        </tr>
+        <tr>
+          <td dir="rtl" align="right" style="background:#ffffff;border-radius:0 0 18px 18px;padding:24px;text-align:right;direction:rtl">
+            ${bodyHtml}
+          </td>
+        </tr>
+        <tr>
+          <td dir="rtl" align="center" style="padding:16px 0 0;text-align:center;font-size:12px;color:#8b96a8;direction:rtl">
+            ${escapeHtml(brand.name)} &middot; <a href="${brand.siteUrl}" style="color:#6d4aff">${escapeHtml(brand.siteUrl)}</a>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+</table>
 </body></html>`;
 }
 
@@ -142,15 +184,15 @@ export async function sendLeadNotification(input: {
 
   const html = layout(
     `פנייה חדשה מהכרטיס של ${input.businessName}`,
-    `<h1 style="margin:0 0 8px;font-size:20px">פנייה חדשה 🎉</h1>
-     <p style="margin:0 0 20px;color:#68758a;line-height:1.6">התקבלה פנייה חדשה מהכרטיס של ${escapeHtml(input.businessName)}.</p>
-     <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">פנייה חדשה 🎉</h1>
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">התקבלה פנייה חדשה מהכרטיס של ${escapeHtml(input.businessName)}.</p>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
        ${rows.map(([label, value]) => `<tr>
-         <td style="padding:8px 0;color:#8b96a8;font-size:13px;width:80px">${escapeHtml(label)}</td>
-         <td style="padding:8px 0;font-weight:700">${escapeHtml(value)}</td>
+         <td dir="rtl" align="right" style="padding:8px 0;color:#8b96a8;font-size:13px;width:80px;text-align:right">${escapeHtml(label)}</td>
+         <td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(value)}</td>
        </tr>`).join("")}
      </table>
-     ${lead.message ? `<div style="background:#f6f7fb;border-radius:12px;padding:14px;line-height:1.7">${escapeHtml(lead.message)}</div>` : ""}
+     ${lead.message ? `<table dir="rtl" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="direction:rtl"><tr><td dir="rtl" align="right" style="background:#f6f7fb;border-radius:12px;padding:14px;line-height:1.7;direction:rtl;text-align:justify;text-align-last:right">${escapeHtml(lead.message)}</td></tr></table>` : ""}
      <a href="${brand.siteUrl}/dashboard/leads" style="display:inline-block;margin-top:20px;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
        צפייה בכל הפניות
      </a>`,
@@ -186,12 +228,12 @@ export async function sendPaymentRequestNotification(input: {
 }): Promise<EmailResult> {
   const html = layout(
     "בקשת תשלום חדשה",
-    `<h1 style="margin:0 0 8px;font-size:20px">בקשת תשלום חדשה</h1>
-     <p style="margin:0 0 20px;color:#68758a;line-height:1.6">${escapeHtml(input.customerName)} ביקש להפעיל מסלול ${escapeHtml(input.planName)}.</p>
-     <table style="width:100%;border-collapse:collapse;margin-bottom:16px">
-       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:90px">לקוח</td><td style="padding:8px 0;font-weight:700">${escapeHtml(input.customerName)}</td></tr>
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">בקשת תשלום חדשה</h1>
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">${escapeHtml(input.customerName)} ביקש להפעיל מסלול ${escapeHtml(input.planName)}.</p>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:90px">לקוח</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.customerName)}</td></tr>
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אימייל</td><td style="padding:8px 0;font-weight:700" dir="ltr">${escapeHtml(input.customerEmail)}</td></tr>
-       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מסלול</td><td style="padding:8px 0;font-weight:700">${escapeHtml(input.planName)} — ${input.amount} ש״ח</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מסלול</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.planName)} — ${input.amount} ש״ח</td></tr>
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אסמכתא</td><td style="padding:8px 0;font-weight:700;font-family:monospace" dir="ltr">${escapeHtml(input.reference)}</td></tr>
      </table>
      <a href="${brand.siteUrl}/admin/approvals" style="display:inline-block;margin-top:8px;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
@@ -222,12 +264,12 @@ export async function sendPlanActivatedNotification(input: {
 }): Promise<EmailResult> {
   const html = layout(
     "המסלול הופעל",
-    `<h1 style="margin:0 0 8px;font-size:20px">המסלול שלך פעיל 🎉</h1>
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">המסלול שלך פעיל 🎉</h1>
      <p style="margin:0 0 16px;color:#68758a;line-height:1.6">
        היי ${escapeHtml(input.customerName)}, אישרנו את התשלום והמסלול
        <strong>${escapeHtml(input.planName)}</strong> פעיל למשך ${input.months} חודשים.
      </p>
-     <p style="margin:0 0 20px;color:#68758a;line-height:1.6">הכרטיס שלך חזר לאוויר וכל היכולות של המסלול פתוחות.</p>
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">הכרטיס שלך חזר לאוויר וכל היכולות של המסלול פתוחות.</p>
      <a href="${brand.siteUrl}/dashboard" style="display:inline-block;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
        מעבר לאזור האישי
      </a>`,
@@ -253,7 +295,7 @@ export async function sendContactAcknowledgement(input: {
 }): Promise<EmailResult> {
   const html = layout(
     "קיבלנו את הפנייה",
-    `<h1 style="margin:0 0 8px;font-size:20px">קיבלנו את הפנייה שלך</h1>
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">קיבלנו את הפנייה שלך</h1>
      <p style="margin:0 0 16px;color:#68758a;line-height:1.6">
        היי ${escapeHtml(input.name)}, הפנייה בנושא <strong>${escapeHtml(input.topicLabel)}</strong> התקבלה.
        נחזור אליך בדרך כלל תוך יום עסקים אחד.

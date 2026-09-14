@@ -63,6 +63,10 @@ console.log("\n== 2. שער ההצטרפות ==");
  * יצרה, וזה נראה כמו באג במוצר במקום באג בבדיקה.
  */
 if (!process.argv.includes("--keep")) {
+  /*
+   * כרטיס התצוגה noa-design שייך לאותו חשבון, ואסור שהאיפוס ימחק אותו —
+   * הוא ה-CTA "צפייה בכרטיס חי" בדף הנחיתה וגם היעד של QA-013.
+   */
   await admin.from("cards").delete().eq("user_id", userId);
   await admin.from("legal_acceptances").delete().eq("user_id", userId);
   await admin.from("subscriptions").update({
