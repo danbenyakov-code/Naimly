@@ -182,3 +182,16 @@ describe("REQ-003 — שגיאת הרשמה אינה מוחקת את השם", ()
     assert.match(source, /defaultValue=\{keptValue\(signupState, "email"\)\}/);
   });
 });
+
+describe("רגרסיה — הגיבוי בקוד אינו עוקף הסרת פרסום", () => {
+  it("שורה שאינה מפורסמת מחזירה null גם עבור סלאג ההדגמה", () => {
+    const source = read("src/lib/data.ts");
+    assert.match(source, /if \(data\.is_published !== true\) return null;/,
+      "בלי הבדיקה הזו, הסרת פרסום מכרטיס התצוגה לא מסירה אותו מהאוויר");
+  });
+
+  it("הגיבוי חל רק כשאין שורה במסד", () => {
+    const source = read("src/lib/data.ts");
+    assert.match(source, /if \(!data\) return slug === demoCard\.slug \? demoCard : null;/);
+  });
+});

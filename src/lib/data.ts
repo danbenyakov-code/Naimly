@@ -225,16 +225,20 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   if (!isSupabaseConfigured) return slug === demoCard.slug ? demoCard : null;
   const admin = createSupabaseAdminClient();
   if (admin) {
-    const { data } = await admin.from("cards").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
+    const { data } = await admin.from("cards").select("*").eq("slug", slug).maybeSingle();
+    // הגיבוי בקוד תקף רק כשאין שורה כלל. שורה שאינה מפורסמת פירושה
+    // שהבעלים הסיר אותה מהאוויר, ואסור לעקוף את זה.
     if (!data) return slug === demoCard.slug ? demoCard : null;
+    if (data.is_published !== true) return null;
     const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
     if (!isSubscriptionLive(subscription)) return null;
     return normalizeCard(data);
   }
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
-  const { data } = await supabase.from("cards").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
+  const { data } = await supabase.from("cards").select("*").eq("slug", slug).maybeSingle();
   if (!data) return slug === demoCard.slug ? demoCard : null;
+  if (data.is_published !== true) return null;
   // אותה בדיקת מנוי כמו במסלול ה‑service-role, כדי שכרטיס של מנוי שפג לא יישאר חשוף.
   const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
   if (subscription && !isSubscriptionLive(subscription)) return null;
