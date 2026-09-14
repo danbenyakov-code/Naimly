@@ -311,3 +311,88 @@ export async function sendContactAcknowledgement(input: {
 
   return send({ to: input.to, subject: `קיבלנו את הפנייה שלך — ${input.topicLabel}`, html, text });
 }
+
+/**
+ * תיעוד הסכמה למסמכים המשפטיים, למנהל המערכת.
+ *
+ * הסכמה שנרשמה במסד אך איש אינו יודע עליה היא ראיה שצריך לחפש אותה.
+ * המייל הזה הופך כל אישור לרשומה שמגיעה מעצמה לתיבת המנהל, עם כל מה
+ * שנדרש כדי להוכיח מי אישר, מה בדיוק אושר, מתי ומאיפה.
+ *
+ * נשלח בכל אחד משלושת המסלולים: בחירת התנסות, בחירת מסלול בתשלום,
+ * ואישור מחדש לאחר עדכון גרסה.
+ */
+export async function sendLegalAcceptanceNotification(input: {
+  to: string;
+  customerName: string;
+  customerEmail: string;
+  customerPhone?: string;
+  context: "signup" | "plan" | "re_accept";
+  contextLabel: string;
+  planName: string;
+  cycle?: BillingCycle;
+  amount?: number;
+  documentVersion: string;
+  documents: string[];
+  acceptedAt: string;
+  ip?: string;
+  userAgent?: string;
+}): Promise<EmailResult> {
+  const when = new Date(input.acceptedAt);
+  const stamp = Number.isNaN(when.getTime())
+    ? input.acceptedAt
+    : when.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "full", timeStyle: "medium" });
+
+  const billingLine = input.amount
+    ? `${input.planName} — ${input.amount} ש״ח · ${billingCycleLabel[input.cycle || "monthly"]}`
+    : input.planName;
+
+  const rows: Array<[string, string, "rtl" | "ltr"]> = [
+    ["לקוח", input.customerName, "rtl"],
+    ["אימייל", input.customerEmail, "ltr"],
+    ["טלפון", input.customerPhone || "לא נמסר", "ltr"],
+    ["הקשר האישור", input.contextLabel, "rtl"],
+    ["מסלול", billingLine, "rtl"],
+    ["גרסת המסמכים", input.documentVersion, "ltr"],
+    ["מסמכים שאושרו", input.documents.join(", "), "ltr"],
+    ["מועד האישור", stamp, "rtl"],
+    ["כתובת IP", input.ip || "לא נרשמה", "ltr"],
+    ["דפדפן", (input.userAgent || "לא נרשם").slice(0, 180), "ltr"],
+  ];
+
+  const html = layout(
+    "תיעוד אישור תנאי שימוש",
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">תיעוד אישור תנאי שימוש</h1>
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">${escapeHtml(input.customerName)} אישר/ה את המסמכים המשפטיים וחתם/ה עליהם דיגיטלית.</p>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       ${rows
+         .map(
+           ([label, value, dir]) =>
+             `<tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:120px">${escapeHtml(label)}</td>` +
+             (dir === "ltr"
+               ? `<td style="padding:8px 0;font-weight:700;word-break:break-all" dir="ltr">${escapeHtml(value)}</td></tr>`
+               : `<td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(value)}</td></tr>`),
+         )
+         .join("\n       ")}
+     </table>
+     <p dir="rtl" align="right" style="margin:0;color:#8b96a8;font-size:12px;line-height:1.6;direction:rtl;text-align:right">
+       רשומה זו נשמרה גם בטבלת legal_acceptances ומהווה תיעוד קבוע. אין למחוק אותה.
+     </p>`,
+  );
+
+  const text = [
+    "תיעוד אישור תנאי שימוש",
+    "",
+    ...rows.map(([label, value]) => `${label}: ${value}`),
+    "",
+    "הרשומה נשמרה גם בטבלת legal_acceptances.",
+  ].join("\n");
+
+  return send({
+    to: input.to,
+    subject: `אישור תנאי שימוש — ${input.customerName} — ${input.contextLabel}`,
+    html,
+    text,
+    replyTo: input.customerEmail,
+  });
+}

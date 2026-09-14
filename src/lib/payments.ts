@@ -31,33 +31,73 @@ type MessageInput = {
   reference: string;
   renewal?: boolean;
   cycle?: BillingCycle;
+  /** טלפון שהלקוח מסר בטופס, אם מסר. */
+  phone?: string;
+  /** גרסת המסמכים שאושרה, לתיעוד בתוך ההודעה עצמה. */
+  termsVersion?: string;
+  /** מועד האישור, בפורמט ISO. */
+  acceptedAt?: string;
 };
 
+/** תאריך קריא בעברית, לפי שעון ישראל. */
+function formatStamp(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" });
+}
+
+/**
+ * ההודעה שנפתחת בוואטסאפ מול מספר החיוב.
+ *
+ * ההודעה היא המסמך היחיד ששני הצדדים רואים ברגע התשלום, ולכן היא
+ * מכילה את מלוא הפרטים: מי משלם, על מה, כמה, באיזה מחזור, לפי איזו
+ * אסמכתא ותחת איזו גרסת תקנון. בלי זה המנהל מקבל העברה בביט ואין לו
+ * דרך לקשור אותה לחשבון — וזו בדיוק התקלה שמגיעה אחרי שהכסף עבר.
+ */
 export function paymentMessage(input: MessageInput) {
   const { plan, viewer, reference, renewal } = input;
   const cycle = input.cycle || "monthly";
   const amount = cycleAmount(plan.price, cycle);
+  const accepted = formatStamp(input.acceptedAt);
 
   /*
    * הסכום בהודעה הוא הסכום שייגבה בפועל. לקוח ששילם על שנה וקיבל
-   * הודעה עם המחיר החודשי היה מעביר את הסכום הלא נכון — וזו תקלה
-   * שמתגלה רק אחרי שהכסף כבר עבר.
+   * הודעה עם המחיר החודשי היה מעביר את הסכום הלא נכון.
    */
   const lines = [
     `שלום ${brand.name}, אני רוצה ${renewal ? "לחדש" : "להפעיל"} מסלול ${plan.name}.`,
     "",
+    "── פרטי ההזמנה ──",
+    `מסלול: ${plan.name}`,
+    `מחזור חיוב: ${cycle === "annual" ? "שנתי — תשלום מראש ל-12 חודשים" : "חודשי מתחדש"}`,
     cycle === "annual"
-      ? `סכום: ${amount} ש״ח לשנה (תשלום מראש ל-12 חודשים)`
-      : `סכום: ${amount} ש״ח לחודש`,
-    `אימייל בחשבון: ${viewer.email}`,
-    `שם: ${viewer.fullName}`,
+      ? `סכום לתשלום: ${amount} ש״ח לשנה (כולל מע״מ)`
+      : `סכום לתשלום: ${amount} ש״ח לחודש (כולל מע״מ)`,
     `מספר אסמכתא: ${reference}`,
+    "",
+    "── פרטי המזמין ──",
+    `שם: ${viewer.fullName}`,
+    `אימייל בחשבון: ${viewer.email}`,
   ];
-  if (billing.bitPhone) {
-    lines.push("", `אשלח את התשלום בביט למספר ${billing.bitPhone} (${billing.bitDisplayName}) ואצרף צילום מסך.`);
-  } else {
-    lines.push("", "אשמח לקבל את פרטי התשלום בביט.");
+
+  if (input.phone) lines.push(`טלפון: ${input.phone}`);
+
+  if (input.termsVersion) {
+    lines.push(
+      "",
+      "── אישור תנאים ──",
+      `אישרתי את תנאי השימוש ומדיניות הפרטיות, גרסה ${input.termsVersion}${accepted ? ` (${accepted})` : ""}.`,
+    );
   }
+
+  lines.push("", "── תשלום ──");
+  if (billing.bitPhone) {
+    lines.push(`אשלח את התשלום בביט למספר ${billing.bitPhone} (${billing.bitDisplayName}) ואצרף צילום מסך.`);
+  } else {
+    lines.push("אשמח לקבל את פרטי התשלום בביט.");
+  }
+
   return lines.join("\n");
 }
 

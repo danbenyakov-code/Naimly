@@ -8,6 +8,7 @@ import { cardSchema, missingForPublish } from "@/lib/validation";
 import { cardToDatabaseRow } from "@/lib/card-row";
 import { lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { requiresLegalReAcceptance } from "@/lib/legal";
 
 /** תווית קריאה לכל שדה, כדי שהשגיאה תגיד "תמונת שיתוף" ולא "socialImageUrl". */
 const fieldLabels: Record<string, string> = {
@@ -23,6 +24,19 @@ const fieldLabels: Record<string, string> = {
 export async function POST(request: Request) {
   const viewer = await getViewer();
   if (!viewer) return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+
+  /*
+   * אותה חסימה כמו בשער הכניסה, גם כאן. חסימה בממשק בלבד היא הצגה:
+   * בקשה ישירה ל-API הייתה עוקפת אותה ומאפשרת להמשיך לעבוד תחת נוסח
+   * שלא אושר.
+   */
+  if (!viewer.demo && requiresLegalReAcceptance(viewer.termsVersion)) {
+    return NextResponse.json({
+      error: "פורסם נוסח מעודכן של תנאי השימוש. יש לאשר אותו לפני שמירת שינויים.",
+      reason: "terms_outdated",
+      acceptUrl: "/legal/accept",
+    }, { status: 403 });
+  }
 
   const access = resolveAccess(viewer);
   if (access.locked) {

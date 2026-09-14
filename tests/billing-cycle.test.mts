@@ -131,18 +131,28 @@ describe("REQ-010 — גילוי המע״מ", () => {
     }
   });
 
-  it("הנוסח במחירון תואם לנוסח בתנאי השימוש", () => {
+  it("המחירים כוללים מע״מ — באותו נוסח בתקנון ובמחירון", () => {
     /*
-     * בתנאי השימוש הביטוי מפוצל בתגית <strong>, ולכן ההשוואה היא על
-     * שני מרכיבים ששורדים את הסימון ולא על המשפט כמחרוזת אחת.
+     * זו הבדיקה שמונעת את הסתירה המסוכנת ביותר בין מסמך למסך: תקנון
+     * שאומר "כולל" ומחירון שאומר "לא כולל". במחלוקת, הנוסח שהלקוח ראה
+     * במסך הרכישה הוא שמכריע — ולכן השניים חייבים להיות זהים.
      */
     const terms = read("src/app/legal/terms/page.tsx");
-    assert.ok(terms.includes("אינם כוללים מע״מ"), "תנאי השימוש שינו נוסח");
-    assert.ok(terms.includes("שיתווסף כדין"), "תנאי השימוש שינו נוסח");
+    assert.ok(terms.includes("כל המחירים כוללים מע״מ כדין"), "תנאי השימוש שינו נוסח");
+    assert.ok(!terms.includes("אינם כוללים מע״מ"), "נשארה בתקנון הצהרה סותרת");
 
     const pricing = read("src/components/marketing/billing-toggle.tsx");
-    assert.ok(pricing.includes("אינם כוללים מע״מ"));
-    assert.ok(pricing.includes("שיתווסף כדין"));
+    assert.ok(pricing.includes("כל המחירים כוללים מע״מ כדין"));
+
+    // אף מסך שמציג מחיר אינו רשאי לומר את ההפך.
+    for (const path of [
+      "src/components/marketing/billing-toggle.tsx",
+      "src/components/onboarding/plan-choice.tsx",
+      "src/app/checkout/page.tsx",
+      "src/app/legal/refund/page.tsx",
+    ]) {
+      assert.ok(!read(path).includes("אינם כוללים מע״מ"), `${path} סותר את התקנון`);
+    }
   });
 });
 

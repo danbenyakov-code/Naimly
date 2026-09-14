@@ -5,9 +5,9 @@ import { getViewer } from "@/lib/data";
 import { buildReference, whatsappPaymentLink } from "@/lib/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
-import { LEGAL_VERSION } from "@/lib/legal";
+import { bindingDocumentIds, LEGAL_VERSION } from "@/lib/legal";
 import { adminNotificationEmail } from "@/lib/config";
-import { sendPaymentRequestNotification } from "@/lib/email";
+import { sendLegalAcceptanceNotification, sendPaymentRequestNotification } from "@/lib/email";
 
 const schema = z.object({
   planId: z.enum(["basic", "pro", "premium"]),
@@ -44,8 +44,26 @@ export async function POST(request: Request) {
   const cycle = toBillingCycle(parsed.data.cycle);
   const amount = cycleAmount(plan.price, cycle);
 
+  /*
+   * פרטי ההסכמה נקבעים כאן, לפני בניית ההודעה, כדי שההודעה שהלקוח
+   * שולח בוואטסאפ תישא בדיוק את אותה גרסה ואותו מועד שנרשמים במסד.
+   */
+  const ip = await clientIp();
+  const userAgent = request.headers.get("user-agent")?.slice(0, 400) || "";
+  const acceptedAt = new Date().toISOString();
+  const phone = parsed.data.phone?.trim() || "";
+
+  const messageBase = {
+    plan,
+    viewer,
+    cycle,
+    phone,
+    termsVersion: LEGAL_VERSION,
+    acceptedAt,
+  } as const;
+
   const reference = buildReference(viewer.id, plan.id);
-  const link = whatsappPaymentLink({ plan, viewer, reference, cycle });
+  const link = whatsappPaymentLink({ ...messageBase, reference });
 
   if (viewer.demo) {
     return NextResponse.json({ reference, whatsappUrl: link, bitPhone: billing.bitPhone, demo: true });
@@ -67,7 +85,7 @@ export async function POST(request: Request) {
   if (existing) {
     return NextResponse.json({
       reference: existing.reference,
-      whatsappUrl: whatsappPaymentLink({ plan, viewer, reference: existing.reference, cycle }),
+      whatsappUrl: whatsappPaymentLink({ ...messageBase, reference: existing.reference }),
       bitPhone: billing.bitPhone,
       reused: true,
     });
@@ -81,7 +99,7 @@ export async function POST(request: Request) {
     billing_cycle: cycle,
     method: "bit",
     status: "pending",
-    contact_phone: parsed.data.phone || "",
+    contact_phone: phone,
     note: parsed.data.note || "",
   });
   if (error) return NextResponse.json({ error: "לא הצלחנו לפתוח את בקשת התשלום" }, { status: 500 });
@@ -98,13 +116,32 @@ export async function POST(request: Request) {
     target_user: viewer.id,
     acceptance_context: "plan",
     accepted_version: LEGAL_VERSION,
-    client_ip: await clientIp(),
-    client_agent: request.headers.get("user-agent")?.slice(0, 400) || null,
+    client_ip: ip,
+    client_agent: userAgent || null,
   });
 
-  if (parsed.data.phone) {
-    await admin.from("profiles").update({ phone: parsed.data.phone, updated_at: new Date().toISOString() }).eq("id", viewer.id);
+  if (phone) {
+    await admin.from("profiles").update({ phone, updated_at: new Date().toISOString() }).eq("id", viewer.id);
   }
+
+  // תיעוד ההסכמה נשלח בנפרד מבקשת התשלום: הוא ראיה משפטית, ולא
+  // הודעה תפעולית שאפשר למחוק אחרי שהתשלום אושר.
+  await sendLegalAcceptanceNotification({
+    to: adminNotificationEmail,
+    customerName: viewer.fullName,
+    customerEmail: viewer.email,
+    customerPhone: phone,
+    context: "plan",
+    contextLabel: "בחירת מסלול בתשלום",
+    planName: plan.name,
+    cycle,
+    amount,
+    documentVersion: LEGAL_VERSION,
+    documents: bindingDocumentIds,
+    acceptedAt,
+    ip,
+    userAgent,
+  }).catch(() => null);
 
   // המנהל מקבל התראה כדי שלא יצטרך לרענן את מסך האישורים.
   await sendPaymentRequestNotification({

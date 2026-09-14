@@ -202,6 +202,10 @@ export type Viewer = {
   planSelectedAt?: string;
   /** מתי סיים או דילג על ההדרכה. undefined = טרם ראה. */
   onboardingSeenAt?: string;
+  /** גרסת המסמכים המשפטיים שאושרה לאחרונה. אי-התאמה לנוכחית חוסמת. */
+  termsVersion?: string;
+  /** מתי ניתן האישור האחרון. */
+  termsAcceptedAt?: string;
   demo: boolean;
 };
 

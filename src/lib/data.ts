@@ -161,7 +161,7 @@ export async function getViewer(): Promise<Viewer | null> {
   if (!authData.user) return null;
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
-    supabase.from("profiles").select("full_name,role,plan_id,onboarding_seen_at").eq("id", authData.user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name,role,plan_id,onboarding_seen_at,terms_version,terms_accepted_at").eq("id", authData.user.id).maybeSingle(),
     supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at").eq("user_id", authData.user.id).maybeSingle(),
   ]);
 
@@ -179,6 +179,8 @@ export async function getViewer(): Promise<Viewer | null> {
     trialPending: subscription?.trial_pending === true,
     planSelectedAt: subscription?.plan_selected_at || undefined,
     onboardingSeenAt: profile?.onboarding_seen_at || undefined,
+    termsVersion: profile?.terms_version || undefined,
+    termsAcceptedAt: profile?.terms_accepted_at || undefined,
     demo: false,
   };
 }

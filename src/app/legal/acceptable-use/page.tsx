@@ -18,7 +18,7 @@ export default function AcceptableUsePage() {
       <p className="rounded-2xl border border-[#e1d9ff] bg-[#f6f3ff] p-4 text-sm leading-7">
         <strong>גרסה {LEGAL_VERSION}.</strong> מסמך זה מהווה חלק בלתי נפרד מ
         <Link className={link} href="/legal/terms">תנאי השימוש</Link>. הפרתו מהווה הפרה יסודית
-        של ההסכם ומקימה לספק את הזכויות המפורטות בסעיף 8 שם.
+        של ההסכם ומקימה לספק את הזכויות המפורטות בסעיף 15 שם.
       </p>
 
       <h2>1. תוכן אסור</h2>
@@ -72,7 +72,7 @@ export default function AcceptableUsePage() {
         <li>דיווח לרשויות אכיפת החוק, כשהדבר נדרש על פי דין.</li>
       </ul>
       <p>
-        בעילות המנויות בסעיף 8.1 ל<Link className={link} href="/legal/terms">תנאי השימוש</Link> ניתן
+        בעילות המנויות בסעיף 15.1 ל<Link className={link} href="/legal/terms">תנאי השימוש</Link> ניתן
         לפעול לאלתר וללא התראה. בכל יתר המקרים תישלח התראה ותינתן שהות של 7 ימים לתיקון.
       </p>
 

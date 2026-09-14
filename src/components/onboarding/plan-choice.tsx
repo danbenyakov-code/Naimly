@@ -195,8 +195,8 @@ export function PlanChoice({ fullName }: { fullName: string }) {
         ))}
       </div>
 
-      {/* אותה הצהרה כמו במחירון ובמסמכים המשפטיים, באותו נוסח. */}
-      <p className="mt-4 text-center text-xs text-[#8b96a8]">המחירים אינם כוללים מע״מ, שיתווסף כדין.</p>
+      {/* אותה הצהרה כמו במחירון ובתנאי השימוש, באותו נוסח. */}
+      <p className="mt-4 text-center text-xs text-[#8b96a8]">כל המחירים כוללים מע״מ כדין.</p>
 
       <p className="mt-10 text-center text-sm text-[#6b778d]">
         רוצה להשוות לעומק?{" "}
