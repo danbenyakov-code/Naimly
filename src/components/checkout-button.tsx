@@ -7,6 +7,7 @@ import type { PlanId } from "@/lib/types";
 import { fireworks } from "@/lib/celebrate";
 import { legalDocuments } from "@/lib/legal";
 import type { BillingCycle } from "@/lib/config";
+import { LegalLink } from "@/components/legal/legal-dialog";
 
 type Opened = { reference: string; whatsappUrl: string; bitPhone: string; reused?: boolean };
 
@@ -131,7 +132,8 @@ export function CheckoutButton({
           קראתי ואני מאשר/ת את{" "}
           {legalDocuments.map((doc, index) => (
             <span key={doc.id}>
-              <Link href={doc.href} target="_blank" className="font-bold text-[#6d4aff] underline underline-offset-2">{doc.title}</Link>
+              {/* REQ-016: חלונית ולא לשונית חדשה. */}
+              <LegalLink docId={doc.id}>{doc.title}</LegalLink>
               {index < legalDocuments.length - 2 ? ", " : index === legalDocuments.length - 2 ? " ו" : ""}
             </span>
           ))}

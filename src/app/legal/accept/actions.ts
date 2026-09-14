@@ -36,7 +36,7 @@ export async function acceptTermsAction(_prev: AcceptResult, formData: FormData)
   const ip = await clientIp();
   const userAgent = (headerList.get("user-agent") || "").slice(0, 400);
 
-  const { data: acceptedAt, error } = await supabase.rpc("accept_current_terms", {
+  const { data: accepted, error } = await supabase.rpc("accept_current_terms", {
     accepted_version: LEGAL_VERSION,
     client_ip: ip,
     client_agent: userAgent,
@@ -45,6 +45,9 @@ export async function acceptTermsAction(_prev: AcceptResult, formData: FormData)
   if (error) {
     return { ok: false, error: "לא הצלחנו לרשום את האישור. אפשר לנסות שוב, ואם זה חוזר — לפנות אלינו." };
   }
+
+  // הפונקציה מחזירה טבלה; השורה הראשונה היא הרשומה שנוצרה.
+  const record = Array.isArray(accepted) ? accepted[0] : null;
 
   const { data: profile } = await supabase
     .from("profiles")
@@ -69,7 +72,8 @@ export async function acceptTermsAction(_prev: AcceptResult, formData: FormData)
     planName,
     documentVersion: LEGAL_VERSION,
     documents: bindingDocumentIds,
-    acceptedAt: typeof acceptedAt === "string" ? acceptedAt : new Date().toISOString(),
+    acceptedAt: record?.accepted_at || new Date().toISOString(),
+    reference: record?.reference,
     ip,
     userAgent,
   }).catch(() => null);

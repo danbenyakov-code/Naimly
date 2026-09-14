@@ -193,14 +193,14 @@ describe("התנסות אחת לכל כתובת דוא״ל (REQ-014)", () => {
   });
 
   it("ההגבלה מופיעה גם בתנאי השימוש", () => {
-    const terms = read("src/app/legal/terms/page.tsx");
+    const terms = read("src/components/legal/documents/terms-body.tsx");
     assert.ok(terms.includes("חשבון אחד לכל כתובת דוא״ל"), "התחייבות שאינה מופיעה בתקנון");
   });
 });
 
 describe("עקביות בין המסמכים", () => {
   it("זהות הספק ללא פרטים שנמחקו", () => {
-    const terms = read("src/app/legal/terms/page.tsx");
+    const terms = read("src/components/legal/documents/terms-body.tsx");
     assert.equal(legalEntity.displayName, "NAIMLY – נעים לי");
     for (const placeholder of ["ח.פ.", "ע.מ.", "[מספר]", "[כתובת]", "[שם"]) {
       assert.ok(!terms.includes(placeholder), `נשאר במסמך: ${placeholder}`);
@@ -212,7 +212,7 @@ describe("עקביות בין המסמכים", () => {
      * מספור התקנון השתנה, ומדיניות אחרות הפנו לסעיף 8.1 שהפך ל-15.1.
      * הפניה שבורה במסמך משפטי היא בדיוק מה שמכריע לרעת הספק.
      */
-    for (const path of ["src/app/legal/refund/page.tsx", "src/app/legal/acceptable-use/page.tsx"]) {
+    for (const path of ["src/components/legal/documents/refund-body.tsx", "src/components/legal/documents/acceptable-use-body.tsx"]) {
       const content = read(path);
       assert.ok(!content.includes("סעיף 8.1 ל<Link"), `${path} מפנה לסעיף שאינו קיים`);
       assert.ok(!content.includes("בסעיף 8 שם"), `${path} מפנה לסעיף שאינו קיים`);
@@ -238,7 +238,7 @@ describe("עקביות בין המסמכים", () => {
      * תעריף שהוקלד לתוך התקנון היה נשאר מאחור בכל שינוי מחיר, ומסמך
      * משפטי שנוקב במחיר שאינו נגבה הוא סתירה מול הלקוח.
      */
-    const terms = read("src/app/legal/terms/page.tsx");
+    const terms = read("src/components/legal/documents/terms-body.tsx");
     assert.ok(terms.includes("plans.filter"));
     assert.ok(terms.includes("annualPrice(plan.price)"));
     assert.ok(terms.includes("annualSaving(plan.price)"));

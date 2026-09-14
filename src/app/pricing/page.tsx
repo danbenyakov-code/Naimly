@@ -3,13 +3,19 @@ import { Check, Minus } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
 import { BillingToggle } from "@/components/marketing/billing-toggle";
-import { plans } from "@/lib/config";
+import { ogImage, plans } from "@/lib/config";
 import { TRIAL_DAYS, planFeatures, planLimits } from "@/lib/plan-access";
+
+const pricingDescription =
+  "מסלולים גמישים לכרטיס ביקור דיגיטלי: מחיר חודשי ושנתי, השוואה מלאה של המכסות, ו-14 ימי התנסות ללא כרטיס אשראי.";
 
 export const metadata: Metadata = {
   title: "מחירים",
-  description: "מסלולים גמישים לבניית כרטיס ביקור דיגיטלי לעסק, עם השוואה מלאה של מה כלול בכל מסלול.",
+  description: pricingDescription,
   alternates: { canonical: "/pricing" },
+  // QA-012: בלי מטא ייעודי, שיתוף של עמוד המחירים הציג את תיאור דף הבית.
+  openGraph: { title: "המסלול שמתאים לעסק שלך", description: pricingDescription, url: "/pricing", type: "website", images: [ogImage] },
+  twitter: { card: "summary_large_image", title: "המסלול שמתאים לעסק שלך", description: pricingDescription, images: [ogImage.url] },
 };
 
 /*

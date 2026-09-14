@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
-import Link from "next/link";
+import { useActionState, useState } from "react";
 import { ArrowLeft, FileText, Loader2, ShieldCheck } from "lucide-react";
 import { FormAlert } from "@/components/ui/field";
-import { legalDocuments } from "@/lib/legal";
+import { legalDocuments, type LegalDocId } from "@/lib/legal";
 import { acceptTermsAction, type AcceptResult } from "@/app/legal/accept/actions";
+import { LegalDialog } from "@/components/legal/legal-dialog";
 
 /**
  * אישור הנוסח המעודכן.
@@ -26,6 +26,7 @@ export function AcceptTermsForm({
   next: string;
 }) {
   const [state, submit, pending] = useActionState<AcceptResult, FormData>(acceptTermsAction, null);
+  const [openDoc, setOpenDoc] = useState<LegalDocId | null>(null);
 
   return (
     <div className="mx-auto w-full max-w-2xl">
@@ -59,14 +60,15 @@ export function AcceptTermsForm({
         <ul className="mt-6 grid gap-2">
           {legalDocuments.map((doc) => (
             <li key={doc.id}>
-              <Link
-                href={doc.href}
-                target="_blank"
-                className="flex min-h-12 items-center gap-2.5 rounded-xl border border-[#dfe4ec] px-4 text-sm font-bold text-[#33415c] transition hover:border-[#6d4aff] hover:text-[#4b3bad]"
+              {/* REQ-016: החלונית נפתחת במקום, כדי שסימון האישור לא יאבד. */}
+              <button
+                type="button"
+                onClick={() => setOpenDoc(doc.id)}
+                className="flex min-h-12 w-full items-center gap-2.5 rounded-xl border border-[#dfe4ec] px-4 text-sm font-bold text-[#33415c] transition hover:border-[#6d4aff] hover:text-[#4b3bad]"
               >
                 <FileText size={16} className="shrink-0 text-[#6d4aff]" aria-hidden="true" />
                 {doc.title}
-              </Link>
+              </button>
             </li>
           ))}
         </ul>
@@ -111,6 +113,8 @@ export function AcceptTermsForm({
           האישור נרשם עם גרסת המסמכים, חותמת זמן וכתובת ה־IP שממנה ניתן, ונשמר כתיעוד קבוע.
         </p>
       </div>
+
+      {openDoc && <LegalDialog docId={openDoc} onClose={() => setOpenDoc(null)} />}
     </div>
   );
 }

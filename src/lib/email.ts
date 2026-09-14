@@ -335,9 +335,26 @@ export async function sendLegalAcceptanceNotification(input: {
   documentVersion: string;
   documents: string[];
   acceptedAt: string;
+  /** מזהה קצר לציטוט בפניות ובהליכים (REQ-012). */
+  reference?: string;
   ip?: string;
   userAgent?: string;
+  /**
+   * למי נשלח המייל.
+   *
+   * "admin" — תיעוד למנהל. "customer" — אישור עצמי שהלקוח ביקש. אותם
+   * נתונים בדיוק; מה שמשתנה הוא מי הנמען וכיצד מוסבר לו המסמך.
+   */
+  audience?: "admin" | "customer";
 }): Promise<EmailResult> {
+  const forCustomer = input.audience === "customer";
+  const heading = forCustomer ? "אישור קבלת תנאי השימוש" : "תיעוד אישור תנאי שימוש";
+  const intro = forCustomer
+    ? "זהו העותק שלך לאישור שנתת למסמכים המשפטיים. מומלץ לשמור אותו."
+    : `${input.customerName} אישר/ה את המסמכים המשפטיים וחתם/ה עליהם דיגיטלית.`;
+  const footerNote = forCustomer
+    ? "ניתן לצטט את מזהה האישור בכל פנייה אלינו בנושא זה."
+    : "רשומה זו נשמרה גם בטבלת legal_acceptances ומהווה תיעוד קבוע. אין למחוק אותה.";
   const when = new Date(input.acceptedAt);
   const stamp = Number.isNaN(when.getTime())
     ? input.acceptedAt
@@ -348,6 +365,7 @@ export async function sendLegalAcceptanceNotification(input: {
     : input.planName;
 
   const rows: Array<[string, string, "rtl" | "ltr"]> = [
+    ["מזהה אישור", input.reference || "—", "ltr"],
     ["לקוח", input.customerName, "rtl"],
     ["אימייל", input.customerEmail, "ltr"],
     ["טלפון", input.customerPhone || "לא נמסר", "ltr"],
@@ -361,9 +379,9 @@ export async function sendLegalAcceptanceNotification(input: {
   ];
 
   const html = layout(
-    "תיעוד אישור תנאי שימוש",
-    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">תיעוד אישור תנאי שימוש</h1>
-     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">${escapeHtml(input.customerName)} אישר/ה את המסמכים המשפטיים וחתם/ה עליהם דיגיטלית.</p>
+    heading,
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">${escapeHtml(heading)}</h1>
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">${escapeHtml(intro)}</p>
      <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
        ${rows
          .map(
@@ -376,23 +394,20 @@ export async function sendLegalAcceptanceNotification(input: {
          .join("\n       ")}
      </table>
      <p dir="rtl" align="right" style="margin:0;color:#8b96a8;font-size:12px;line-height:1.6;direction:rtl;text-align:right">
-       רשומה זו נשמרה גם בטבלת legal_acceptances ומהווה תיעוד קבוע. אין למחוק אותה.
+       ${escapeHtml(footerNote)}
      </p>`,
   );
 
-  const text = [
-    "תיעוד אישור תנאי שימוש",
-    "",
-    ...rows.map(([label, value]) => `${label}: ${value}`),
-    "",
-    "הרשומה נשמרה גם בטבלת legal_acceptances.",
-  ].join("\n");
+  const text = [heading, "", ...rows.map(([label, value]) => `${label}: ${value}`), "", footerNote].join("\n");
 
   return send({
     to: input.to,
-    subject: `אישור תנאי שימוש — ${input.customerName} — ${input.contextLabel}`,
+    subject: forCustomer
+      ? `אישור תנאי השימוש שלך — ${input.reference || input.documentVersion}`
+      : `אישור תנאי שימוש — ${input.customerName} — ${input.contextLabel}`,
     html,
     text,
-    replyTo: input.customerEmail,
+    // תשובה ללקוח אינה מופנית אליו עצמו.
+    replyTo: forCustomer ? undefined : input.customerEmail,
   });
 }

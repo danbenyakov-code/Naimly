@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
-import Link from "next/link";
-import { CookieSettingsButton } from "@/components/cookie-settings-button";
 import { LegalPage } from "@/components/legal-page";
 import { brand } from "@/lib/config";
-import { LEGAL_EFFECTIVE_DATE, LEGAL_VERSION } from "@/lib/legal";
+import { LEGAL_EFFECTIVE_DATE } from "@/lib/legal";
+import { CookiesBody } from "@/components/legal/documents/cookies-body";
 
 export const metadata: Metadata = {
   title: "מדיניות עוגיות",
@@ -11,78 +10,10 @@ export const metadata: Metadata = {
   alternates: { canonical: "/legal/cookies" },
 };
 
-const link = "font-bold text-[#6d4aff] underline underline-offset-2";
-
 export default function CookiesPage() {
   return (
     <LegalPage eyebrow="שליטה ושקיפות" title="מדיניות עוגיות" updated={LEGAL_EFFECTIVE_DATE}>
-      <p className="rounded-2xl border border-[#e1d9ff] bg-[#f6f3ff] p-4 text-sm leading-7">
-        <strong>גרסה {LEGAL_VERSION}.</strong> מדיניות זו מהווה חלק בלתי נפרד מ
-        <Link className={link} href="/legal/terms">תנאי השימוש</Link> ומ
-        <Link className={link} href="/legal/privacy">מדיניות הפרטיות</Link>, ומסבירה כיצד {brand.name}
-        {" "}משתמשת בעוגיות ובאחסון מקומי באתר, במערכת ובכרטיסים הציבוריים.
-      </p>
-
-      <h2>1. שלוש קטגוריות, שלוש בחירות נפרדות</h2>
-      <p>
-        אנחנו מפרידים בין שלוש קטגוריות. כל אחת מוצגת בחלונית ההסכמה בנפרד, ואפשר
-        לאשר או לדחות כל אחת מהן בנפרד.
-      </p>
-
-      <h3 className="mb-2 mt-6 text-xl font-black text-[#142038]">1.1 הכרחי — תמיד פעיל</h3>
-      <p>
-        מידע מקומי הנדרש לאימות משתמשים, לאבטחה, לשמירת העדפת ההסכמה עצמה ולתפעול
-        בסיסי. רכיבים אלה אינם משמשים לפרסום, ואי אפשר להפעיל את השירות באופן תקין
-        בלעדיהם — ולכן הם אינם ניתנים לכיבוי. אנחנו מציגים אותם כדי שיהיה שקוף מה נשמר,
-        ולא כדי לבקש עליהם הסכמה.
-      </p>
-
-      <h3 className="mb-2 mt-6 text-xl font-black text-[#142038]">1.2 מדידה וסטטיסטיקה</h3>
-      <p>
-        מדידת צפיות, לחיצות ופניות, וכן Google Analytics ו‑Google Tag Manager שהוגדרו על
-        ידי בעל הכרטיס. המטרה היא לשפר את השירות ולתת לבעל העסק תמונה על הביצועים.
-        <strong> ללא אישור הקטגוריה הזו לא נאסף מידע מדידה כלל</strong>, גם לא במדידה
-        הפנימית של {brand.name}.
-      </p>
-
-      <h3 className="mb-2 mt-6 text-xl font-black text-[#142038]">1.3 שיווק ופרסום</h3>
-      <p>
-        פיקסלים של רשתות חברתיות, לרבות Meta Pixel שהוגדר על ידי בעל הכרטיס, המשמשים
-        למדידת קמפיינים ולהתאמת מודעות. קטגוריה זו נפרדת ממדידה: אישור למדידה אינו
-        מפעיל כלי שיווק.
-      </p>
-
-      <h2>2. מתי נטענים הכלים</h2>
-      <p>
-        כלי מדידה ושיווק נטענים <strong>רק לאחר אישור מפורש</strong>, ולעולם לא לפניו.
-        סקריפט שנטען ורק אחר כך ״כובה״ כבר שלח בקשה ויצר מזהה, ולכן אנחנו לא טוענים
-        אותו מלכתחילה. הפעלת כלי של צד שלישי כפופה גם למדיניות של אותו ספק.
-      </p>
-
-      <h2>3. משך שמירה</h2>
-      <p>
-        משך החיים משתנה לפי סוג הרכיב והספק. העדפת ההסכמה נשמרת בדפדפן שלך, יחד עם
-        מועד הבחירה וגרסת הנוסח שהוצג, עד למחיקתה. ספקי מדידה עשויים להגדיר תקופות
-        נוספות בהתאם להגדרות בעל הכרטיס.
-      </p>
-
-      <h2>4. שינוי הבחירה</h2>
-      <p>
-        ניתן לשנות את הבחירה בכל עת. פתיחת ההגדרות מציגה את חלונית הבחירה עם ההעדפות
-        הנוכחיות, ואפשר לאשר או לדחות כל קטגוריה בנפרד. אפשר גם למחוק עוגיות ואחסון
-        דרך הגדרות הדפדפן.
-      </p>
-      <p className="text-sm text-[#68758a]">
-        עדכון מהותי של נוסח החלונית מציג אותה מחדש, כדי שהבחירה תתייחס לנוסח שבתוקף.
-      </p>
-
-      <CookieSettingsButton />
-
-      <h2>5. יצירת קשר</h2>
-      <p>
-        לשאלות בנושא עוגיות ופרטיות:{" "}
-        <a className={link} href={`mailto:${brand.supportEmail}`}>{brand.supportEmail}</a>.
-      </p>
+      <CookiesBody />
     </LegalPage>
   );
 }

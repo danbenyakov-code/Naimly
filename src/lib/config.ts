@@ -160,3 +160,18 @@ export const marketingNav = [
   { label: "שאלות נפוצות", href: "/#faq" },
   { label: "צרו קשר", href: "/contact" },
 ];
+
+/**
+ * תמונת השיתוף הגלובלית.
+ *
+ * QA-011: תמונת opengraph-image לפי קונבנציית הקבצים חלה על מקטע הנתיב
+ * בלבד, ועמוד שמגדיר openGraph משלו דורס אותה יחד עם התמונה. לכן היא
+ * מוגדרת כאן במפורש ומשותפת לכל עמוד — אחרת שיתוף של עמוד המחירים יוצא
+ * בלי תמונה בכלל.
+ */
+export const ogImage = {
+  url: "/opengraph-image",
+  width: 1200,
+  height: 630,
+  alt: `${brand.name} — ${brand.tagline}`,
+};

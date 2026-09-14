@@ -137,7 +137,7 @@ describe("REQ-010 — גילוי המע״מ", () => {
      * שאומר "כולל" ומחירון שאומר "לא כולל". במחלוקת, הנוסח שהלקוח ראה
      * במסך הרכישה הוא שמכריע — ולכן השניים חייבים להיות זהים.
      */
-    const terms = read("src/app/legal/terms/page.tsx");
+    const terms = read("src/components/legal/documents/terms-body.tsx");
     assert.ok(terms.includes("כל המחירים כוללים מע״מ כדין"), "תנאי השימוש שינו נוסח");
     assert.ok(!terms.includes("אינם כוללים מע״מ"), "נשארה בתקנון הצהרה סותרת");
 
@@ -149,7 +149,7 @@ describe("REQ-010 — גילוי המע״מ", () => {
       "src/components/marketing/billing-toggle.tsx",
       "src/components/onboarding/plan-choice.tsx",
       "src/app/checkout/page.tsx",
-      "src/app/legal/refund/page.tsx",
+      "src/components/legal/documents/refund-body.tsx",
     ]) {
       assert.ok(!read(path).includes("אינם כוללים מע״מ"), `${path} סותר את התקנון`);
     }

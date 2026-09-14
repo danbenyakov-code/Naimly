@@ -112,12 +112,14 @@ export async function POST(request: Request) {
   await admin.rpc("mark_plan_selected", { target_user: viewer.id, target_plan: plan.id });
 
   // תיעוד ההסכמה למסמכים, עם גרסה ו-IP. ראיה, לא תיבת סימון בממשק.
-  await admin.rpc("record_legal_acceptance", {
+  // REQ-012: המסלול נרשם יחד עם ההסכמה, ומוחזר מזהה קצר לציטוט.
+  const { data: acceptanceReference } = await admin.rpc("record_legal_acceptance", {
     target_user: viewer.id,
     acceptance_context: "plan",
     accepted_version: LEGAL_VERSION,
     client_ip: ip,
     client_agent: userAgent || null,
+    target_plan: plan.id,
   });
 
   if (phone) {
@@ -139,6 +141,7 @@ export async function POST(request: Request) {
     documentVersion: LEGAL_VERSION,
     documents: bindingDocumentIds,
     acceptedAt,
+    reference: typeof acceptanceReference === "string" ? acceptanceReference : undefined,
     ip,
     userAgent,
   }).catch(() => null);

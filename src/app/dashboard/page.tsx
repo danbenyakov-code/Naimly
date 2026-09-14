@@ -13,11 +13,18 @@ export default async function DashboardPage() {
   const [card, analytics] = await Promise.all([getDashboardCard(viewer), getAnalyticsSummary(viewer)]);
   const access = resolveAccess(viewer);
   const trial = access.trial;
+  /*
+   * QA-017: כאן הוצגו מגמות קבועות בקוד — "+18%", "+12%" — ליד נתונים
+   * אמיתיים, כולל אפסים. חשבון חדש בלי פעילות הציג "עלייה של 18%"
+   * מול אפס צפיות. מדד שלא נמדד לא מוצג.
+   *
+   * המגמה תחזור כשיהיה חלון השוואה אמיתי; עד אז מוצג נפח הנתונים.
+   */
   const stats = [
-    { label: "צפיות ב‑30 יום", value: formatCompact(analytics.views), icon: Eye, change: "+18%" },
-    { label: "לחיצות", value: formatCompact(analytics.clicks), icon: MousePointerClick, change: "+12%" },
-    { label: "פניות חדשות", value: analytics.leads.toString(), icon: MessageSquareText, change: "+7" },
-    { label: "שמירת איש קשר", value: analytics.contactSaves.toString(), icon: UserPlus, change: "+9%" },
+    { label: "צפיות ב‑30 יום", value: formatCompact(analytics.views), icon: Eye, raw: analytics.views },
+    { label: "לחיצות", value: formatCompact(analytics.clicks), icon: MousePointerClick, raw: analytics.clicks },
+    { label: "פניות חדשות", value: analytics.leads.toString(), icon: MessageSquareText, raw: analytics.leads },
+    { label: "שמירת איש קשר", value: analytics.contactSaves.toString(), icon: UserPlus, raw: analytics.contactSaves },
   ];
 
   return (
@@ -36,7 +43,7 @@ export default async function DashboardPage() {
       </div>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="מדדים מרכזיים">
-        {stats.map(({ label, value, icon: Icon, change }) => <article key={label} className="card-surface p-5"><div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Icon size={21} /></span><span className="rounded-full bg-[#e9fbf7] px-2 py-1 text-[11px] font-bold text-[#08735f]">{change}</span></div><strong className="mt-4 block text-3xl tracking-tight">{value}</strong><span className="text-sm text-[#718096]">{label}</span></article>)}
+        {stats.map(({ label, value, icon: Icon, raw }) => <article key={label} className="card-surface p-5"><div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Icon size={21} /></span>{raw === 0 && <span className="rounded-full bg-[#f1f3f7] px-2 py-1 text-[11px] font-bold text-[#7c8799]">אין מספיק נתונים</span>}</div><strong className="mt-4 block text-3xl tracking-tight">{value}</strong><span className="text-sm text-[#718096]">{label}</span></article>)}
       </section>
 
       <div className="mt-6"><PlanSummaryCard plan={access.plan} locked={access.locked} galleryUsed={card.gallery.length} quickActionsUsed={card.quickActions.length} /></div>

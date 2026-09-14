@@ -2,9 +2,10 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import type { BillingCycle } from "@/lib/config";
+import { cycleAmount, plans, type BillingCycle } from "@/lib/config";
+import { formatCurrency } from "@/lib/utils";
 import Link from "next/link";
-import { ArrowLeft, ArrowRight, KeyRound, Loader2, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, KeyRound, Loader2, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import type { AuthResult } from "@/app/(auth)/actions";
 import {
   loginAction,
@@ -230,6 +231,7 @@ export function AuthForm({
   // ── שלב הטופס הראשי ──────────────────────────────────────────────────────
   const activeState = mode === "login" ? loginState : mode === "signup" ? signupState : resetReqState;
   const activePending = mode === "login" ? loginPending : mode === "signup" ? signupPending : resetReqPending;
+  const selectedPlan = plans.find((item) => item.id === plan && item.price > 0);
   const signupMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
 
   return (
@@ -322,6 +324,25 @@ export function AuthForm({
         <form action={signup} noValidate className="grid gap-4">
           <input type="hidden" name="plan" value={plan} />
           <input type="hidden" name="cycle" value={cycle} />
+
+          {/*
+            * QA-010: המסלול נשמר בשדה מוסתר אך לא הוצג, ולכן הלקוח שבחר
+            * מסלול בעמוד המחירים לא ידע אם הבחירה נשמרה. עכשיו היא
+            * גלויה, כולל מחזור החיוב והסכום שייגבה.
+            */}
+          {selectedPlan && (
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-[#d8d0ff] bg-[#f3f0ff] p-3 text-sm leading-6 text-[#4636a6]">
+              <Check size={15} className="shrink-0" aria-hidden="true" />
+              <span>
+                נבחר מסלול <strong>{selectedPlan.name}</strong> —{" "}
+                {formatCurrency(cycleAmount(selectedPlan.price, cycle))}{" "}
+                {cycle === "annual" ? "לשנה" : "לחודש"}, כולל מע״מ.
+              </span>
+              <Link href="/pricing" className="font-bold underline underline-offset-2">
+                שינוי מסלול
+              </Link>
+            </p>
+          )}
 
           <ErrorSummary
             errors={errorMap(signupState)}

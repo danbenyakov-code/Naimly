@@ -30,8 +30,8 @@ export const demoCard: CardData = {
   ctaLabel: "בואו נדבר",
   phone: "050-000-0000",
   whatsapp: "972500000000",
-  email: "hello@example.com",
-  website: "https://example.com",
+  email: "info.naimly@gmail.com",
+  website: "https://naimly.co.il/noa-design",
   address: "רח׳ החשמונאים 100, תל אביב",
   // תמונות הדוגמה מ-public/samples. אם הקבצים אינם קיימים, SafeImage
   // נופל אוטומטית לרקע הגרדיאנט ולראשי התיבות — שום דבר לא נשבר.
@@ -69,14 +69,14 @@ export const demoCard: CardData = {
   quickActions: [
     { id: "qa1", type: "phone", label: "שיחה", value: "050-000-0000" },
     { id: "qa2", type: "whatsapp", label: "WhatsApp", value: "972500000000" },
-    { id: "qa3", type: "email", label: "אימייל", value: "hello@example.com" },
+    { id: "qa3", type: "email", label: "אימייל", value: "info.naimly@gmail.com" },
     { id: "qa4", type: "save_contact", label: "שמור אותי", value: "" },
     { id: "qa5", type: "waze", label: "Waze", value: "רח׳ החשמונאים 100, תל אביב" },
     { id: "qa6", type: "instagram", label: "Instagram", value: "https://instagram.com" },
   ],
   quickActionsLimit: 6,
   smartButtons: [
-    { id: "b1", label: "לתיק העבודות", description: "פרויקטים נבחרים מהשנה האחרונה", action: "url", value: "https://example.com" },
+    { id: "b1", label: "לתיק העבודות", description: "פרויקטים נבחרים מהשנה האחרונה", action: "url", value: "https://naimly.co.il/noa-design" },
     { id: "b2", label: "קביעת שיחת היכרות", description: "בוחרים זמן שמתאים לכם", action: "booking", value: "https://cal.com" },
   ],
   widgets: [
@@ -120,8 +120,8 @@ export const demoCard: CardData = {
     organization: "NOA Studio",
     title: "מיתוג ועיצוב לעסקים",
     phone: "050-000-0000",
-    email: "hello@example.com",
-    website: "https://example.com",
+    email: "info.naimly@gmail.com",
+    website: "https://naimly.co.il/noa-design",
     address: "רח׳ החשמונאים 100, תל אביב",
     note: "נשמר מכרטיס הביקור הדיגיטלי של נועה כהן",
   },

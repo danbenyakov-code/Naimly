@@ -197,13 +197,73 @@ export async function getViewer(): Promise<Viewer | null> {
   };
 }
 
-export async function getDashboardCard(viewer: Viewer): Promise<CardData> {
+/** תקציר כרטיס לבורר, בלי לטעון את כל התוכן. */
+export type CardSummary = {
+  id: string;
+  slug: string;
+  businessName: string;
+  isPublished: boolean;
+  updatedAt: string;
+};
+
+/**
+ * כל הכרטיסים של המשתמש, לפי סדר יצירה (REQ-011).
+ *
+ * הראשון הוא תמיד הכרטיס הראשי — זה שנוצר תחילה — כדי שהבורר לא ישנה
+ * סדר בין טעינות והמשתמש לא יאבד את מקומו.
+ */
+export async function getUserCards(viewer: Viewer): Promise<CardSummary[]> {
+  noStore();
+  if (viewer.demo || !isSupabaseConfigured) {
+    return [{ id: demoCard.id, slug: demoCard.slug, businessName: demoCard.businessName, isPublished: demoCard.isPublished, updatedAt: demoCard.updatedAt }];
+  }
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from("cards")
+    .select("id,slug,business_name,is_published,updated_at")
+    .eq("user_id", viewer.id)
+    .order("created_at");
+
+  return (data || []).map((row) => ({
+    id: String(row.id),
+    slug: stringValue(row.slug),
+    businessName: stringValue(row.business_name) || "כרטיס ללא שם",
+    isPublished: row.is_published === true,
+    updatedAt: stringValue(row.updated_at),
+  }));
+}
+
+/**
+ * הכרטיס שנערך כרגע.
+ *
+ * cardId מגיע מהבורר. מזהה שאינו שייך למשתמש פשוט אינו נמצא — התנאי
+ * על user_id הוא שמונע גישה לכרטיס של מישהו אחר דרך שינוי ה-URL.
+ */
+export async function getDashboardCard(viewer: Viewer, cardId?: string): Promise<CardData> {
   noStore();
   if (viewer.demo || !isSupabaseConfigured) return demoCard;
   const supabase = await createSupabaseServerClient();
-  const { data } = supabase
-    ? await supabase.from("cards").select("*").eq("user_id", viewer.id).order("created_at").limit(1).maybeSingle()
-    : { data: null };
+  if (!supabase) return starterCard(viewer);
+
+  if (cardId) {
+    const { data: selected } = await supabase
+      .from("cards")
+      .select("*")
+      .eq("id", cardId)
+      .eq("user_id", viewer.id)
+      .maybeSingle();
+    if (selected) return normalizeCard(selected);
+    // מזהה לא מוכר נופל לכרטיס הראשי במקום להציג מסך ריק.
+  }
+
+  const { data } = await supabase
+    .from("cards")
+    .select("*")
+    .eq("user_id", viewer.id)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
   if (data) return normalizeCard(data);
 
   return starterCard(viewer);
