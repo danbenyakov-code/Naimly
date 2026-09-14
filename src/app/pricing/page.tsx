@@ -62,8 +62,8 @@ export default function PricingPage() {
           <div className="container-shell card-surface table-scroll">
             <table className="w-full min-w-[760px] border-collapse text-center text-sm">
               <caption className="px-6 py-6 text-right text-xl font-extrabold">מה כלול בכל מסלול<span className="mt-1 block text-sm font-medium text-[#68758a]">יכולת שאינה כלולה נשארת גלויה במערכת ונעולה — אפשר לשדרג בכל רגע ולפתוח אותה מיד.</span></caption>
-              <thead><tr className="border-y border-[#e5e9f1] bg-[#f8f9fc]"><th className="p-4 text-right">יכולת</th>{plans.map((plan) => <th key={plan.id} className="p-4">{plan.name}{plan.id === "trial" && <span className="mt-0.5 block text-[11px] font-normal text-[#6d4aff]">{TRIAL_DAYS} יום</span>}</th>)}</tr></thead>
-              <tbody>{rows.map(([label, ...values]) => <tr key={String(label)} className="border-b border-[#edf0f5]"><th className="p-4 text-right font-medium">{label}</th>{values.map((value, index) => <td key={index} className="p-4 text-[#5f6d83]"><Value value={value as string | boolean} /></td>)}</tr>)}</tbody>
+              <thead><tr className="border-y border-[#e5e9f1] bg-[#f8f9fc]"><th scope="col" className="p-4 text-right">יכולת</th>{plans.map((plan) => <th key={plan.id} scope="col" className="p-4">{plan.name}{plan.id === "trial" && <span className="mt-0.5 block text-[11px] font-normal text-[#6d4aff]">{TRIAL_DAYS} יום</span>}</th>)}</tr></thead>
+              <tbody>{rows.map(([label, ...values]) => <tr key={String(label)} className="border-b border-[#edf0f5]"><th scope="row" className="p-4 text-right font-medium">{label}</th>{values.map((value, index) => <td key={index} className="p-4 text-[#5f6d83]"><Value value={value as string | boolean} /></td>)}</tr>)}</tbody>
             </table>
           </div>
         </section>

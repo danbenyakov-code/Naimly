@@ -59,7 +59,9 @@ export function PlanChoice({ fullName }: { fullName: string }) {
       )}
 
       {/* ההתנסות — הבחירה המודגשת */}
-      <form action={submit} className="mt-10">
+      {/* QA-023: noValidate מבטל את הודעת הדפדפן ("Please check this box")
+          ומשאיר את השגיאה בעברית שלנו, המקושרת לתיבה. */}
+      <form action={submit} noValidate className="mt-10">
         <article className="card-surface relative border-[#6d4aff] p-6 ring-4 ring-[#6d4aff]/8 sm:p-8">
           <span className="absolute -top-3 right-6 rounded-full bg-[#6d4aff] px-3 py-1 text-xs font-bold text-white">
             מומלץ להתחלה
@@ -94,7 +96,6 @@ export function PlanChoice({ fullName }: { fullName: string }) {
                 <input
                   type="checkbox"
                   name="terms"
-                  required
                   className="mt-0.5 h-5 w-5 shrink-0 accent-[#6d4aff]"
                   aria-invalid={state?.field === "terms"}
                   aria-describedby={state?.field === "terms" ? "onboarding-terms-error" : undefined}

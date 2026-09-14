@@ -27,7 +27,17 @@ export type AuthField = "email" | "password" | "passwordConfirm" | "fullName" | 
 
 export type AuthResult =
   | { ok: true; message?: string; next?: string; step?: "verifyEmail" | "resetOtp" | "choosePassword"; email?: string }
-  | { ok: false; error: string; field?: AuthField; retryAfterSeconds?: number };
+  | {
+      ok: false;
+      error: string;
+      field?: AuthField;
+      retryAfterSeconds?: number;
+      /*
+       * REQ-003: הערכים שהוזנו חוזרים ללקוח כדי שהטופס לא יתאפס.
+       * סיסמאות לעולם אינן נכללות — הן לא נשלחות חזרה ולא נשמרות.
+       */
+      values?: { fullName?: string; email?: string };
+    };
 
 const genericFailure: AuthResult = {
   ok: false,
@@ -102,21 +112,22 @@ export async function signupAction(_prev: AuthResult | null, formData: FormData)
   const terms = formData.get("terms");
 
   if (fullName.length < 2) {
-    return { ok: false, error: "יש להזין שם מלא כדי שנוכל לפנות אליך בשמך.", field: "fullName" };
+  // REQ-003: כל כשל מחזיר את השם והאימייל, כדי שלא יימחקו מהטופס.
+    return { ok: false, error: "יש להזין שם מלא כדי שנוכל לפנות אליך בשמך.", field: "fullName" , values: { fullName, email } };
   }
   const emailCheck = emailSchema.safeParse(email);
   if (!emailCheck.success) {
-    return { ok: false, error: emailCheck.error.issues[0].message, field: "email" };
+    return { ok: false, error: emailCheck.error.issues[0].message, field: "email" , values: { fullName, email } };
   }
   const strength = evaluatePassword(password);
   if (!strength.valid) {
-    return { ok: false, error: strength.error, field: "password" };
+    return { ok: false, error: strength.error, field: "password" , values: { fullName, email } };
   }
   if (password !== passwordConfirm) {
-    return { ok: false, error: "שתי הסיסמאות אינן זהות. יש להזין את אותה סיסמה בשני השדות.", field: "passwordConfirm" };
+    return { ok: false, error: "שתי הסיסמאות אינן זהות. יש להזין את אותה סיסמה בשני השדות.", field: "passwordConfirm" , values: { fullName, email } };
   }
   if (!terms) {
-    return { ok: false, error: "כדי להמשיך יש לאשר את תנאי השימוש ומדיניות הפרטיות.", field: "terms" };
+    return { ok: false, error: "כדי להמשיך יש לאשר את תנאי השימוש ומדיניות הפרטיות.", field: "terms" , values: { fullName, email } };
   }
 
   if (!isSupabaseConfigured) return { ok: true, next: nextPath };
@@ -137,12 +148,12 @@ export async function signupAction(_prev: AuthResult | null, formData: FormData)
   if (error) {
     const message = error.message.toLowerCase();
     if (message.includes("registered") || message.includes("already")) {
-      return { ok: false, error: "קיימת כבר הרשמה לכתובת הזו. אפשר להתחבר, או לאפס את הסיסמה אם שכחת אותה.", field: "email" };
+      return { ok: false, error: "קיימת כבר הרשמה לכתובת הזו. אפשר להתחבר, או לאפס את הסיסמה אם שכחת אותה.", field: "email" , values: { fullName, email } };
     }
     if (message.includes("password")) {
-      return { ok: false, error: "הסיסמה נדחתה על ידי שירות האימות. יש לבחור סיסמה אחרת שעומדת בדרישות.", field: "password" };
+      return { ok: false, error: "הסיסמה נדחתה על ידי שירות האימות. יש לבחור סיסמה אחרת שעומדת בדרישות.", field: "password" , values: { fullName, email } };
     }
-    return { ok: false, error: "לא הצלחנו ליצור את החשבון. אפשר לנסות שוב או לפנות לתמיכה.", field: "email" };
+    return { ok: false, error: "לא הצלחנו ליצור את החשבון. אפשר לנסות שוב או לפנות לתמיכה.", field: "email" , values: { fullName, email } };
   }
 
   /*

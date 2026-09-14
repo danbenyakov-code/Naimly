@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Loader2, Send } from "lucide-react";
 import { contactTopics, type ContactTopicId } from "@/lib/contact";
@@ -19,6 +19,12 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
   const [sending, setSending] = useState(false);
   const [sent, setSent] = useState(false);
   const [serverError, setServerError] = useState("");
+  /*
+   * QA-009: המיקוד נכשל כי requestAnimationFrame רץ לפני ש-React סיים
+   * לרנדר את סיכום השגיאות — הוא פשוט לא היה עדיין ב-DOM. מונה שמעלים
+   * אותו בכל הגשה כושלת מבטיח שהאפקט ירוץ אחרי הרינדור.
+   */
+  const [focusSummary, setFocusSummary] = useState(0);
   const successRef = useRef<HTMLDivElement>(null);
   const submitRef = useRef<HTMLButtonElement>(null);
 
@@ -33,13 +39,17 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
     return next;
   }
 
+  useEffect(() => {
+    if (focusSummary > 0) focusErrorSummary();
+  }, [focusSummary]);
+
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setServerError("");
     const found = validate();
     setErrors(found);
     if (Object.keys(found).length) {
-      requestAnimationFrame(() => focusErrorSummary());
+      setFocusSummary((count) => count + 1);
       return;
     }
 
@@ -54,7 +64,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
       if (!response.ok) {
         if (result.field) setErrors({ [result.field]: result.error });
         else setServerError(result.error || "לא הצלחנו לשלוח את הפנייה");
-        requestAnimationFrame(() => focusErrorSummary());
+        setFocusSummary((count) => count + 1);
         return;
       }
       setSent(true);
@@ -98,8 +108,12 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
     );
   }
 
+  /*
+   * QA-003: method="post" הוא fallback. בלעדיו, אם ה-JS נכשל, הדפדפן
+   * שולח GET והפרטים נכנסים ל-URL ולהיסטוריית הגלישה.
+   */
   return (
-    <form onSubmit={submit} noValidate className="grid gap-5">
+    <form onSubmit={submit} method="post" action="/api/contact" noValidate className="grid gap-5">
       {(Object.keys(errors).length > 0 || serverError) && (
         <ErrorSummary
           errors={serverError ? { ...errors, _server: serverError } : errors}
