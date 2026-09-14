@@ -160,6 +160,9 @@ export type CardData = {
   contactFormSuccessMessage: string;
   contactFormFields: ContactFormField[];
   galleryStyle: "grid" | "carousel";
+  /** יעד התראות הלידים. ריק = כתובת בעל החשבון. */
+  leadNotificationEmail: string;
+  leadNotificationsEnabled: boolean;
   tracking: TrackingSettings;
   vcard: VCardSettings;
   /** כתובת מובנית. ממנה נבנים Waze, Maps וה-vCard. */

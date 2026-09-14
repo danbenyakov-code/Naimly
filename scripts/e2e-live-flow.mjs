@@ -64,6 +64,7 @@ console.log("\n== 2. שער ההצטרפות ==");
  */
 if (!process.argv.includes("--keep")) {
   await admin.from("cards").delete().eq("user_id", userId);
+  await admin.from("legal_acceptances").delete().eq("user_id", userId);
   await admin.from("subscriptions").update({
     plan_selected_at: null,
     trial_pending: true,
@@ -96,7 +97,11 @@ if (startedGated) {
 
 // ── 3. בחירת התנסות ─────────────────────────────────────────────────────────
 console.log("\n== 3. בחירת ההתנסות ==");
-const { data: endsAt, error: selectError } = await user.rpc("select_trial_plan");
+const { data: endsAt, error: selectError } = await user.rpc("select_trial_plan", {
+  accepted_version: "2026-09-10",
+  client_ip: null,
+  client_agent: "naimly-e2e",
+});
 check("select_trial_plan רצה בהצלחה", !selectError, selectError?.message);
 
 sub = await readSub();
@@ -105,10 +110,15 @@ check("trial_ends_at נקבע", Boolean(sub.trial_ends_at));
 check("trial_pending כבוי", sub.trial_pending === false);
 
 const daysLeft = sub.trial_ends_at ? (new Date(sub.trial_ends_at) - Date.now()) / 86400000 : 0;
-check("הספירה היא 14 יום", daysLeft > 13.9 && daysLeft <= 14, `${daysLeft.toFixed(2)} ימים`);
+// שעון ה-DB עשוי להקדים את הלקוח במילישניות; החסם סובל סטייה קטנה.
+check("הספירה היא 14 יום", daysLeft > 13.9 && daysLeft <= 14.05, `${daysLeft.toFixed(3)} ימים`);
 
 // בחירה חוזרת אסור שתאריך את ההתנסות.
-const { data: secondCall } = await user.rpc("select_trial_plan");
+const { data: secondCall } = await user.rpc("select_trial_plan", {
+  accepted_version: "2026-09-10",
+  client_ip: null,
+  client_agent: "naimly-e2e",
+});
 check("בחירה חוזרת אינה מאפסת את הספירה", new Date(secondCall).getTime() === new Date(endsAt).getTime());
 
 const { data: planAfter } = await admin.rpc("effective_plan", { target_user: userId });

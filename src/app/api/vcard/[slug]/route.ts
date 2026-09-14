@@ -1,5 +1,6 @@
 import { getPublicCard } from "@/lib/data";
 import { buildVCard, vCardHeaders } from "@/lib/vcard";
+import { resolveVCard } from "@/lib/contact-source";
 import { safeSrc } from "@/lib/safe-url";
 
 /**
@@ -11,7 +12,9 @@ export async function GET(_request: Request, { params }: { params: Promise<{ slu
   const card = await getPublicCard(slug);
   if (!card) return new Response("Not found", { status: 404 });
 
-  const contact = card.vcard;
+  // QA-027: ה-vCard נגזר מפרטי הכרטיס. ערך שהוגדר ידנית מנצח; ריק מתמלא
+  // מהכרטיס, במקום להישאר עם שם של עסק אחר ושדות חסרים.
+  const contact = resolveVCard(card);
   const photo = contact.includePhoto ? safeSrc(card.logoUrl || card.avatarUrl) : "";
 
   const body = buildVCard({

@@ -94,6 +94,8 @@ export const demoCard: CardData = {
     { id: "f3", label: "אימייל", type: "email", required: false },
     { id: "f4", label: "במה אפשר לעזור?", type: "textarea", required: false },
   ],
+  leadNotificationEmail: "",
+  leadNotificationsEnabled: true,
   galleryStyle: "carousel",
   tracking: { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" },
   cardAddress: {

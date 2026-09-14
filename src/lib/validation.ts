@@ -61,6 +61,9 @@ export const cardSchema = z.object({
   seoTitle: z.string().max(70),
   seoDescription: z.string().max(170),
   socialImageUrl: optionalUrl,
+  // QA-033: ריק מותר במפורש — פירושו "השתמש בכתובת בעל החשבון".
+  leadNotificationEmail: z.union([z.literal(""), z.string().email("כתובת האימייל אינה תקינה").max(160)]),
+  leadNotificationsEnabled: z.boolean(),
   areaServed: z.string().max(120),
   coverAlt: z.string().max(160),
   logoAlt: z.string().max(160),

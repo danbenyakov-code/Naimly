@@ -131,6 +131,8 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
       { id: "phone", label: "טלפון", type: "tel", required: true },
       { id: "message", label: "במה אפשר לעזור?", type: "textarea", required: false },
     ]),
+    leadNotificationEmail: String(row.lead_notification_email || ""),
+    leadNotificationsEnabled: row.lead_notifications_enabled !== false,
     galleryStyle: (stringValue(row.gallery_style) === "carousel" ? "carousel" : "grid") as CardData["galleryStyle"],
     tracking: (row.tracking && typeof row.tracking === "object" ? row.tracking : { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" }) as CardData["tracking"],
     vcard: normalizeVCard(row),
@@ -213,16 +215,18 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   noStore();
   if (!/^[a-z0-9-]{3,60}$/.test(slug)) return null;
   /*
-   * כרטיס ההדגמה זמין תמיד, גם כשהמסד מחובר. עד היום הוא הוחזר רק
-   * במצב הדגמה, ולכן ה-CTA "צפייה בכרטיס חי" בדף הנחיתה החזיר 404
-   * מהרגע שחיברנו את Supabase לפרודקשן.
+   * כרטיס ההדגמה: השורה במסד קודמת תמיד לזו שבקוד.
+   *
+   * QA-013: כשהכרטיס קיים רק בקוד, /api/leads ואירועי המדידה מחפשים
+   * אותו לפי slug במסד ולא מוצאים — ולכן כל פנייה ממנו נכשלה ב-404.
+   * הזריעה (scripts/seed-showcase-card.mjs) יוצרת שורה אמיתית; הקוד
+   * נשאר כגיבוי בלבד, למצב הדגמה וללפני הזריעה.
    */
-  if (slug === demoCard.slug) return demoCard;
-  if (!isSupabaseConfigured) return null;
+  if (!isSupabaseConfigured) return slug === demoCard.slug ? demoCard : null;
   const admin = createSupabaseAdminClient();
   if (admin) {
     const { data } = await admin.from("cards").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
-    if (!data) return null;
+    if (!data) return slug === demoCard.slug ? demoCard : null;
     const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
     if (!isSubscriptionLive(subscription)) return null;
     return normalizeCard(data);
@@ -230,7 +234,7 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
   const { data } = await supabase.from("cards").select("*").eq("slug", slug).eq("is_published", true).maybeSingle();
-  if (!data) return null;
+  if (!data) return slug === demoCard.slug ? demoCard : null;
   // אותה בדיקת מנוי כמו במסלול ה‑service-role, כדי שכרטיס של מנוי שפג לא יישאר חשוף.
   const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
   if (subscription && !isSubscriptionLive(subscription)) return null;

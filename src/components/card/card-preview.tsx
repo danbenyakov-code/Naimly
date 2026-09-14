@@ -7,6 +7,7 @@ import type { CardData, CardWidget, QuickAction, QuickActionType, SmartButton } 
 import { initials, normalizePhone, whatsappUrl } from "@/lib/utils";
 import { safeHref, safeSrc } from "@/lib/safe-url";
 import { googleMapsUrl, wazeUrl } from "@/lib/address";
+import { isActionUsable, resolveActionValue, socialUrl, whatsappLink } from "@/lib/contact-source";
 
 /**
  * נתוני הכרטיס נשמרים כ-JSONB בלי אילוץ על סוג הפעולה, ולכן ערך לא מוכר
@@ -19,15 +20,21 @@ const actionIcons: Record<QuickActionType, typeof Phone> = {
 };
 
 function actionHref(action: QuickAction, card: CardData) {
-  const value = action.value || (["waze", "google_maps"].includes(action.type) ? card.address : "");
-  if (action.type === "phone") return `tel:${normalizePhone(value || card.phone)}`;
-  if (action.type === "whatsapp") return whatsappUrl(value || card.whatsapp, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`);
+  // QA-024: הערך נגזר ממקור יחיד — פרטי הכרטיס — ולא מעותק בפעולה.
+  const value = resolveActionValue(action, card);
+  if (action.type === "phone") return `tel:${normalizePhone(value)}`;
+  // QA-025: wa.me דורש E.164. מספר שלא ניתן לנרמל לא מייצר קישור.
+  if (action.type === "whatsapp") return whatsappLink(value, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`) || "";
   if (action.type === "email") return `mailto:${value || card.email}`;
   if (action.type === "save_contact") return `/api/vcard/${card.slug}`;
   // הכתובת המובנית עדיפה. הערך שהוזן בפעולה משמש רק כגיבוי לכרטיסים ותיקים.
   if (action.type === "waze") return wazeUrl(card.cardAddress) || `https://www.waze.com/ul?q=${encodeURIComponent(value)}&navigate=yes`;
   if (action.type === "google_maps") return googleMapsUrl(card.cardAddress) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
-  return safeHref(value) || "#";
+  // QA-026: שם משתמש נבנה לכתובת מלאה. "#" הוא קישור שבור שנראה תקין,
+  // ולכן פעולה בלי יעד תקין לא מקבלת href בכלל.
+  const social = socialUrl(action.type, value);
+  if (social) return social;
+  return safeHref(value) || "";
 }
 
 function smartButtonHref(button: SmartButton) {
@@ -80,7 +87,9 @@ function SafeImage({ src, fallback = null, ...rest }: { src?: string; fallback?:
 
 export function CardPreview({ card, compact = false, onAction, contactForm }: { card: CardData; compact?: boolean; onAction?: (action: string) => void; contactForm?: ReactNode }) {
   const style = { "--card-primary": card.primaryColor, "--card-accent": card.accentColor, "--card-button": card.buttonColor, "--card-heading": card.headingColor, "--card-body": card.bodyTextColor } as CSSProperties;
-  const quickActions = (card.quickActions.length ? card.quickActions : defaultActions(card)).slice(0, card.quickActionsLimit);
+  const quickActions = (card.quickActions.length ? card.quickActions : defaultActions(card))
+    .filter((action) => isActionUsable(action, card))
+    .slice(0, card.quickActionsLimit);
   const widgets = card.widgets.length ? card.widgets.filter((widget) => widget.enabled) : [
     { id: "services", type: "services", title: "השירותים שלי", enabled: true },
     { id: "gallery", type: "gallery", title: "גלריה", enabled: true },
@@ -106,7 +115,7 @@ export function CardPreview({ card, compact = false, onAction, contactForm }: { 
       <div className="-mt-11 flex items-end justify-between gap-3"><div className={`grid h-[88px] w-[88px] shrink-0 place-items-center overflow-hidden border-4 border-white bg-[#eef0ff] text-2xl font-extrabold text-[var(--card-primary)] shadow-lg ${card.logoShape === "circle" ? "rounded-full" : card.logoShape === "square" ? "rounded-none" : "rounded-[25px]"}`}><SafeImage src={card.logoUrl || card.avatarUrl} alt={card.logoUrl ? card.logoAlt : card.avatarAlt} className="h-full w-full object-cover" fallback={initials(card.ownerName)} /></div><span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-[#e9fbf7] px-2.5 py-1 text-[11px] font-bold text-[#08735f]"><span className="h-1.5 w-1.5 rounded-full bg-[#14b89d]" /> זמין לפניות</span></div>
       <div className="mt-4"><p className="text-xs font-bold uppercase tracking-wide text-[var(--card-primary)]">{card.businessName}</p><h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-[var(--card-heading)]">{card.ownerName}</h2><p className="text-sm font-medium text-[var(--card-body)]">{card.roleTitle}</p>{card.slogan && <p className="mt-2 text-sm font-extrabold text-[var(--card-primary)]">{card.slogan}</p>}<p className="mt-3 text-[13px] leading-6 text-[var(--card-body)]">{card.bio}</p></div>
       <div className="mt-5 grid grid-cols-3 gap-2" aria-label="פעולות מהירות">{quickActions.map((action) => { const Icon = actionIcons[action.type] ?? ExternalLink; return <a key={action.id} href={actionHref(action, card)} target={["phone", "whatsapp", "email", "save_contact"].includes(action.type) ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => onAction?.(action.type === "save_contact" ? "contact_save" : action.type)} className="grid min-h-16 place-items-center gap-1 rounded-xl bg-[#f2f4f8] px-1 text-[11px] font-bold text-[var(--card-primary)]"><Icon size={19} /><span className="max-w-full truncate">{action.label}</span></a>; })}</div>
-      {card.whatsapp && <a href={whatsappUrl(card.whatsapp, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`)} onClick={() => onAction?.("whatsapp_primary")} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--card-button)] px-4 font-bold text-white">{card.ctaLabel || "בואו נדבר"} <MessageCircle size={17} /></a>}
+      {whatsappLink(card.whatsapp || card.phone, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`) && <a href={whatsappLink(card.whatsapp || card.phone, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`)} onClick={() => onAction?.("whatsapp_primary")} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--card-button)] px-4 font-bold text-white">{card.ctaLabel || "בואו נדבר"} <MessageCircle size={17} /></a>}
       {!compact && widgets.map(renderWidget)}
     </div>
   </article>;
