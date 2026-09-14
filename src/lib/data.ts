@@ -7,6 +7,7 @@ import { resolveAccess } from "@/lib/plan-access";
 import { isBackgroundId } from "@/lib/backgrounds";
 import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
+import { starterCard } from "@/lib/starter-card";
 
 type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null } | null | undefined;
 
@@ -191,38 +192,21 @@ export async function getDashboardCard(viewer: Viewer): Promise<CardData> {
 }
 
 /**
- * כרטיס פתיחה למשתמש חדש. הוא נגזר מכרטיס ההדגמה אבל מכווץ למגבלות המסלול,
- * אחרת השמירה הראשונה של משתמש בהתנסות הייתה נחסמת על ידי אכיפת המסלול.
- */
-function starterCard(viewer: Viewer): CardData {
-  const access = resolveAccess(viewer);
-  const limits = access.limits;
-  const features = access.features;
-  const allowedWidget = (type: CardData["widgets"][number]["type"]) =>
-    (type !== "video" || features.video) && (type !== "files" || features.files);
+/**
 
-  return {
-    ...demoCard,
-    id: "",
-    userId: viewer.id,
-    slug: `card-${viewer.id.slice(0, 6)}`,
-    businessName: "העסק שלי",
-    ownerName: viewer.fullName || "השם שלך",
-    email: viewer.email,
-    services: [],
-    testimonials: [],
-    businessHours: [],
-    files: [],
-    gallery: [],
-    isPublished: false,
-    areaServed: features.seo ? demoCard.areaServed : "",
-    socialImageUrl: features.seo ? demoCard.socialImageUrl : "",
-    galleryStyle: features.carousel ? demoCard.galleryStyle : "grid",
-    quickActionsLimit: Math.min(demoCard.quickActionsLimit, limits.quickActions) as CardData["quickActionsLimit"],
-    quickActions: demoCard.quickActions.slice(0, limits.quickActions),
-    widgets: demoCard.widgets.map((widget) => allowedWidget(widget.type) ? widget : { ...widget, enabled: false }),
-    tracking: { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" },
-  };
+/**
+ * סטטוס הפרסום בלבד, לשימוש בסרגל הדשבורד.
+ *
+ * QA-014: הסרגל הכריז "הכרטיס שלך מוכן לעבוד" לכל משתמש, גם כשלא היה
+ * כרטיס כלל — ולצדו קישור צפייה שהוביל ל-404.
+ */
+export async function getCardStatus(viewer: Viewer): Promise<{ exists: boolean; published: boolean }> {
+  noStore();
+  if (viewer.demo) return { exists: true, published: true };
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return { exists: false, published: false };
+  const { data } = await supabase.from("cards").select("is_published").eq("user_id", viewer.id).limit(1).maybeSingle();
+  return { exists: Boolean(data), published: data?.is_published === true };
 }
 
 export async function getPublicCard(slug: string): Promise<CardData | null> {

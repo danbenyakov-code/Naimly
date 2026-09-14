@@ -63,6 +63,16 @@ function isSameOriginPath(value: string) {
  * עצמו — דווקא הבטוחים ביותר. כרטיס ההדגמה הציג בגלל זה רקע ריק
  * במקום התמונות שב-public/samples.
  */
+/**
+ * נכס מאותו מקור, לשימוש בוולידציה בשרת.
+ *
+ * מאפשר לסכמה לקבל /samples/logo.jpg בלי לפתוח אותה לכתובות חיצוניות
+ * או לסכימות מסוכנות. אותם כללים בדיוק כמו safeSrc.
+ */
+export function isSameOriginAsset(value: string) {
+  return isSameOriginPath(String(value).trim());
+}
+
 export function safeSrc(value: string | undefined | null) {
   if (!value) return "";
   const trimmed = String(value).trim();

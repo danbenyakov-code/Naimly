@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
 import { ArrowDown, ArrowLeft, ArrowUp, BarChart3, Check, ContactRound, Copy, Eye, ImagePlus, LayoutGrid, Link2, Loader2, Lock, Monitor, Palette, Plus, Save, Settings2, Share2, Smartphone, Sparkles, Trash2, Type, UploadCloud, X } from "lucide-react";
@@ -48,7 +48,15 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
   const [tab, setTab] = useState<Tab>("structure");
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState("");
-  const [status, setStatus] = useState<{ type: "success" | "error"; text: string } | null>(null);
+  const [status, setStatus] = useState<{ type: "success" | "error"; text: string; field?: string; errorId?: string } | null>(null);
+  /*
+   * QA-032: עד כה היה רק boolean אחד. עכשיו המצב מפורש, כדי שהמשתמש
+   * יראה את ההבדל בין "שומר טיוטה" לבין "מפרסם", ושהצלחה תוצג רק
+   * אחרי שהשרת אישר כתיבה בפועל.
+   */
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "publishing" | "published" | "failed">("idle");
+  const [lastSavedAt, setLastSavedAt] = useState<string | null>(null);
+  const dirtyRef = useRef(false);
   const [qrData, setQrData] = useState("");
   const [previewMode, setPreviewMode] = useState<"mobile" | "desktop">(initialPreviewMode);
   const [showTour, setShowTour] = useState(forceTour);
@@ -72,19 +80,35 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
     description: `${featureLabels[feature]} אינו כלול במסלול ${currentPlan.name}. המסלול ${planName(requiredPlanForFeature(feature))} פותח את היכולת מיד לאחר הרכישה.`,
     requiredPlan: requiredPlanForFeature(feature),
   });
+  /*
+   * QA-018: המד הראה 100% לכרטיס ריק, כי starterCard מילא הכול מנתוני
+   * כרטיס ההדגמה. עכשיו הוא נמדד מול שדות ליבה אמיתיים, ומבדיל בין
+   * חובה לפרסום לבין המלצה — כי רק החובה חוסמת.
+   */
   const readiness = useMemo(() => {
-    const checks = [
-      { ok: Boolean(card.businessName.trim()), label: "שם העסק" },
-      { ok: Boolean(card.ownerName.trim()), label: "שם מלא" },
-      { ok: Boolean(card.slug.trim()), label: "כתובת הכרטיס" },
-      { ok: card.quickActions.some((action) => action.value || action.type === "save_contact"), label: "פעולה מהירה אחת" },
-      { ok: Boolean(card.seoTitle.trim()), label: "כותרת SEO" },
-      { ok: Boolean(card.seoDescription.trim()), label: "תיאור SEO" },
-      { ok: !card.coverUrl || Boolean(card.coverAlt.trim()), label: "טקסט חלופי לקאבר" },
-      { ok: !card.logoUrl || Boolean(card.logoAlt.trim()), label: "טקסט חלופי ללוגו" },
+    const required = [
+      { key: "businessName", ok: Boolean(card.businessName.trim()), label: "שם העסק" },
+      { key: "ownerName", ok: Boolean(card.ownerName.trim()), label: "שם מלא" },
+      { key: "slug", ok: Boolean(card.slug.trim()), label: "כתובת הכרטיס" },
+      { key: "quickActions", ok: card.quickActions.some((action) => action.value.trim() || action.type === "save_contact"), label: "דרך אחת ליצור קשר" },
     ];
-    const completed = checks.filter((check) => check.ok).length;
-    return { score: Math.round((completed / checks.length) * 100), missing: checks.find((check) => !check.ok)?.label };
+    const recommended = [
+      { key: "bio", ok: Boolean(card.bio.trim()), label: "תיאור קצר" },
+      { key: "seoTitle", ok: Boolean(card.seoTitle.trim()), label: "כותרת SEO" },
+      { key: "seoDescription", ok: Boolean(card.seoDescription.trim()), label: "תיאור SEO" },
+      { key: "coverAlt", ok: !card.coverUrl || Boolean(card.coverAlt.trim()), label: "טקסט חלופי לקאבר" },
+      { key: "logoAlt", ok: !card.logoUrl || Boolean(card.logoAlt.trim()), label: "טקסט חלופי ללוגו" },
+    ];
+    const all = [...required, ...recommended];
+    const completed = all.filter((check) => check.ok).length;
+    const missingRequired = required.filter((check) => !check.ok);
+    return {
+      score: Math.round((completed / all.length) * 100),
+      missing: all.find((check) => !check.ok)?.label,
+      missingRequired,
+      canPublish: missingRequired.length === 0,
+      invalidFields: new Set(missingRequired.map((check) => check.key)),
+    };
   }, [card]);
 
   useEffect(() => {
@@ -98,16 +122,55 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
     return () => cancelAnimationFrame(frame);
   }, [demo, forceTour]);
   useEffect(() => { QRCode.toDataURL(publicUrl, { width: 360, margin: 2, color: { dark: card.primaryColor, light: "#ffffff" } }).then(setQrData).catch(() => setQrData("")); }, [publicUrl, card.primaryColor]);
-  function update<K extends keyof CardData>(key: K, value: CardData[K]) { setCard((current) => ({ ...current, [key]: value })); setStatus(null); }
+  /*
+   * QA-032/REQ-001: קודם כל הקלדה מחקה את ההודעה, כולל שגיאה שהמשתמש
+   * עוד לא הספיק לקרוא. עכשיו נמחקת רק שגיאה של השדה שנערך.
+   */
+  function update<K extends keyof CardData>(key: K, value: CardData[K]) {
+    setCard((current) => ({ ...current, [key]: value }));
+    dirtyRef.current = true;
+    setSaveState((current) => (current === "saved" || current === "published" ? "idle" : current));
+    setStatus((current) => (current && current.field && current.field !== String(key) ? current : null));
+  }
 
-  async function save() {
-    if (locked) { setStatus({ type: "error", text: lockMessages[lockReason] }); return; }
-    setSaving(true); setStatus(null);
+  /**
+   * שמירה או פרסום.
+   *
+   * QA-032: הצלחה מוצגת רק אחרי שהשרת החזיר שורה שנכתבה. כשל לעולם
+   * אינו מאפס את המסך — הנתונים נשארים ב-state והמשתמש יכול לנסות שוב.
+   * QA-018: פרסום חסום עד שכל שדות הליבה מלאים.
+   */
+  async function save(options?: { publish?: boolean; silent?: boolean }) {
+    const publishing = options?.publish ?? card.isPublished;
+    if (locked) { setStatus({ type: "error", text: lockMessages[lockReason] }); return false; }
+
+    if (publishing && !readiness.canPublish) {
+      const first = readiness.missingRequired[0];
+      setStatus({
+        type: "error",
+        field: first?.key,
+        text: `כדי לפרסם יש להשלים: ${readiness.missingRequired.map((item) => item.label).join(", ")}`,
+      });
+      setSaveState("failed");
+      return false;
+    }
+
+    const payload = { ...card, isPublished: publishing };
+    setSaving(true);
+    setSaveState(publishing ? "publishing" : "saving");
+    if (!options?.silent) setStatus(null);
+
     try {
-      const response = await fetch("/api/cards", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(card) });
-      const result = await response.json();
-      if (!response.ok) {
-        // 402/403 מהשרת = חסימת מסלול. פותחים ישירות את מסך הרכישה.
+      const response = await fetch("/api/cards", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      // תשובה שאינה JSON פירושה קריסה בשרת. לא בולעים אותה בשקט.
+      const result = await response.json().catch(() => null);
+
+      if (!response.ok || !result) {
         if (result?.upgradeTo) {
           requestUpgrade({
             title: result.locked ? "המנוי אינו פעיל" : (result.error || "היכולת אינה כלולה במסלול"),
@@ -115,14 +178,63 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
             requiredPlan: result.upgradeTo as PlanId,
           });
         }
-        throw new Error(result.error || "השמירה נכשלה");
+        setSaveState("failed");
+        setStatus({
+          type: "error",
+          field: result?.field,
+          errorId: result?.errorId,
+          text: result?.fieldLabel && result?.field
+            ? `${result.fieldLabel}: ${result.error}`
+            : (result?.error || `השמירה נכשלה (שגיאה ${response.status}). הנתונים שלך נשארו במסך.`),
+        });
+        return false;
       }
-      const next = { ...card, ...result.card } as CardData; setCard(next); if (demo) localStorage.setItem("naimly-demo-card", JSON.stringify(next));
-      // פרסום הוא הרגע הגדול של המשתמש — הוא מקבל זיקוקים. שמירת טיוטה מקבלת קונפטי קצר.
-      if (card.isPublished) fireworks({ bursts: 4 }); else burst(undefined, { count: 50 });
-      setStatus({ type: "success", text: card.isPublished ? "השינויים נשמרו והכרטיס פורסם" : "הטיוטה נשמרה" });
-    } catch (error) { setStatus({ type: "error", text: error instanceof Error ? error.message : "לא הצלחנו לשמור" }); } finally { setSaving(false); }
+
+      // רק כאן הכתיבה אושרה על ידי השרת.
+      const next = { ...payload, ...result.card } as CardData;
+      setCard(next);
+      dirtyRef.current = false;
+      setLastSavedAt(new Date().toISOString());
+      if (demo) localStorage.setItem("naimly-demo-card", JSON.stringify(next));
+
+      if (next.isPublished) {
+        setSaveState("published");
+        if (!options?.silent) fireworks({ bursts: 4 });
+        setStatus({ type: "success", text: "הכרטיס פורסם והקישור הציבורי פעיל" });
+      } else {
+        setSaveState("saved");
+        if (!options?.silent) burst(undefined, { count: 50 });
+        if (!options?.silent) setStatus({ type: "success", text: "הטיוטה נשמרה" });
+      }
+      return true;
+    } catch (error) {
+      setSaveState("failed");
+      setStatus({
+        type: "error",
+        text: error instanceof Error && error.message
+          ? `${error.message} — הנתונים שלך נשארו במסך.`
+          : "לא הצלחנו לשמור. הנתונים שלך נשארו במסך.",
+      });
+      return false;
+    } finally {
+      setSaving(false);
+    }
   }
+
+  /*
+   * שמירה אוטומטית של הטיוטה.
+   *
+   * QA-032: עריכות אבדו כי לא הייתה שמירה בין לחיצות. השמירה כאן שקטה —
+   * בלי קונפטי ובלי הודעת הצלחה — ולעולם אינה מפרסמת בעצמה.
+   */
+  useEffect(() => {
+    if (locked || saving || !dirtyRef.current) return;
+    const timer = setTimeout(() => {
+      if (dirtyRef.current && !saving) void save({ publish: false, silent: true });
+    }, 2500);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [card, locked, saving]);
   async function upload(file: File, target: "coverUrl" | "logoUrl" | "avatarUrl" | "gallery") {
     if (target === "gallery" && card.gallery.length >= limits.galleryItems) {
       requestUpgrade({
@@ -165,13 +277,65 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
         {demo && <button type="button" onClick={() => { setTourStep(0); setShowTour(true); }} className="button-secondary min-h-11 flex-1 sm:flex-none"><Sparkles size={17} />סיור קצר</button>}
         {card.isPublished && <Link href={`/${card.slug}`} target="_blank" className="button-secondary min-h-11 flex-1 sm:flex-none"><Eye size={17} />צפייה בכרטיס</Link>}
         {/* בנייד כפתור השמירה חי בסרגל התחתון הצף, כדי שיהיה תמיד בהישג אצבע. */}
-        <button type="button" onClick={save} disabled={saving || locked} className="button-primary hidden min-w-40 sm:inline-flex">{saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saving ? "שומר..." : "שמירה ופרסום"}</button>
+        <button type="button" onClick={() => void save({ publish: true })} disabled={saving || locked} className="button-primary hidden min-w-40 sm:inline-flex">{saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saveState === "publishing" ? "מפרסם..." : saveState === "saving" ? "שומר..." : "שמירה ופרסום"}</button>
       </div>
     </div>
     {locked && <LockedOverlay reason={lockReason} />}
     {trialActive && <TrialPlanPreview impactByPlan={paidPlanOrder.map((plan) => ({ plan, name: planName(plan), items: downgradeImpact(card, plan) }))} />}
-    {status && <div role={status.type === "error" ? "alert" : "status"} className={cn("mt-4 flex items-center justify-between rounded-xl border p-3 text-sm", status.type === "success" ? "border-[#b7e6d8] bg-[#effcf8] text-[#08735f]" : "border-[#f0bdc3] bg-[#fff2f4] text-[#a32031]")}><span className="flex items-center gap-2">{status.type === "success" ? <Check size={17} /> : <X size={17} />}{status.text}</span><button type="button" onClick={() => setStatus(null)} aria-label="סגירה"><X size={16} /></button></div>}
-    <div className="mt-4 rounded-2xl border border-[#ded8ff] bg-[#f7f5ff] p-4" aria-label={`מוכנות לפרסום ${readiness.score} אחוז`}><div className="flex items-center justify-between gap-3 text-sm"><strong>בדיקת מוכנות לפרסום</strong><span className="font-black text-[#5134cc]">{readiness.score}%</span></div><div className="mt-2 h-2 overflow-hidden rounded-full bg-white" aria-hidden="true"><div className="h-full rounded-full bg-[linear-gradient(90deg,#6d4aff,#14d9c4)] transition-all" style={{ width: `${readiness.score}%` }} /></div><p className="mt-2 text-xs text-[#68758a]">{readiness.missing ? `השלב הבא המומלץ: ${readiness.missing}` : "מעולה — הכרטיס מוכן לפרסום."}</p></div>
+    {status && (
+      <div
+        role={status.type === "error" ? "alert" : "status"}
+        className={cn(
+          "mt-4 flex items-start justify-between gap-3 rounded-xl border p-3 text-sm",
+          status.type === "success" ? "border-[#b7e6d8] bg-[#effcf8] text-[#08735f]" : "border-[#f0bdc3] bg-[#fff2f4] text-[#a32031]",
+        )}
+      >
+        <span className="flex items-start gap-2">
+          <span className="mt-0.5 shrink-0" aria-hidden="true">{status.type === "success" ? <Check size={17} /> : <X size={17} />}</span>
+          <span>
+            {status.text}
+            {/* QA-032: מזהה תקלה שאפשר להעביר לתמיכה במקום "לא עבד". */}
+            {status.errorId && (
+              <span className="mt-1 block text-xs opacity-80">מזהה לתמיכה: <code className="font-mono">{status.errorId}</code></span>
+            )}
+          </span>
+        </span>
+        <button type="button" onClick={() => setStatus(null)} aria-label="סגירת ההודעה" className="shrink-0"><X size={16} /></button>
+      </div>
+    )}
+
+    {/* QA-032: מצב השמירה גלוי תמיד, גם בלי הודעה. */}
+    <p className="mt-2 text-xs text-[#7b8799]" aria-live="polite">
+      {saveState === "saving" && "שומר טיוטה..."}
+      {saveState === "publishing" && "מפרסם..."}
+      {saveState === "saved" && lastSavedAt && `הטיוטה נשמרה ב-${new Date(lastSavedAt).toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" })}`}
+      {saveState === "published" && "הכרטיס פורסם"}
+      {saveState === "failed" && "השמירה נכשלה — הנתונים נשארו במסך"}
+      {saveState === "idle" && lastSavedAt && "יש שינויים שטרם נשמרו"}
+    </p>
+    <div className="mt-4 rounded-2xl border border-[#ded8ff] bg-[#f7f5ff] p-4">
+      <div className="flex items-center justify-between gap-3 text-sm">
+        <strong>בדיקת מוכנות לפרסום</strong>
+        <span className="font-black text-[#5134cc]">{readiness.score}%</span>
+      </div>
+      <div className="mt-2 h-2 overflow-hidden rounded-full bg-white" aria-hidden="true">
+        <div className="h-full rounded-full bg-[linear-gradient(90deg,#6d4aff,#14d9c4)] transition-all" style={{ width: `${readiness.score}%` }} />
+      </div>
+      {/* QA-018: מפרידים בין חובה לפרסום לבין המלצה — רק החובה חוסמת. */}
+      {readiness.canPublish ? (
+        <p className="mt-2 text-xs text-[#68758a]" aria-live="polite">
+          {readiness.missing ? `אפשר לפרסם. מומלץ להשלים: ${readiness.missing}` : "מעולה — הכרטיס מוכן לפרסום."}
+        </p>
+      ) : (
+        <div className="mt-2 text-xs text-[#8d1f2e]" role="status">
+          <strong className="block">חסר כדי לפרסם:</strong>
+          <ul className="mt-1 mr-4 list-disc">
+            {readiness.missingRequired.map((item) => <li key={item.key}>{item.label}</li>)}
+          </ul>
+        </div>
+      )}
+      <p className="sr-only" aria-live="polite">{`מוכנות לפרסום ${readiness.score} אחוז`}</p>
+    </div>
     <div className={cn("mt-5 grid gap-5", previewMode === "mobile" ? "xl:grid-cols-[minmax(0,1fr)_390px]" : "xl:grid-cols-1")}>
       <section className="card-surface min-w-0 overflow-hidden"><div className="overflow-x-auto overscroll-x-contain border-b border-[#e2e6ee] px-3 pt-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"><div className="flex min-w-max gap-1" role="tablist" aria-label="שלבי בניית הכרטיס">{tabs.map(({ id, label, icon: Icon }) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)} className={cn("flex min-h-12 items-center gap-2 rounded-t-xl border-b-2 px-3.5 text-sm font-bold", tab === id ? "border-[#6d4aff] bg-[#f5f2ff] text-[#4b3bad]" : "border-transparent text-[#748196] hover:bg-[#f6f7fa]")}><Icon size={17} />{label}</button>)}</div></div>
         <div className="p-4 sm:p-6 lg:p-7">
@@ -187,13 +351,13 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, locked = fal
       </section>
       <aside id="live-preview" className={cn("scroll-mt-4", previewMode === "mobile" && "xl:sticky xl:top-4 xl:self-start")}><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><span className="text-sm font-bold">תצוגה חיה</span><p className="mt-0.5 text-xs text-[#748196]">כך הכרטיס ייראה אצל המבקרים</p></div><div className="inline-flex self-start rounded-xl border border-[#dfe4ec] bg-white p-1" role="group" aria-label="בחירת גודל תצוגה"><button type="button" onClick={() => setPreviewMode("mobile")} aria-pressed={previewMode === "mobile"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "mobile" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Smartphone size={17} />נייד</button><button type="button" onClick={() => setPreviewMode("desktop")} aria-pressed={previewMode === "desktop"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "desktop" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Monitor size={17} />מחשב</button></div></div>{previewMode === "mobile" ? <div className="mx-auto w-full max-w-[360px] overflow-y-auto rounded-[28px] border-4 border-[#172033] bg-white shadow-[0_22px_65px_rgba(11,24,48,.2)] sm:rounded-[34px] sm:border-[9px] xl:max-h-[770px]"><CardPreview card={card} contactForm={formPreview} /></div> : <div className="mx-auto w-full max-w-[1040px] overflow-hidden rounded-[22px] border border-[#cad2df] bg-[#eef1f6] shadow-[0_22px_65px_rgba(11,24,48,.16)]"><div className="flex h-11 items-center gap-2 border-b border-[#d8dee8] bg-white px-4" aria-hidden="true"><span className="h-3 w-3 rounded-full bg-[#ff6b61]" /><span className="h-3 w-3 rounded-full bg-[#f5bf4f]" /><span className="h-3 w-3 rounded-full bg-[#14d9c4]" /><span className="mx-auto rounded-lg bg-[#f2f4f8] px-20 py-1 text-[11px] text-[#758198]">{publicUrl}</span></div><div className="max-h-[760px] overflow-y-auto bg-[radial-gradient(circle_at_15%_10%,rgba(109,74,255,.13),transparent_32%),#eef1f6] p-8"><div className="mx-auto max-w-[620px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_24px_70px_rgba(11,16,32,.15)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div>}</aside>
     </div>
-    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[#dfe4ec] bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_30px_rgba(11,16,32,.12)] backdrop-blur xl:hidden"><a href="#live-preview" className="button-secondary flex-1"><Eye size={17} />תצוגה</a><button type="button" onClick={save} disabled={saving} className="button-primary flex-[1.35]">{saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saving ? "שומר..." : "שמירה ופרסום"}</button></div>
+    <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[#dfe4ec] bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_30px_rgba(11,16,32,.12)] backdrop-blur xl:hidden"><a href="#live-preview" className="button-secondary flex-1"><Eye size={17} />תצוגה</a><button type="button" onClick={() => void save({ publish: true })} disabled={saving} className="button-primary flex-[1.35]">{saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saveState === "publishing" ? "מפרסם..." : saveState === "saving" ? "שומר..." : "שמירה ופרסום"}</button></div>
     {/* סרגל שמירה קבוע בתחתית המסך בנייד. מעל ניווט התחתית של המעטפת. */}
     <div className="fixed inset-x-0 bottom-[calc(60px+env(safe-area-inset-bottom))] z-40 border-t border-[#dfe5ed] bg-white/95 p-3 backdrop-blur-lg sm:hidden">
       <div className="flex items-center gap-2">
         <a href="#live-preview" className="button-secondary min-h-12 shrink-0 px-3" aria-label="מעבר לתצוגה חיה"><Eye size={17} /></a>
-        <button type="button" onClick={save} disabled={saving || locked} className="button-primary min-h-12 flex-1">
-          {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saving ? "שומר..." : locked ? "נעול — נדרש מסלול" : "שמירה ופרסום"}
+        <button type="button" onClick={() => void save({ publish: true })} disabled={saving || locked} className="button-primary min-h-12 flex-1">
+          {saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{locked ? "נעול — נדרש מסלול" : saveState === "publishing" ? "מפרסם..." : saveState === "saving" ? "שומר..." : "שמירה ופרסום"}
         </button>
       </div>
     </div>

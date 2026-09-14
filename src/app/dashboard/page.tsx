@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, BarChart3, Eye, MessageSquareText, MousePointerClick, QrCode, Sparkles, UserPlus } from "lucide-react";
+import { ArrowLeft, BarChart3, Clock3, Eye, MessageSquareText, MousePointerClick, QrCode, Sparkles, UserPlus } from "lucide-react";
 import { getAnalyticsSummary, getDashboardCard, getViewer } from "@/lib/data";
 import { formatCompact } from "@/lib/utils";
 import { resolveAccess } from "@/lib/plan-access";
@@ -29,7 +29,10 @@ export default async function DashboardPage() {
 
       <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div><p className="text-sm font-bold text-[#6d4aff]">סקירת פעילות</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">מה קורה בכרטיס שלך</h1><p className="mt-1 text-sm text-[#718096]">הנתונים החשובים והפעולות הבאות במקום אחד.</p></div>
-        <div className="flex gap-2"><Link href={`/${card.slug}`} target="_blank" className="button-secondary"><Eye size={17} />צפייה בכרטיס</Link><Link href="/dashboard/card" className="button-primary">עריכת הכרטיס <ArrowLeft size={17} /></Link></div>
+        <div className="flex gap-2">{card.isPublished
+          ? <Link href={`/${card.slug}`} target="_blank" className="button-secondary"><Eye size={17} />צפייה בכרטיס</Link>
+          : <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#fff6e5] px-3 py-2 text-sm font-bold text-[#8a5a00]"><Clock3 size={16} aria-hidden="true" />הכרטיס בטיוטה</span>}
+          <Link href="/dashboard/card" className="button-primary">{card.isPublished ? "עריכת הכרטיס" : "השלמת הכרטיס ופרסום"} <ArrowLeft size={17} /></Link></div>
       </div>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="מדדים מרכזיים">

@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
-import { getViewer } from "@/lib/data";
+import { getCardStatus, getViewer } from "@/lib/data";
 
 export const metadata: Metadata = { title: "אזור אישי", robots: { index: false, follow: false } };
 
@@ -16,5 +16,6 @@ export default async function DashboardLayout({ children }: { children: React.Re
    */
   if (!viewer.demo && !viewer.planSelectedAt) redirect("/onboarding/plan");
 
-  return <DashboardShell viewer={viewer}>{children}</DashboardShell>;
+  const cardStatus = await getCardStatus(viewer);
+  return <DashboardShell viewer={viewer} cardStatus={cardStatus}>{children}</DashboardShell>;
 }
