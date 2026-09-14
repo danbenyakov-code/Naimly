@@ -21,7 +21,21 @@ const navItems = [
   { href: "/dashboard/settings", label: "הגדרות", icon: Settings },
 ];
 
-export function DashboardShell({ viewer, children }: { viewer: Viewer; children: React.ReactNode }) {
+export function DashboardShell({
+  viewer,
+  cardStatus = { exists: false, published: false },
+  children,
+}: {
+  viewer: Viewer;
+  cardStatus?: { exists: boolean; published: boolean };
+  children: React.ReactNode;
+}) {
+  // QA-014: הכותרת משקפת את המצב האמיתי ולא הכרזה קבועה.
+  const subtitle = cardStatus.published
+    ? "הכרטיס שלך פורסם ופעיל"
+    : cardStatus.exists
+      ? "הכרטיס שמור כטיוטה — נותר לפרסם"
+      : "עוד לא יצרת כרטיס";
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const items = viewer.role === "admin"
@@ -69,7 +83,7 @@ export function DashboardShell({ viewer, children }: { viewer: Viewer; children:
         <header className="sticky top-0 z-40 flex h-16 items-center justify-between border-b border-[#e1e6ee] bg-white/92 px-4 backdrop-blur-lg sm:px-7">
           <div className="flex items-center gap-3">
             <button type="button" className="grid h-10 w-10 place-items-center rounded-xl border border-[#dfe5ef] lg:hidden" onClick={() => setOpen(true)} aria-label="פתיחת תפריט"><Menu size={20} /></button>
-            <div><p className="text-sm font-extrabold">שלום, {viewer.fullName.split(" ")[0]}</p><p className="hidden text-xs text-[#7b8799] sm:block">הכרטיס שלך מוכן לעבוד</p></div>
+            <div><p className="text-sm font-extrabold">שלום, {viewer.fullName.split(" ")[0]}</p><p className="hidden text-xs text-[#7b8799] sm:block">{subtitle}</p></div>
           </div>
           <div className="flex items-center gap-2">
             <Link href="/dashboard/card" className="grid h-10 w-10 place-items-center rounded-xl text-[#647188] hover:bg-[#f2f4f8]" aria-label="עריכת הכרטיס"><CreditCard size={19} /></Link>

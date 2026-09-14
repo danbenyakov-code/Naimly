@@ -1,13 +1,21 @@
 import { z } from "zod";
-import { isHttpUrl } from "@/lib/safe-url";
+import { isHttpUrl, isSameOriginAsset } from "@/lib/safe-url";
 import { isBackgroundId } from "@/lib/backgrounds";
 import { isIconId } from "@/lib/icons";
 
 /** צבע hex בן 6 ספרות. */
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע תקין");
 
-// z.string().url() מאשר גם javascript: ו‑data: — ולכן נדרשת בדיקת סכימה מפורשת.
-const httpUrl = z.string().max(2000).refine(isHttpUrl, "כתובת חייבת להתחיל ב‑http:// או https://");
+/*
+ * z.string().url() מאשר גם javascript: ו-data:, ולכן נדרשת בדיקת סכימה מפורשת.
+ *
+ * QA-031: הבדיקה חסמה גם נכסים מאותו מקור (/samples/...), ולכן כרטיס שכלל
+ * תמונה מקומית נדחה בשמירה עם הודעה שאינה מציינת איזה שדה נכשל. נתיב
+ * מאותו מקור בטוח לא פחות מ-https חיצוני — הוא לא יכול להצביע החוצה.
+ */
+const acceptableUrl = (value: string) => isHttpUrl(value) || isSameOriginAsset(value);
+const urlMessage = "כתובת חייבת להתחיל ב‑http:// או https://";
+const httpUrl = z.string().max(2000).refine(acceptableUrl, urlMessage);
 const optionalUrl = z.union([z.literal(""), httpUrl]);
 const reservedSlugs = new Set(["admin", "api", "auth", "checkout", "dashboard", "login", "signup", "pricing", "legal", "accessibility", "robots.txt", "sitemap.xml", "forgot-password", "reset-password", "_next", "well-known", "favicon.ico", "manifest.webmanifest", "icon.svg", "noa-design", "onboarding", "contact"]);
 
@@ -23,12 +31,12 @@ export const authSchema = z.object({
 export const cardSchema = z.object({
   id: z.string().max(100).optional(),
   slug: z.string().min(3, "נדרשים לפחות 3 תווים").max(60).regex(/^[a-z0-9-]+$/, "הקישור יכול לכלול אותיות באנגלית, מספרים ומקף").refine((value) => !reservedSlugs.has(value), "הכתובת הזו שמורה למערכת. יש לבחור כתובת אחרת"),
-  businessName: z.string().min(2).max(80),
-  ownerName: z.string().min(2).max(80),
+  businessName: z.string().max(80),
+  ownerName: z.string().max(80),
   roleTitle: z.string().max(100),
   slogan: z.string().max(140),
   bio: z.string().max(600),
-  ctaLabel: z.string().min(2).max(40),
+  ctaLabel: z.string().max(40),
   phone: z.string().max(30),
   whatsapp: z.string().max(30),
   email: z.union([z.literal(""), z.string().email()]),
@@ -123,10 +131,7 @@ export const cardSchema = z.object({
     address: z.string().max(200),
     note: z.string().max(300),
     includePhoto: z.boolean(),
-  }).refine(
-    (vcard) => Boolean(vcard.fullName.trim() || vcard.firstName.trim() || vcard.lastName.trim()),
-    { message: "יש להזין שם פרטי, שם משפחה או שם לתצוגה לכרטיס איש הקשר", path: ["firstName"] },
-  ),
+  }),
   cardAddress: z.object({
     country: z.string().max(60),
     city: z.string().max(80),
@@ -153,6 +158,33 @@ export const cardSchema = z.object({
   testimonials: z.array(z.object({ id: z.string().min(1).max(100), name: z.string().min(1).max(80), text: z.string().max(500), rating: z.number().int().min(1).max(5) })).max(30),
   businessHours: z.array(z.object({ day: z.string().max(30), hours: z.string().max(50) })).max(10),
 });
+
+/**
+ * שדות ליבה שחייבים להיות מלאים כדי לפרסם.
+ *
+ * QA-018/QA-032: טיוטה רשאית להיות חלקית — אחרת אי אפשר לשמור עבודה
+ * באמצע. פרסום הוא הרגע שבו הכרטיס נחשף לציבור, ולכן רק הוא דורש
+ * שלמות. אותה רשימה מוצגת למשתמש במד המוכנות.
+ */
+export const publishRequirements: Array<{ key: string; label: string; ok: (card: CardInput) => boolean }> = [
+  { key: "businessName", label: "שם העסק", ok: (card) => card.businessName.trim().length >= 2 },
+  { key: "ownerName", label: "שם מלא", ok: (card) => card.ownerName.trim().length >= 2 },
+  { key: "slug", label: "כתובת הכרטיס", ok: (card) => card.slug.trim().length >= 3 },
+  {
+    key: "quickActions",
+    label: "דרך אחת ליצור קשר",
+    ok: (card) =>
+      card.quickActions.some((action) => action.value.trim().length > 0 || action.type === "save_contact") ||
+      Boolean(card.phone.trim() || card.whatsapp.trim() || card.email.trim()),
+  },
+];
+
+export type CardInput = z.infer<typeof cardSchema>;
+
+/** מה חסר כדי לפרסם. רשימה ריקה = אפשר לפרסם. */
+export function missingForPublish(card: CardInput) {
+  return publishRequirements.filter((requirement) => !requirement.ok(card));
+}
 
 export const leadSchema = z.object({
   slug: z.string().min(3).max(60),

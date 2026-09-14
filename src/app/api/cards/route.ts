@@ -1,12 +1,24 @@
+import { randomUUID } from "node:crypto";
 import { revalidatePath } from "next/cache";
 import { NextResponse } from "next/server";
 import { getViewer } from "@/lib/data";
 import type { PlanId } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { cardSchema } from "@/lib/validation";
+import { cardSchema, missingForPublish } from "@/lib/validation";
 import { cardToDatabaseRow } from "@/lib/card-row";
 import { lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
+
+/** תווית קריאה לכל שדה, כדי שהשגיאה תגיד "תמונת שיתוף" ולא "socialImageUrl". */
+const fieldLabels: Record<string, string> = {
+  businessName: "שם העסק", ownerName: "שם מלא", slug: "כתובת הכרטיס",
+  phone: "טלפון", whatsapp: "וואטסאפ", email: "אימייל", website: "אתר",
+  avatarUrl: "תמונת פרופיל", coverUrl: "תמונת קאבר", logoUrl: "לוגו",
+  videoUrl: "קישור לסרטון", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
+  files: "קבצים", socialLinks: "רשתות חברתיות", quickActions: "פעולות מהירות",
+  smartButtons: "כפתורים חכמים", seoTitle: "כותרת SEO", seoDescription: "תיאור SEO",
+  areaServed: "אזור שירות", tracking: "מדידה", cardAddress: "כתובת",
+};
 
 export async function POST(request: Request) {
   const viewer = await getViewer();
@@ -28,7 +40,21 @@ export async function POST(request: Request) {
 
   const json = await request.json().catch(() => null);
   const parsed = cardSchema.safeParse(json);
-  if (!parsed.success) return NextResponse.json({ error: parsed.error.issues[0]?.message || "הנתונים אינם תקינים", issues: parsed.error.flatten() }, { status: 400 });
+  if (!parsed.success) {
+    /*
+     * QA-031: עד כה הוחזרה הודעה גנרית בלי שם שדה, ולכן הממשק לא יכול
+     * היה לסמן aria-invalid או להעביר מיקוד — המשתמש ראה "כתובת חייבת
+     * להתחיל ב-http" ולא ידע איפה.
+     */
+    const issue = parsed.error.issues[0];
+    const field = issue?.path.map(String).join(".") || "";
+    return NextResponse.json({
+      error: issue?.message || "הנתונים אינם תקינים",
+      field,
+      fieldLabel: fieldLabels[issue?.path[0] as string] || field,
+      issues: parsed.error.issues.map((item) => ({ field: item.path.map(String).join("."), message: item.message })),
+    }, { status: 400 });
+  }
   const limits = access.limits;
   const features = access.features;
   const currentPlanName = planName(access.plan);
@@ -59,6 +85,23 @@ export async function POST(request: Request) {
   if (!features.files && (enabledWidgets.has("files") || parsed.data.files.length)) {
     return denied("צירוף קבצים להורדה זמין במסלול מקצועי ומעלה", requiredPlanForFeature("files"), "files");
   }
+  /*
+   * QA-018/QA-032: טיוטה חלקית נשמרת, פרסום חלקי נחסם. האכיפה כאן ולא
+   * רק בממשק — בקשה ישירה ל-API עוקפת כל נעילה בצד הלקוח.
+   */
+  if (parsed.data.isPublished) {
+    const missing = missingForPublish(parsed.data);
+    if (missing.length) {
+      return NextResponse.json({
+        error: `כדי לפרסם יש להשלים: ${missing.map((item) => item.label).join(", ")}`,
+        field: missing[0].key,
+        fieldLabel: missing[0].label,
+        reason: "incomplete",
+        missing: missing.map((item) => ({ field: item.key, label: item.label })),
+      }, { status: 400 });
+    }
+  }
+
   if (viewer.demo) return NextResponse.json({ card: { ...parsed.data, id: parsed.data.id || "demo-card", updatedAt: new Date().toISOString() }, demo: true });
 
   const supabase = await createSupabaseServerClient();
@@ -72,8 +115,35 @@ export async function POST(request: Request) {
     ? supabase.from("cards").update(row).eq("id", parsed.data.id).eq("user_id", viewer.id).select("id,slug").single()
     : supabase.from("cards").insert(row).select("id,slug").single();
   const { data, error } = await query;
-  if (error?.code === "23505") return NextResponse.json({ error: "הקישור שבחרת כבר תפוס. נסה כתובת אחרת." }, { status: 409 });
-  if (error) return NextResponse.json({ error: "לא הצלחנו לשמור את הכרטיס. הנתונים שלך נשארו במסך." }, { status: 500 });
+  if (error?.code === "23505") {
+    return NextResponse.json({ error: "הקישור שבחרת כבר תפוס. נסה כתובת אחרת.", field: "slug", fieldLabel: "כתובת הכרטיס" }, { status: 409 });
+  }
+
+  /*
+   * QA-032: השמירה "נכשלה בשקט". הטריגר enforce_plan_limits מחזיר הודעה
+   * במבנה PLAN_LIMIT:<תחום>:<טקסט>, שנבלעה בהודעה גנרית. בנוסף, כש-RLS
+   * מסננת את השורה מתקבל data ריק — והשורה שאחריה ניגשה ל-data.slug
+   * וזרקה, כך שהתשובה לא הייתה JSON כלל והלקוח לא הציג דבר.
+   */
+  const errorId = randomUUID().slice(0, 8);
+  if (error) {
+    const planLimit = /PLAN_LIMIT:([a-z]+):(.*)/i.exec(error.message);
+    if (planLimit) {
+      return NextResponse.json({ error: planLimit[2].trim(), reason: "plan_limit", feature: planLimit[1], upgradeTo: "pro" }, { status: 403 });
+    }
+    console.error(`[cards:save] ${errorId} user=${viewer.id} code=${error.code} ${error.message}`);
+    return NextResponse.json({
+      error: "לא הצלחנו לשמור את הכרטיס. הנתונים שלך נשארו במסך.",
+      errorId,
+    }, { status: 500 });
+  }
+  if (!data) {
+    console.error(`[cards:save] ${errorId} user=${viewer.id} — לא הוחזרה שורה אחרי הכתיבה`);
+    return NextResponse.json({
+      error: "השמירה לא הושלמה. הנתונים שלך נשארו במסך — אפשר לנסות שוב.",
+      errorId,
+    }, { status: 500 });
+  }
   revalidatePath("/dashboard");
   revalidatePath("/dashboard/card");
   revalidatePath(`/${data.slug}`);
