@@ -73,6 +73,7 @@ const groups: Group[] = [
     title: "שיווק, מדידה ונתונים",
     note: "מה שהופך את הכרטיס מכרטיס ביקור לכלי שיווק.",
     rows: [
+      ["שעות פעילות וסטטוס פתוח/סגור", ...plans.map((plan) => planFeatures(plan.id).hours)],
       ["היסטוריית נתונים", ...plans.map((plan) => days(planLimits(plan.id).analyticsDays))],
       ["Google Analytics ו‑Tag Manager", ...plans.map((plan) => planFeatures(plan.id).tracking)],
       ["Meta Pixel", ...plans.map((plan) => planFeatures(plan.id).tracking)],

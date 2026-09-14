@@ -44,6 +44,8 @@ export function starterCard(viewer: Viewer): CardData {
     language: "he",
     videoUrl: "",
     videos: [],
+    openingHours: [],
+    primaryCta: { type: "whatsapp", label: "", value: "" },
     gallery: [],
     files: [],
     primaryColor: "#6d4aff",

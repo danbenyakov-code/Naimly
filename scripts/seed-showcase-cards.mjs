@@ -101,6 +101,18 @@ const base = {
   },
 };
 
+/*
+ * שעות מובנות. הן מזינות את תג הסטטוס בכרטיס, ולכן חייבות להיות
+ * נתונים ולא טקסט חופשי.
+ */
+const openingHours = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+  day,
+  closed: day === 6,
+  open: "09:00",
+  close: day === 5 ? "13:00" : "18:00",
+}));
+
+// נשמר גם כטקסט, לתאימות עם תצוגה ישנה.
 const hours = [
   { day: "ראשון–חמישי", hours: "09:00–18:00" },
   { day: "שישי", hours: "09:00–13:00" },
@@ -130,6 +142,8 @@ const cards = [
     seo_description: "דוגמה חיה לכרטיס ביקור דיגיטלי של NAIMLY: פעולות מהירות, מסלולים, טופס פניות ושמירת איש קשר.",
     services: planServices,
     business_hours: hours,
+    opening_hours: openingHours,
+    primary_cta: { type: "whatsapp", label: "", value: "" },
     contact_form_title: "נשמח לשמוע ממך",
     widgets: [
       { id: "w-services", type: "services", title: "המסלולים", enabled: true },
@@ -149,7 +163,7 @@ const cards = [
     primary_color: "#c2410c",
     accent_color: "#f59e0b",
     button_color: "#c2410c",
-    template: "bold",
+    template: "portfolio",
     background_preset: "sunset",
     seo_title: "כרטיס דוגמה — מבנה לעסק ויזואלי | NAIMLY",
     seo_description: "כרטיס ביקור דיגיטלי לדוגמה עם גלריה, שירותים וטופס פניות. מנוהל על ידי NAIMLY.",
@@ -158,6 +172,8 @@ const cards = [
       { id: "s-2", title: "בניית הכרטיס", description: "מבנה, צבעים, תמונות ופעולות — מוכן לפרסום.", price: "לפי הצעה" },
     ],
     business_hours: hours,
+    opening_hours: openingHours,
+    primary_cta: { type: "lead", label: "רוצה כרטיס כזה", value: "" },
     contact_form_title: "רוצים כרטיס כזה?",
     widgets: [
       { id: "w-gallery", type: "gallery", title: "גלריה", enabled: true },
@@ -177,7 +193,7 @@ const cards = [
     primary_color: "#0f766e",
     accent_color: "#22d3ee",
     button_color: "#0f766e",
-    template: "clean",
+    template: "services",
     background_preset: "medical-mint",
     seo_title: "כרטיס דוגמה — מבנה לעסק שירותים | NAIMLY",
     seo_description: "כרטיס ביקור דיגיטלי לדוגמה עם שירותים, מחירים, שעות פעילות וטופס פניות. מנוהל על ידי NAIMLY.",
@@ -186,6 +202,8 @@ const cards = [
       { id: "s-2", title: "ליווי חודשי", description: "פגישה שבועית, יעדים מדידים ודוח התקדמות.", price: "לפי הצעה" },
     ],
     business_hours: hours,
+    opening_hours: openingHours,
+    primary_cta: { type: "phone", label: "", value: "" },
     contact_form_title: "נקבע שיחה?",
     widgets: [
       { id: "w-services", type: "services", title: "השירותים", enabled: true },

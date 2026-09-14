@@ -43,6 +43,8 @@ export const demoCard: CardData = {
   logoShape: "rounded",
   videoUrl: "",
   videos: [],
+  openingHours: [],
+  primaryCta: { type: "whatsapp", label: "", value: "" },
   gallery: [],
   files: [],
   primaryColor: "#6d4aff",

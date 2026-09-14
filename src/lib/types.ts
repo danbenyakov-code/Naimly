@@ -1,3 +1,6 @@
+import type { CardTemplateId } from "@/lib/card-templates";
+import type { OpeningHours } from "@/lib/opening-hours";
+
 export type PlanId = "trial" | "basic" | "pro" | "premium";
 
 export type SocialNetwork = "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "x" | "threads";
@@ -29,13 +32,32 @@ export type CardFile = {
   description?: string;
 };
 
-export type QuickActionType = "phone" | "whatsapp" | "email" | "website" | "waze" | "google_maps" | "save_contact" | "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "calendar";
+export type QuickActionType =
+  | "phone" | "whatsapp" | "sms" | "email" | "gmail" | "website"
+  | "waze" | "google_maps" | "calendar" | "save_contact"
+  | "instagram" | "facebook" | "messenger" | "telegram" | "x" | "threads"
+  | "linkedin" | "tiktok" | "youtube"
+  /** כפתור שהלקוח מגדיר במלואו: תווית, יעד ואייקון משלו. */
+  | "custom";
+
+/** סוגי הכפתור הראשי. lead גולל לטופס; meeting פותח קישור חיצוני. */
+export type PrimaryCtaType = "whatsapp" | "phone" | "lead" | "meeting";
+
+export type PrimaryCta = {
+  type: PrimaryCtaType;
+  /** טקסט הכפתור. ריק = טקסט ברירת מחדל לפי הסוג. */
+  label: string;
+  /** יעד. רלוונטי ל-meeting; בשאר נגזר מפרטי הכרטיס. */
+  value: string;
+};
 
 export type QuickAction = {
   id: string;
   type: QuickActionType;
   label: string;
   value: string;
+  /** אייקון שהלקוח העלה. רלוונטי ל-custom בלבד. */
+  iconUrl?: string;
 };
 
 export type SmartButtonAction = "url" | "phone" | "whatsapp" | "email" | "waze" | "google_maps" | "booking" | "image" | "menu";
@@ -150,7 +172,7 @@ export type CardData = {
   bodyTextColor: string;
   /** מזהה מתוך src/lib/backgrounds.ts. נבדק מול הרישום בוולידציה. */
   backgroundPreset: string;
-  template: "spotlight" | "clean" | "bold";
+  template: CardTemplateId;
   isPublished: boolean;
   allowIndexing: boolean;
   seoTitle: string;
@@ -178,7 +200,12 @@ export type CardData = {
   cardAddress: CardAddress;
   services: ServiceItem[];
   testimonials: Testimonial[];
+  /** נשמר לתאימות. השעות המובנות הן openingHours. */
   businessHours: Array<{ day: string; hours: string }>;
+  /** שעות פעילות מובנות. ריק = לא הוגדרו, ואין להציג סטטוס. */
+  openingHours: OpeningHours[];
+  /** הכפתור הראשי בכרטיס. */
+  primaryCta: PrimaryCta;
   updatedAt: string;
 };
 

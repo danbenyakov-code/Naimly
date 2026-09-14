@@ -12,7 +12,8 @@ export type FeatureKey =
   | "files"
   | "testimonials"
   | "smartButtons"
-  | "seo";
+  | "seo"
+  | "hours";
 
 export type FeatureMap = Record<FeatureKey, boolean>;
 /*
@@ -24,7 +25,7 @@ export type Limits = { cards: number; galleryItems: number; analyticsDays: numbe
 
 const allFeatures: FeatureMap = {
   tracking: true, leadExport: true, carousel: true, video: true, files: true,
-  testimonials: true, smartButtons: true, seo: true,
+  testimonials: true, smartButtons: true, seo: true, hours: true,
 };
 
 /**
@@ -32,8 +33,8 @@ const allFeatures: FeatureMap = {
  * ההתנסות אינה מופיעה כאן בכוונה: היא מקבלת גישה מלאה (ראו trialFeatures).
  */
 const featuresByPlan: Record<Exclude<PlanId, "trial">, FeatureMap> = {
-  basic: { tracking: false, leadExport: false, carousel: false, video: false, files: false, testimonials: true, smartButtons: true, seo: false },
-  pro: { tracking: true, leadExport: false, carousel: true, video: true, files: true, testimonials: true, smartButtons: true, seo: true },
+  basic: { tracking: false, leadExport: false, carousel: false, video: false, files: false, testimonials: true, smartButtons: true, seo: false, hours: false },
+  pro: { tracking: true, leadExport: false, carousel: true, video: true, files: true, testimonials: true, smartButtons: true, seo: true, hours: true },
   premium: { ...allFeatures },
 };
 
@@ -60,6 +61,7 @@ export const featureLabels: Record<FeatureKey, string> = {
   testimonials: "המלצות לקוחות",
   smartButtons: "כפתורים חכמים",
   seo: "SEO מתקדם — אזור שירות ותמונת שיתוף",
+  hours: "שעות פעילות וסטטוס פתוח/סגור",
 };
 
 /** מסלולים בתשלום בלבד, מהזול ליקר. */
@@ -185,7 +187,7 @@ export type Access = {
 
 const lockedFeatures: FeatureMap = {
   tracking: false, leadExport: false, carousel: false, video: false, files: false,
-  testimonials: false, smartButtons: false, seo: false,
+  testimonials: false, smartButtons: false, seo: false, hours: false,
 };
 
 /**
@@ -304,6 +306,8 @@ export function clampCardToPlan(card: CardData, targetPlan: PlanId): CardData {
     tracking: features.tracking ? card.tracking : { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" },
     galleryStyle: features.carousel ? card.galleryStyle : "grid",
     files: features.files ? card.files : [],
+    // שעות שאינן כלולות במסלול אינן מוצגות, ולכן גם הסטטוס נעלם.
+    openingHours: features.hours ? card.openingHours : [],
     videos: features.video ? card.videos.slice(0, limits.videos) : [],
     videoUrl: features.video ? card.videoUrl : "",
     areaServed: features.seo ? card.areaServed : "",

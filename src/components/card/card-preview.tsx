@@ -2,74 +2,30 @@
 /* eslint-disable @next/next/no-img-element */
 
 import { useState, type CSSProperties, type ReactNode } from "react";
-import { AtSign, BriefcaseBusiness, CalendarDays, Camera, ExternalLink, FileDown, Globe2, Mail, Map, MapPin, MessageCircle, Phone, PlayCircle, Star, UserPlus, Users } from "lucide-react";
-import type { CardData, CardWidget, QuickAction, QuickActionType, SmartButton } from "@/lib/types";
-import { initials, normalizePhone, whatsappUrl } from "@/lib/utils";
-import { safeHref, safeSrc } from "@/lib/safe-url";
-import { googleMapsUrl, wazeUrl } from "@/lib/address";
-import { isActionUsable, resolveActionValue, socialUrl, whatsappLink } from "@/lib/contact-source";
+import { ExternalLink, MapPin } from "lucide-react";
+import type { CardData, CardWidget } from "@/lib/types";
+import { initials } from "@/lib/utils";
+import { safeSrc } from "@/lib/safe-url";
+import { isActionUsable } from "@/lib/contact-source";
+import { actionHref, actionIconUrl, actionIcons, defaultActions, opensInSameTab } from "@/lib/card-actions";
+import { cardTemplate, orderWidgets } from "@/lib/card-templates";
+import { openState, openStateLabel } from "@/lib/opening-hours";
+import { PrimaryCtaButton } from "@/components/card/primary-cta";
+import { HoursSection } from "@/components/card/sections/hours-section";
+import {
+  ContactFormSection, FilesSection, GallerySection, ServicesSection,
+  SmartButtonsSection, TestimonialsSection, VideoSection,
+} from "@/components/card/sections/card-sections";
 
 /**
- * נתוני הכרטיס נשמרים כ-JSONB בלי אילוץ על סוג הפעולה, ולכן ערך לא מוכר
- * יכול להגיע מייבוא, מלקוח ישן או מתיקון ידני. הרינדור חייב לשרוד אותו:
- * אייקון ברירת מחדל עדיף על עמוד שקורס.
+ * הכרטיס הציבורי.
+ *
+ * הרכיב מרכיב מקטעים ואינו מכיל את הסימון שלהם: כל מקטע יושב בקובץ
+ * משלו וניתן לבדיקה בנפרד. התבנית קובעת גבהים, יישור וסדר — היא תצורה
+ * ולא רכיב, ולכן החלפת תבנית אינה יכולה למחוק תוכן.
+ *
+ * ה-API נשאר זהה לגרסה הקודמת, כדי שהעורך והתצוגה החיה לא ישתנו.
  */
-export const actionIcons: Record<QuickActionType, typeof Phone> = {
-  phone: Phone, whatsapp: MessageCircle, email: Mail, website: Globe2, waze: Map, google_maps: MapPin, save_contact: UserPlus,
-  instagram: Camera, facebook: Users, linkedin: BriefcaseBusiness, tiktok: AtSign, youtube: PlayCircle, calendar: CalendarDays,
-};
-
-export function actionHref(action: QuickAction, card: CardData) {
-  // QA-024: הערך נגזר ממקור יחיד — פרטי הכרטיס — ולא מעותק בפעולה.
-  const value = resolveActionValue(action, card);
-  if (action.type === "phone") return `tel:${normalizePhone(value)}`;
-  // QA-025: wa.me דורש E.164. מספר שלא ניתן לנרמל לא מייצר קישור.
-  if (action.type === "whatsapp") return whatsappLink(value, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`) || "";
-  if (action.type === "email") return `mailto:${value || card.email}`;
-  if (action.type === "save_contact") return `/api/vcard/${card.slug}`;
-  // הכתובת המובנית עדיפה. הערך שהוזן בפעולה משמש רק כגיבוי לכרטיסים ותיקים.
-  if (action.type === "waze") return wazeUrl(card.cardAddress) || `https://www.waze.com/ul?q=${encodeURIComponent(value)}&navigate=yes`;
-  if (action.type === "google_maps") return googleMapsUrl(card.cardAddress) || `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(value)}`;
-  // QA-026: שם משתמש נבנה לכתובת מלאה. "#" הוא קישור שבור שנראה תקין,
-  // ולכן פעולה בלי יעד תקין לא מקבלת href בכלל.
-  const social = socialUrl(action.type, value);
-  if (social) return social;
-  return safeHref(value) || "";
-}
-
-function smartButtonHref(button: SmartButton) {
-  if (button.action === "phone") return `tel:${normalizePhone(button.value)}`;
-  if (button.action === "whatsapp") return whatsappUrl(button.value);
-  if (button.action === "email") return `mailto:${button.value}`;
-  if (button.action === "waze") return `https://www.waze.com/ul?q=${encodeURIComponent(button.value)}&navigate=yes`;
-  if (button.action === "google_maps") return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(button.value)}`;
-  return safeHref(button.value) || "#";
-}
-
-function youtubeEmbedUrl(url: string) {
-  if (!url) return "";
-  try {
-    const parsed = new URL(url);
-    if (parsed.protocol !== "https:" && parsed.protocol !== "http:") return "";
-    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
-    const clean = (id: string) => (/^[A-Za-z0-9_-]{6,20}$/.test(id) ? `https://www.youtube-nocookie.com/embed/${id}` : "");
-    if (host === "youtu.be") return clean(parsed.pathname.slice(1));
-    if (host === "youtube.com" || host === "m.youtube.com" || host === "youtube-nocookie.com") {
-      return clean(parsed.searchParams.get("v") || parsed.pathname.split("/").filter(Boolean).at(-1) || "");
-    }
-  } catch { return ""; }
-  return "";
-}
-
-export function defaultActions(card: CardData): QuickAction[] {
-  return [
-    { id: "phone", type: "phone", label: "שיחה", value: card.phone },
-    { id: "whatsapp", type: "whatsapp", label: "WhatsApp", value: card.whatsapp },
-    { id: "email", type: "email", label: "אימייל", value: card.email },
-    { id: "maps", type: "google_maps", label: "ניווט", value: card.address },
-    { id: "website", type: "website", label: "אתר", value: card.website },
-  ].filter((action) => Boolean(action.value)) as QuickAction[];
-}
 
 /**
  * תמונה שנעלמת במקום להישבר.
@@ -78,51 +34,206 @@ export function defaultActions(card: CardData): QuickAction[] {
  * דוגמה שטרם הועלתה. אייקון "תמונה שבורה" בכרטיס עסקי גרוע מכלום,
  * ולכן במקרה כשל מוחזר ה-fallback המקורי של הרכיב.
  */
-function SafeImage({ src, fallback = null, ...rest }: { src?: string; fallback?: ReactNode } & Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src">) {
+function SafeImage({
+  src,
+  fallback = null,
+  ...rest
+}: { src?: string; fallback?: ReactNode } & Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src">) {
   const [failed, setFailed] = useState(false);
   const safe = safeSrc(src);
   if (!safe || failed) return <>{fallback}</>;
   return <img src={safe} onError={() => setFailed(true)} {...rest} alt={rest.alt ?? ""} />;
 }
 
-export function CardPreview({ card, compact = false, onAction, contactForm }: { card: CardData; compact?: boolean; onAction?: (action: string) => void; contactForm?: ReactNode }) {
-  const style = { "--card-primary": card.primaryColor, "--card-accent": card.accentColor, "--card-button": card.buttonColor, "--card-heading": card.headingColor, "--card-body": card.bodyTextColor } as CSSProperties;
+/**
+ * המיקום שמוצג ב-Hero (BENCH-001).
+ *
+ * עיר ואזור שירות הוזנו ולא הוצגו מעולם. לקוח שמחפש ספק מקומי רוצה
+ * לדעת את זה מעל הקפל, לא בתוך טופס הניווט.
+ */
+function heroLocation(card: CardData): string {
+  const city = card.cardAddress?.city?.trim() || "";
+  const area = card.areaServed?.trim() || "";
+  if (city && area && city !== area) return `${city} · ${area}`;
+  return city || area;
+}
+
+export function CardPreview({
+  card,
+  compact = false,
+  onAction,
+  contactForm,
+}: {
+  card: CardData;
+  compact?: boolean;
+  onAction?: (action: string) => void;
+  contactForm?: ReactNode;
+}) {
+  const style = {
+    "--card-primary": card.primaryColor,
+    "--card-accent": card.accentColor,
+    "--card-button": card.buttonColor,
+    "--card-heading": card.headingColor,
+    "--card-body": card.bodyTextColor,
+  } as CSSProperties;
+
+  const template = cardTemplate(card.template);
+
   const quickActions = (card.quickActions.length ? card.quickActions : defaultActions(card))
     .filter((action) => isActionUsable(action, card))
+    .filter((action) => Boolean(actionHref(action, card)))
     .slice(0, card.quickActionsLimit);
-  const widgets = card.widgets.length ? card.widgets.filter((widget) => widget.enabled) : [
-    { id: "services", type: "services", title: "השירותים שלי", enabled: true },
-    { id: "gallery", type: "gallery", title: "גלריה", enabled: true },
-    { id: "contact", type: "contact_form", title: card.contactFormTitle, enabled: true },
-  ] as CardWidget[];
+
+  const enabled = card.widgets.length
+    ? card.widgets.filter((widget) => widget.enabled)
+    : ([
+        { id: "services", type: "services", title: "השירותים שלי", enabled: true },
+        { id: "gallery", type: "gallery", title: "גלריה", enabled: true },
+        { id: "contact", type: "contact_form", title: card.contactFormTitle, enabled: true },
+      ] as CardWidget[]);
+
+  const widgets = orderWidgets(enabled, card.template);
+
+  /*
+   * QA-004: הכרטיס המלא נושא H1 יחיד. בתצוגה המוקטנת הוא רכיב בתוך
+   * עמוד אחר, ולכן יורד ל-H2.
+   */
+  const Heading = compact ? "h2" : "h1";
+
+  // התג נגזר משעות הפעילות. בלי שעות מוגדרות אין סטטוס — ואין תג.
+  const availability = openStateLabel(openState(card.openingHours || []));
+  const location = heroLocation(card);
 
   function renderWidget(widget: CardWidget) {
-    if (widget.type === "smart_buttons" && card.smartButtons.length) return <section key={widget.id} className="mt-7"><h3 className="text-base font-extrabold">{widget.title}</h3><div className="mt-3 grid gap-2">{card.smartButtons.map((button) => <a key={button.id} href={smartButtonHref(button)} target={["phone", "email"].includes(button.action) ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => onAction?.("button")} className="group flex items-center gap-3 rounded-2xl border border-[#e2e6ee] p-3.5 hover:border-[var(--card-primary)]"><span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-xl bg-[color-mix(in_srgb,var(--card-primary)_10%,white)] text-[var(--card-primary)]">{safeSrc(button.imageUrl) ? <img src={safeSrc(button.imageUrl)} alt="" className="h-full w-full object-cover" /> : <ExternalLink size={17} />}</span><span className="min-w-0 flex-1"><strong className="block text-sm">{button.label}</strong>{button.description && <span className="mt-0.5 block text-xs text-[#69768b]">{button.description}</span>}</span><ExternalLink size={15} className="text-[#9aa4b4]" /></a>)}</div></section>;
-    if (widget.type === "video") {
-      // מספר סרטונים ולא אחד: המכסה במסלול מבדילה בין מקצועי לפרימיום.
-      const videos = (card.videos.length ? card.videos : [card.videoUrl]).filter(Boolean);
-      if (!videos.length) return null;
-      return <section key={widget.id} className="mt-7"><h3 className="text-base font-extrabold">{widget.title}</h3><div className="mt-3 grid gap-3">{videos.map((url, index) => { const embed = youtubeEmbedUrl(url); return embed ? <div key={`${url}-${index}`} className="aspect-video overflow-hidden rounded-2xl bg-[#111b3b]"><iframe src={embed} title={videos.length > 1 ? `${widget.title} ${index + 1}` : widget.title} className="h-full w-full" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen /></div> : <a key={`${url}-${index}`} href={safeHref(url) || "#"} target="_blank" rel="noopener noreferrer" onClick={() => onAction?.("video")} className="flex items-center gap-3 rounded-2xl bg-[linear-gradient(135deg,var(--card-primary),#111b3b)] p-5 text-white"><span className="grid h-11 w-11 place-items-center rounded-full bg-white/15"><PlayCircle size={22} /></span><strong>צפייה בסרטון</strong></a>; })}</div></section>;
+    const props = { card, title: widget.title, onAction };
+    switch (widget.type) {
+      case "smart_buttons": return <SmartButtonsSection key={widget.id} {...props} />;
+      case "video": return <VideoSection key={widget.id} {...props} />;
+      case "gallery": return <GallerySection key={widget.id} {...props} />;
+      case "services": return <ServicesSection key={widget.id} {...props} />;
+      case "testimonials": return <TestimonialsSection key={widget.id} {...props} />;
+      case "hours": return <HoursSection key={widget.id} card={card} title={widget.title} />;
+      case "files": return <FilesSection key={widget.id} {...props} />;
+      case "contact_form":
+        return (
+          <div key={widget.id} id="card-contact-form" className="scroll-mt-4">
+            <ContactFormSection>{contactForm}</ContactFormSection>
+          </div>
+        );
+      default: return null;
     }
-    if (widget.type === "gallery" && card.gallery.length) return <section key={widget.id} className="mt-7"><h3 className="text-base font-extrabold">{widget.title}</h3><div className={card.galleryStyle === "carousel" ? "mt-3 flex snap-x gap-2 overflow-x-auto pb-2" : "mt-3 grid grid-cols-2 gap-2"}>{card.gallery.slice(0, 12).filter((url) => safeSrc(url)).slice(0, 12).map((url, index) => <img key={`${url}-${index}`} src={safeSrc(url)} alt={`${card.businessName}, תמונה ${index + 1}`} className={card.galleryStyle === "carousel" ? "aspect-[4/5] w-[78%] shrink-0 snap-center rounded-2xl object-cover" : "aspect-square w-full rounded-2xl object-cover"} loading="lazy" />)}</div></section>;
-    if (widget.type === "services" && card.services.length) return <section key={widget.id} className="mt-7 border-t border-[#e8ecf3] pt-6"><h3 className="text-base font-extrabold">{widget.title}</h3><div className="mt-3 grid gap-3">{card.services.map((service) => <div key={service.id} className="rounded-2xl border border-[#e4e8f0] p-4"><div className="flex items-start justify-between gap-3"><h4 className="font-bold">{service.title}</h4>{service.price && <span className="shrink-0 text-xs font-bold text-[var(--card-primary)]">{service.price}</span>}</div><p className="mt-1 text-xs leading-5 text-[#657188]">{service.description}</p></div>)}</div></section>;
-    if (widget.type === "testimonials" && card.testimonials.length) return <section key={widget.id} className="mt-7"><h3 className="text-base font-extrabold">{widget.title}</h3><div className="mt-3 grid gap-3">{card.testimonials.map((item) => <blockquote key={item.id} className="rounded-2xl bg-[#f6f7fb] p-4"><div className="mb-2 flex gap-0.5 text-[#f3a712]" aria-label={`${item.rating} כוכבים`}>{Array.from({ length: item.rating }).map((_, index) => <Star key={index} size={13} fill="currentColor" />)}</div><p className="text-sm leading-6">״{item.text}״</p><footer className="mt-2 text-xs font-bold text-[#647188]">{item.name}</footer></blockquote>)}</div></section>;
-    if (widget.type === "hours" && card.businessHours.length) return <section key={widget.id} className="mt-7"><h3 className="text-base font-extrabold">{widget.title}</h3><dl className="mt-3 grid gap-2 rounded-2xl bg-[#f6f7fb] p-4 text-sm">{card.businessHours.map((item, index) => <div key={`${item.day}-${index}`} className="flex justify-between gap-4"><dt className="font-bold">{item.day}</dt><dd className="text-[#657188]">{item.hours}</dd></div>)}</dl></section>;
-    if (widget.type === "files" && card.files.length) return <section key={widget.id} className="mt-7"><h3 className="text-base font-extrabold">{widget.title}</h3><div className="mt-3 grid gap-2">{card.files.filter((file) => safeSrc(file.url)).map((file) => <a key={file.id} href={safeSrc(file.url)} target="_blank" rel="noopener noreferrer" onClick={() => onAction?.("file")} className="flex items-center justify-between rounded-xl border border-[#e2e6ee] p-3 text-sm font-bold"><span>{file.title}</span><FileDown size={17} className="text-[var(--card-primary)]" /></a>)}</div></section>;
-    if (widget.type === "contact_form" && contactForm) return <section key={widget.id} className="mt-7 border-t border-[#e8ecf3] pt-6">{contactForm}</section>;
-    return null;
   }
 
-  return <article className="overflow-hidden bg-white text-[var(--card-heading)]" style={style}>
-    <div className="relative h-36 overflow-hidden bg-[linear-gradient(135deg,var(--card-primary),#111b3b)]"><SafeImage src={card.coverUrl} alt={card.coverAlt} className="h-full w-full object-cover" fallback={<><div className="absolute -left-8 -top-10 h-32 w-32 rounded-full bg-white/10" /><div className="absolute bottom-[-42px] right-[-25px] h-28 w-28 rounded-full bg-[var(--card-accent)]/40 blur-sm" /></>} /></div>
-    <div className="relative px-5 pb-6">
-      <div className="-mt-11 flex items-end justify-between gap-3"><div className={`grid h-[88px] w-[88px] shrink-0 place-items-center overflow-hidden border-4 border-white bg-[#eef0ff] text-2xl font-extrabold text-[var(--card-primary)] shadow-lg ${card.logoShape === "circle" ? "rounded-full" : card.logoShape === "square" ? "rounded-none" : "rounded-[25px]"}`}><SafeImage src={card.logoUrl || card.avatarUrl} alt={card.logoUrl ? card.logoAlt : card.avatarAlt} className="h-full w-full object-cover" fallback={initials(card.ownerName)} /></div><span className="mb-1 inline-flex items-center gap-1.5 rounded-full bg-[#e9fbf7] px-2.5 py-1 text-[11px] font-bold text-[#08735f]"><span className="h-1.5 w-1.5 rounded-full bg-[#14b89d]" /> זמין לפניות</span></div>
-      <div className="mt-4"><p className="text-xs font-bold uppercase tracking-wide text-[var(--card-primary)]">{card.businessName}</p>{compact
-          ? <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-[var(--card-heading)]">{card.ownerName}</h2>
-          : <h1 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-[var(--card-heading)]">{card.ownerName}</h1>}<p className="text-sm font-medium text-[var(--card-body)]">{card.roleTitle}</p>{card.slogan && <p className="mt-2 text-sm font-extrabold text-[var(--card-primary)]">{card.slogan}</p>}<p className="mt-3 text-[13px] leading-6 text-[var(--card-body)]">{card.bio}</p></div>
-      <div className="mt-5 grid grid-cols-3 gap-2" aria-label="פעולות מהירות">{quickActions.map((action) => { const Icon = actionIcons[action.type] ?? ExternalLink; return <a key={action.id} href={actionHref(action, card)} target={["phone", "whatsapp", "email", "save_contact"].includes(action.type) ? undefined : "_blank"} rel="noopener noreferrer" onClick={() => onAction?.(action.type === "save_contact" ? "contact_save" : action.type)} className="grid min-h-16 place-items-center gap-1 rounded-xl bg-[#f2f4f8] px-1 text-[11px] font-bold text-[var(--card-primary)]"><Icon size={19} /><span className="max-w-full truncate">{action.label}</span></a>; })}</div>
-      {whatsappLink(card.whatsapp || card.phone, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`) && <a href={whatsappLink(card.whatsapp || card.phone, `היי ${card.ownerName}, הגעתי דרך כרטיס הביקור שלך`)} onClick={() => onAction?.("whatsapp_primary")} className="mt-4 flex min-h-12 items-center justify-center gap-2 rounded-xl bg-[var(--card-button)] px-4 font-bold text-white">{card.ctaLabel || "בואו נדבר"} <MessageCircle size={17} /></a>}
-      {!compact && widgets.map(renderWidget)}
-    </div>
-  </article>;
+  return (
+    <article className="overflow-hidden bg-white text-[var(--card-heading)]" style={style}>
+      {template.coverHeight > 0 && (
+        <div
+          className="relative overflow-hidden bg-[linear-gradient(135deg,var(--card-primary),#111b3b)]"
+          style={{ height: template.coverHeight }}
+        >
+          <SafeImage
+            src={card.coverUrl}
+            alt={card.coverAlt}
+            className="h-full w-full object-cover"
+            fallback={
+              <>
+                <div className="absolute -left-8 -top-10 h-32 w-32 rounded-full bg-white/10" />
+                <div className="absolute bottom-[-42px] right-[-25px] h-28 w-28 rounded-full bg-[var(--card-accent)]/40 blur-sm" />
+              </>
+            }
+          />
+        </div>
+      )}
+
+      <div className="relative px-5 pb-6">
+        <div
+          className={`flex items-end gap-3 ${template.align === "center" ? "flex-col items-center" : "justify-between"}`}
+          style={{ marginTop: template.identity === "overlap" ? -(template.logoSize / 2) - 0 : 20 }}
+        >
+          <div
+            className={`grid shrink-0 place-items-center overflow-hidden border-4 border-white bg-[#eef0ff] text-2xl font-extrabold text-[var(--card-primary)] shadow-lg ${
+              card.logoShape === "circle" ? "rounded-full" : card.logoShape === "square" ? "rounded-none" : "rounded-[25px]"
+            }`}
+            style={{ height: template.logoSize, width: template.logoSize }}
+          >
+            <SafeImage
+              src={card.logoUrl || card.avatarUrl}
+              alt={card.logoUrl ? card.logoAlt : card.avatarAlt}
+              className="h-full w-full object-cover"
+              fallback={initials(card.ownerName)}
+            />
+          </div>
+
+          {availability && (
+            <span
+              className="mb-1 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold"
+              style={{
+                background: availability.startsWith("פתוח") ? "#e9fbf7" : "#f4f5f8",
+                color: availability.startsWith("פתוח") ? "#08735f" : "#5f6d83",
+              }}
+            >
+              <span
+                className="h-1.5 w-1.5 rounded-full"
+                style={{ background: availability.startsWith("פתוח") ? "#14b89d" : "#9aa4b4" }}
+                aria-hidden="true"
+              />
+              {availability}
+            </span>
+          )}
+        </div>
+
+        <div className={`mt-4 ${template.align === "center" ? "text-center" : ""}`}>
+          <p className="text-xs font-bold uppercase tracking-wide text-[var(--card-primary)]">{card.businessName}</p>
+          <Heading className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-[var(--card-heading)]">
+            {card.ownerName}
+          </Heading>
+          <p className="text-sm font-medium text-[var(--card-body)]">{card.roleTitle}</p>
+
+          {location && (
+            <p
+              className={`mt-1.5 flex items-center gap-1 text-sm text-[var(--card-body)] ${
+                template.align === "center" ? "justify-center" : ""
+              }`}
+            >
+              <MapPin size={14} className="shrink-0 text-[var(--card-primary)]" aria-hidden="true" />
+              {location}
+            </p>
+          )}
+
+          {card.slogan && <p className="mt-2 text-sm font-extrabold text-[var(--card-primary)]">{card.slogan}</p>}
+          {card.bio && <p className="mt-3 text-[13px] leading-6 text-[var(--card-body)]">{card.bio}</p>}
+        </div>
+
+        {quickActions.length > 0 && (
+          <div className="mt-5 grid grid-cols-3 gap-2" aria-label="פעולות מהירות">
+            {quickActions.map((action) => {
+              const Icon = actionIcons[action.type] ?? ExternalLink;
+              const custom = actionIconUrl(action);
+              return (
+                <a
+                  key={action.id}
+                  href={actionHref(action, card)}
+                  target={opensInSameTab(action.type) ? undefined : "_blank"}
+                  rel="noopener noreferrer"
+                  onClick={() => onAction?.(action.type === "save_contact" ? "contact_save" : action.type)}
+                  className="grid min-h-16 place-items-center gap-1 rounded-xl bg-[#f2f4f8] px-1 text-[11px] font-bold text-[var(--card-primary)]"
+                >
+                  {custom ? (
+                    <img src={custom} alt="" className="h-[19px] w-[19px] object-contain" />
+                  ) : (
+                    <Icon size={19} aria-hidden="true" />
+                  )}
+                  <span className="max-w-full truncate">{action.label}</span>
+                </a>
+              );
+            })}
+          </div>
+        )}
+
+        <PrimaryCtaButton card={card} onAction={onAction} />
+
+        {!compact && widgets.map(renderWidget)}
+      </div>
+    </article>
+  );
 }

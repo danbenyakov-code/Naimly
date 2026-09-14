@@ -15,7 +15,7 @@ const fieldLabels: Record<string, string> = {
   businessName: "שם העסק", ownerName: "שם מלא", slug: "כתובת הכרטיס",
   phone: "טלפון", whatsapp: "וואטסאפ", email: "אימייל", website: "אתר",
   avatarUrl: "תמונת פרופיל", coverUrl: "תמונת קאבר", logoUrl: "לוגו",
-  videoUrl: "קישור לסרטון", videos: "סרטונים", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
+  videoUrl: "קישור לסרטון", videos: "סרטונים", openingHours: "שעות פעילות", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
   files: "קבצים", socialLinks: "רשתות חברתיות", quickActions: "פעולות מהירות",
   smartButtons: "כפתורים חכמים", seoTitle: "כותרת SEO", seoDescription: "תיאור SEO",
   areaServed: "אזור שירות", tracking: "מדידה", cardAddress: "כתובת",
@@ -97,6 +97,9 @@ export async function POST(request: Request) {
 
   if (!features.tracking && Object.values(parsed.data.tracking).some(Boolean)) {
     return denied("חיבור Meta Pixel ו‑Google Analytics זמין במסלול מקצועי ומעלה", requiredPlanForFeature("tracking"), "tracking");
+  }
+  if (!features.hours && parsed.data.openingHours.length > 0) {
+    return denied("שעות פעילות זמינות במסלול מקצועי ומעלה", requiredPlanForFeature("hours"), "hours");
   }
   if (!features.seo && (parsed.data.areaServed || parsed.data.socialImageUrl)) {
     return denied("אזור שירות ותמונת שיתוף מותאמת זמינים במסלול מקצועי ומעלה", requiredPlanForFeature("seo"), "seo");

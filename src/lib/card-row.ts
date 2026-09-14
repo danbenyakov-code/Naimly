@@ -24,6 +24,8 @@ export function cardToDatabaseRow(card: CardData | ReturnType<typeof import("@/l
     language: card.language,
     video_url: card.videos[0] || card.videoUrl,
     videos: card.videos,
+    opening_hours: card.openingHours,
+    primary_cta: card.primaryCta,
     gallery: card.gallery,
     files: card.files,
     primary_color: card.primaryColor,

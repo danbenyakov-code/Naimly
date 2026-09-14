@@ -8,6 +8,7 @@ import { isBackgroundId } from "@/lib/backgrounds";
 import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
 import { starterCard } from "@/lib/starter-card";
+import { cardTemplate } from "@/lib/card-templates";
 
 type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null } | null | undefined;
 
@@ -118,7 +119,7 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     headingColor: stringValue(row.heading_color, "#142038"),
     bodyTextColor: stringValue(row.body_text_color, "#53627a"),
     backgroundPreset: isBackgroundId(stringValue(row.background_preset)) ? stringValue(row.background_preset) : "aurora",
-    template: (["spotlight", "clean", "bold"].includes(stringValue(row.template)) ? stringValue(row.template) : "spotlight") as CardData["template"],
+    template: cardTemplate(stringValue(row.template)).id,
     isPublished: Boolean(row.is_published),
     allowIndexing: row.allow_indexing !== false,
     seoTitle: stringValue(row.seo_title),
@@ -153,6 +154,16 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     services: arrayValue(row.services, []),
     testimonials: arrayValue(row.testimonials, []),
     businessHours: arrayValue(row.business_hours, []),
+    /*
+     * שעות מובנות. שורה שנכתבה לפני המיגרציה מחזירה מערך ריק, ואז
+     * הכרטיס מציג את הטקסט החופשי הישן ולא מציג סטטוס כלל.
+     */
+    openingHours: arrayValue(row.opening_hours, []),
+    primaryCta: (() => {
+      const saved = (row.primary_cta && typeof row.primary_cta === "object" ? row.primary_cta : {}) as Partial<CardData["primaryCta"]>;
+      const type = ["whatsapp", "phone", "lead", "meeting"].includes(String(saved.type)) ? saved.type : "whatsapp";
+      return { type: type as CardData["primaryCta"]["type"], label: stringValue(saved.label), value: stringValue(saved.value) };
+    })(),
     updatedAt: stringValue(row.updated_at, new Date().toISOString()),
   };
 }

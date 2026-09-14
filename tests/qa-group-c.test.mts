@@ -49,14 +49,20 @@ describe("QA-003 — טפסים שולחים ב-POST", () => {
 });
 
 describe("QA-004 — כותרת H1 בכרטיס הציבורי", () => {
-  it("שם בעל הכרטיס מוצג כ-H1 בתצוגה המלאה", () => {
+  /*
+   * הכותרת נבחרת דינמית מאז פירוק הכרטיס לרכיבים. הבדיקה עברה מהסימון
+   * לכלל עצמו — אותה התנהגות, בלי תלות באיך בדיוק נכתב ה-JSX.
+   */
+  it("שם בעל הכרטיס מוצג כ-H1 בתצוגה המלאה וכ-H2 במוקטנת", () => {
     const source = read("src/components/card/card-preview.tsx");
-    assert.match(source, /<h1[^>]*>\{card\.ownerName\}<\/h1>/, "בלי H1 אין כותרת ראשית לקורא מסך ול-SEO");
+    assert.match(source, /const Heading = compact \? "h2" : "h1"/, "בלי H1 אין כותרת ראשית לקורא מסך ול-SEO");
+    assert.match(source, /<Heading[^>]*>\s*\{card\.ownerName\}/);
   });
 
-  it("בתצוגה מוקטנת נשארת H2, כי היא רכיב בתוך עמוד אחר", () => {
-    const source = read("src/components/card/card-preview.tsx");
-    assert.match(source, /compact[\s\S]{0,120}<h2/);
+  it("אין כותרת ראשית נוספת במקטעים", () => {
+    // שני H1 באותו עמוד שוללים את המשמעות של הראשון.
+    const sections = read("src/components/card/sections/card-sections.tsx");
+    assert.ok(!sections.includes("<h1"), "מקטע אינו רשאי לשאת H1");
   });
 });
 

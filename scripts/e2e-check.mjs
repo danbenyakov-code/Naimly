@@ -308,6 +308,50 @@ async function main() {
   if (pages.size) ok(`נבדקו ${pages.size} עמודים למטא-תגי מובייל`);
 
   // ── 8. כותרות אבטחה ──────────────────────────────────────────────────────
+  /*
+   * BENCH-008: בדיקות רוחב ברמת ה-DOM.
+   *
+   * אין כאן דפדפן, ולכן אי אפשר למדוד פריסה בפועל. מה שכן אפשר לתפוס
+   * הוא הגורם השכיח ביותר לגלילה אופקית בנייד: רוחב קבוע שגדול מהמסך.
+   * זה אינו מחליף צילום מסך — זה תופס את מה שנשבר בפועל.
+   */
+  console.log("\n== רוחבי מסך ==");
+  const NARROWEST = 360;
+  const cardRoutes = ["/noa-design", "/naimly-studio", "/naimly-consult"];
+
+  for (const route of cardRoutes) {
+    try {
+      const response = await fetch(base + route, { cache: "no-store" });
+      const html = await response.text();
+
+      /*
+       * רק רוחב שכופה מידה נחשב. `max-w-` הוא תקרה ודווקא מגן על
+       * המובייל — ספירתו כחריגה הייתה מייצרת התרעת שווא על כל כרטיס.
+       */
+      const widths = [];
+      for (const match of html.matchAll(/([a-z-]*)w-\[(\d+)px\]/g)) {
+        const prefix = match[1];
+        if (prefix.endsWith("max-")) continue;
+        widths.push(Number(match[2]));
+      }
+
+      const tooWide = widths.filter((value) => value > NARROWEST);
+      if (tooWide.length) fail(`רוחב ${route}`, `רוחב קבוע ${tooWide.join(", ")}px גדול מ-${NARROWEST}px`);
+      else ok(`רוחב ${route} — אין רוחב קבוע מעל ${NARROWEST}px`);
+
+      const headings = (html.match(/<h1/g) || []).length;
+      if (headings === 1) ok(`H1 יחיד ${route}`);
+      else fail(`H1 ${route}`, `נמצאו ${headings} כותרות H1`);
+
+      // קישור שנראה תקין ואינו מוביל לשום מקום.
+      const broken = (html.match(/href="#"/g) || []).length;
+      if (broken === 0) ok(`אין קישורי # ${route}`);
+      else fail(`קישורי # ${route}`, `${broken} קישורים שבורים`);
+    } catch (error) {
+      fail(`רוחב ${route}`, String(error));
+    }
+  }
+
   console.log("\n== כותרות אבטחה ==");
   const headResponse = await fetch(base + "/");
   for (const header of ["content-security-policy", "x-content-type-options", "referrer-policy", "x-frame-options"]) {

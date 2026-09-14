@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useRef, useState } from "react";
 import { ExternalLink, MessageSquareText, X } from "lucide-react";
-import { actionHref, actionIcons, defaultActions } from "@/components/card/card-preview";
+import { actionHref, actionIcons, defaultActions, opensInSameTab } from "@/lib/card-actions";
 import { usableActions } from "@/lib/contact-source";
 import type { CardData, QuickAction } from "@/lib/types";
 import { cardStrings, toCardLanguage } from "@/lib/card-i18n";
@@ -89,7 +89,7 @@ export function ContactFab({ card, onAction }: { card: CardData; onAction?: (typ
           {actions.map((action, index) => {
             const Icon = actionIcons[action.type] ?? ExternalLink;
             const href = actionHref(action, card);
-            const internal = ["phone", "whatsapp", "email", "save_contact"].includes(action.type);
+            const internal = opensInSameTab(action.type);
 
             return (
               <li key={action.id}>

@@ -27,7 +27,9 @@
     "test:rls": "node --experimental-strip-types --no-warnings --import ./tests/alias-loader.mjs --test tests/rls.test.mts",
     "db:bundle": "node scripts/bundle-migrations.mjs",
     "db:status": "node scripts/db-migrate.mjs --status",
-    "email:check": "node scripts/email-check.mjs"
+    "email:check": "node scripts/email-check.mjs",
+    "seed:cards": "node --experimental-strip-types --no-warnings --import ./tests/alias-loader.mjs scripts/seed-showcase-cards.mjs",
+    "seed:demo-accounts": "node scripts/seed-demo-accounts.mjs"
   },
   "dependencies": {
     "@supabase/ssr": "^0.12.6",
