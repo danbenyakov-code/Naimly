@@ -7,11 +7,20 @@ import { Check, Download, Loader2, QrCode, Share2, X } from "lucide-react";
 import QRCode from "qrcode";
 import { CardPreview } from "@/components/card/card-preview";
 import { Logo } from "@/components/logo";
+import { ErrorSummary, focusErrorSummary } from "@/components/ui/field";
 import type { CardData, ContactFormField } from "@/lib/types";
 import { backgroundCss } from "@/lib/backgrounds";
 
 export function PublicCardClient({ card }: { card: CardData }) {
   const [leadState, setLeadState] = useState<"idle" | "sending" | "success" | "error">("idle");
+  // QA-008: שגיאות ברמת שדה, ומונה שמפעיל מיקוד אחרי הרינדור.
+  const [leadErrors, setLeadErrors] = useState<Record<string, string>>({});
+  const [leadServerError, setLeadServerError] = useState("");
+  const [focusLeadSummary, setFocusLeadSummary] = useState(0);
+
+  useEffect(() => {
+    if (focusLeadSummary > 0) focusErrorSummary();
+  }, [focusLeadSummary]);
   const [showQr, setShowQr] = useState(false);
   const [qrData, setQrData] = useState("");
 
@@ -43,9 +52,55 @@ export function PublicCardClient({ card }: { card: CardData }) {
     QRCode.toDataURL(qrUrl.toString(), { width: 440, margin: 2, color: { dark: card.primaryColor, light: "#ffffff" } }).then(setQrData).catch(() => setQrData(""));
   }, [showQr, qrData, card.primaryColor]);
 
+  /**
+   * ולידציה בצד לקוח לפני שליחה.
+   *
+   * QA-008: הטופס נשען על required של הדפדפן בלבד — הודעה באנגלית,
+   * בלי aria-invalid, בלי קישור בין השדה להסבר ובלי סיכום שגיאות.
+   * noValidate מבטל את ההתנהגות הזו, ולכן הוולידציה כאן היא תנאי
+   * לכך שהטופס יישאר שמיש. השרת מאמת שוב בכל מקרה.
+   */
+  function validateLead(formData: FormData): Record<string, string> {
+    const found: Record<string, string> = {};
+
+    for (const field of card.contactFormFields) {
+      const key = `field_${field.id}`;
+      const raw = field.type === "checkbox" ? formData.get(key) === "on" : String(formData.get(key) || "").trim();
+
+      if (field.required && (raw === "" || raw === false)) {
+        found[key] = `${field.label}: שדה חובה`;
+        continue;
+      }
+      if (typeof raw !== "string" || !raw) continue;
+
+      if (field.type === "email" && !/^[^s@]+@[^s@]+.[^s@]{2,}$/.test(raw)) {
+        found[key] = `${field.label}: כתובת אימייל אינה תקינה. לדוגמה: name@example.com`;
+      }
+      if (field.type === "tel" && raw.replace(/D/g, "").length < 9) {
+        found[key] = `${field.label}: מספר טלפון אינו תקין. יש להזין מספר מלא`;
+      }
+    }
+
+    if (formData.get("privacyConsent") !== "on") {
+      found.privacyConsent = "יש לאשר את מדיניות הפרטיות כדי לשלוח את הפנייה";
+    }
+    return found;
+  }
+
   async function submitLead(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault(); setLeadState("sending");
-    const form = event.currentTarget; const formData = new FormData(form);
+    event.preventDefault();
+    const form = event.currentTarget;
+    const formData = new FormData(form);
+
+    const found = validateLead(formData);
+    setLeadErrors(found);
+    if (Object.keys(found).length) {
+      setLeadState("idle");
+      setFocusLeadSummary((count) => count + 1);
+      return;
+    }
+
+    setLeadState("sending");
     const fields: Record<string, string | boolean> = {};
     card.contactFormFields.forEach((field) => { const key = `field_${field.id}`; fields[field.label] = field.type === "checkbox" ? formData.get(key) === "on" : String(formData.get(key) || ""); });
     const first = (predicate: (field: ContactFormField) => boolean) => { const field = card.contactFormFields.find(predicate); return field ? String(formData.get(`field_${field.id}`) || "") : ""; };
@@ -53,13 +108,33 @@ export function PublicCardClient({ card }: { card: CardData }) {
     const phone = first((field) => field.type === "tel");
     const email = first((field) => field.type === "email");
     const message = first((field) => field.type === "textarea");
-    const response = await fetch("/api/leads", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ slug: card.slug, name, phone, email, message, fields, website: formData.get("website") }) });
-    if (response.ok) { setLeadState("success"); form.reset(); } else setLeadState("error");
+
+    try {
+      const response = await fetch("/api/leads", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ slug: card.slug, name, phone, email, message, fields, website: formData.get("website") }),
+      });
+      if (response.ok) {
+        setLeadState("success");
+        form.reset();
+        return;
+      }
+      // REQ-001: כשל אינו מאפס את הטופס — מה שהוקלד נשאר.
+      const result = await response.json().catch(() => null);
+      setLeadState("error");
+      setLeadServerError(result?.error || "");
+      setFocusLeadSummary((count) => count + 1);
+    } catch {
+      setLeadState("error");
+      setLeadServerError("");
+      setFocusLeadSummary((count) => count + 1);
+    }
   }
 
   const contactForm = leadState === "success"
     ? <div className="flex items-center gap-3 rounded-2xl bg-[#ecfbf6] p-5 text-[#08735f]"><span className="grid h-10 w-10 place-items-center rounded-full bg-white"><Check size={20} /></span><span><strong className="block">הפנייה נשלחה</strong><span className="text-sm">{card.contactFormSuccessMessage}</span></span></div>
-    : <div><h2 className="text-xl font-black">{card.contactFormTitle}</h2><p className="mt-1 text-sm text-[#6a778c]">הפרטים יגיעו ישירות ל־{card.businessName}. שדות המסומנים „חובה” נדרשים לשליחה.</p><form className="mt-5 grid gap-3" onSubmit={submitLead}>{card.contactFormFields.map((field) => <DynamicField key={field.id} field={field} />)}<label className="flex min-h-11 items-start gap-2 text-sm leading-6"><input className="mt-1" name="privacyConsent" type="checkbox" required aria-required="true" /><span>אני מאשר/ת להעביר את הפרטים ל־{card.businessName} לצורך מענה לפנייה, בהתאם ל<Link href="/legal/privacy" className="font-bold text-[#5134cc] underline">מדיניות הפרטיות</Link>. <span className="required-field">חובה</span></span></label><label className="sr-only">אתר<input name="website" tabIndex={-1} autoComplete="off" /></label>{leadState === "error" && <p role="alert" className="text-sm text-[#b7293a]">לא הצלחנו לשלוח כרגע. אפשר ליצור קשר באמצעות הכפתורים למעלה.</p>}<button className="button-primary w-full" type="submit" disabled={leadState === "sending"} style={{ background: card.primaryColor, borderColor: card.primaryColor }}>{leadState === "sending" && <Loader2 size={18} className="animate-spin" />}{leadState === "sending" ? "שולחים..." : "שליחת פנייה"}</button></form></div>;
+    : <div><h2 className="text-xl font-black">{card.contactFormTitle}</h2><p className="mt-1 text-sm text-[#6a778c]">הפרטים יגיעו ישירות ל־{card.businessName}. שדות המסומנים „חובה” נדרשים לשליחה.</p><form className="mt-5 grid gap-3" method="post" action="/api/leads" noValidate onSubmit={submitLead}><ErrorSummary errors={leadErrors} />{card.contactFormFields.map((field) => <DynamicField key={field.id} field={field} error={leadErrors[`field_${field.id}`]} />)}<label className="flex min-h-11 items-start gap-2 text-sm leading-6"><input className="mt-1" name="privacyConsent" type="checkbox" data-field="privacyConsent" aria-required="true" aria-invalid={Boolean(leadErrors.privacyConsent)} aria-describedby={leadErrors.privacyConsent ? "lead-consent-error" : undefined} /><span>אני מאשר/ת להעביר את הפרטים ל־{card.businessName} לצורך מענה לפנייה, בהתאם ל<Link href="/legal/privacy" className="font-bold text-[#5134cc] underline">מדיניות הפרטיות</Link>. <span className="required-field">חובה</span>{leadErrors.privacyConsent && <span id="lead-consent-error" className="mt-1 block text-xs font-bold text-[#b7293a]">{leadErrors.privacyConsent}</span>}</span></label><div aria-hidden="true" className="sr-only"><label>אתר<input name="website" tabIndex={-1} autoComplete="off" /></label></div>{leadState === "error" && <p role="alert" className="text-sm text-[#b7293a]">{leadServerError || "לא הצלחנו לשלוח כרגע. הפרטים שהזנת נשארו בטופס — אפשר לנסות שוב, או ליצור קשר באמצעות הכפתורים למעלה."}</p>}<button className="button-primary w-full" type="submit" disabled={leadState === "sending"} style={{ background: card.primaryColor, borderColor: card.primaryColor }}>{leadState === "sending" && <Loader2 size={18} className="animate-spin" />}{leadState === "sending" ? "שולחים..." : "שליחת פנייה"}</button></form></div>;
 
 
   return <div className="min-h-screen" style={{ "--public-primary": card.primaryColor, background: backgroundCss(card.backgroundPreset) } as React.CSSProperties}>
@@ -72,10 +147,19 @@ export function PublicCardClient({ card }: { card: CardData }) {
 
 function FieldLabel({ field }: { field: ContactFormField }) { return <span>{field.label}{field.required && <span className="required-field">חובה</span>}</span>; }
 
-function DynamicField({ field }: { field: ContactFormField }) {
+function DynamicField({ field, error }: { field: ContactFormField; error?: string }) {
   const name = `field_${field.id}`;
-  if (field.type === "checkbox") return <label className="flex min-h-11 items-center gap-2 text-sm"><input name={name} type="checkbox" required={field.required} aria-required={field.required} /><FieldLabel field={field} /></label>;
-  if (field.type === "textarea") return <label className="field-label"><FieldLabel field={field} /><textarea className="field-textarea" name={name} required={field.required} aria-required={field.required} maxLength={2000} /></label>;
-  if (field.type === "select") return <label className="field-label"><FieldLabel field={field} /><select className="field-select" name={name} required={field.required} aria-required={field.required}><option value="">בחירה</option>{(field.options || []).map((option) => <option key={option}>{option}</option>)}</select></label>;
-  return <label className="field-label"><FieldLabel field={field} /><input className="field-input" name={name} type={field.type} required={field.required} aria-required={field.required} autoComplete={field.type === "email" ? "email" : field.type === "tel" ? "tel" : undefined} /></label>;
+  const errorId = `${name}-error`;
+  // QA-008: כל שדה שנכשל מסומן ומקושר להסבר שלו.
+  const a11y = {
+    "data-field": name,
+    "aria-required": field.required,
+    "aria-invalid": Boolean(error),
+    "aria-describedby": error ? errorId : undefined,
+  } as const;
+  const message = error ? <span id={errorId} role="alert" className="mt-1 block text-xs font-bold text-[#b7293a]">{error}</span> : null;
+  if (field.type === "checkbox") return <label className="flex min-h-11 items-center gap-2 text-sm"><input name={name} type="checkbox" {...a11y} /><FieldLabel field={field} />{message}</label>;
+  if (field.type === "textarea") return <label className="field-label"><FieldLabel field={field} /><textarea className="field-textarea" name={name} {...a11y} maxLength={2000} />{message}</label>;
+  if (field.type === "select") return <label className="field-label"><FieldLabel field={field} /><select className="field-select" name={name} {...a11y}><option value="">בחירה</option>{(field.options || []).map((option) => <option key={option}>{option}</option>)}</select>{message}</label>;
+  return <label className="field-label"><FieldLabel field={field} /><input className="field-input" name={name} type={field.type} {...a11y} autoComplete={field.type === "email" ? "email" : field.type === "tel" ? "tel" : undefined} />{message}</label>;
 }

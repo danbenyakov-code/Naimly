@@ -17,6 +17,7 @@ import { cn } from "@/lib/utils";
 
 export type FieldRenderProps = {
   id: string;
+  "data-field"?: string;
   "aria-describedby": string | undefined;
   "aria-invalid": boolean;
   "aria-required": boolean;
@@ -29,6 +30,8 @@ export function Field({
   error,
   warning,
   success,
+  /** שם השדה. מייצר data-field, שדרכו ErrorSummary ממקד אותו. */
+  name,
   required = false,
   optional = false,
   /** מספר תווים נוכחי ומקסימלי — מציג מונה לפני שחורגים מהמגבלה. */
@@ -44,6 +47,7 @@ export function Field({
   error?: string;
   warning?: string;
   success?: string;
+  name?: string;
   required?: boolean;
   optional?: boolean;
   count?: number;
@@ -86,6 +90,7 @@ export function Field({
 
       {children({
         id,
+        "data-field": name,
         "aria-describedby": describedBy,
         "aria-invalid": Boolean(error),
         "aria-required": required,

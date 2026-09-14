@@ -15,7 +15,7 @@ import {
   verifyResetOtpAction,
   verifySignupOtpAction,
 } from "@/app/(auth)/actions";
-import { Field, FormAlert, inputClass } from "@/components/ui/field";
+import { ErrorSummary, Field, FormAlert, inputClass , focusErrorSummary } from "@/components/ui/field";
 import { PasswordField } from "@/components/auth/password-field";
 import { OtpInput } from "@/components/auth/otp-input";
 import { ResendButton } from "@/components/auth/resend-button";
@@ -89,10 +89,28 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
     window.history.replaceState(null, "", url.toString());
   }
 
+  /* QA-007/QA-009: המיקוד עובר לסיכום רק אחרי שהוא נמצא ב-DOM. */
+  useEffect(() => {
+    if (signupState && !signupState.ok) focusErrorSummary();
+  }, [signupState]);
+
   const fieldError = (result: AuthResult | null, field: string) =>
     result && !result.ok && result.field === field ? result.error : undefined;
   const formError = (result: AuthResult | null) =>
     result && !result.ok && !result.field ? result.error : undefined;
+
+  /*
+   * QA-007: פעולת השרת מחזירה שגיאה אחת עם שם השדה. ErrorSummary מצפה
+   * למפה, ולכן ממירים. הסיכום מכריז role="alert" ומקושר לשדה, במקום
+   * שגיאה בודדת שקורא מסך לא שומע.
+   */
+  /* REQ-003: הערך שהוזן חוזר מהשרת ומוזרק כ-defaultValue, כדי שכשל
+     לא ימחק את מה שהמשתמש כבר הקליד. */
+  const keptValue = (result: AuthResult | null, field: "fullName" | "email") =>
+    result && !result.ok ? result.values?.[field] : undefined;
+
+  const errorMap = (result: AuthResult | null): Record<string, string> =>
+    result && !result.ok && result.field ? { [result.field]: result.error } : {};
 
   // ── שלב: אימות כתובת המייל בהרשמה ────────────────────────────────────────
   if (step === "verifyEmail") {
@@ -290,15 +308,21 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
 
       {/* ── הרשמה ─────────────────────────────────────────────────────────── */}
       {mode === "signup" && (
-        <form action={signup} className="grid gap-4">
+        <form action={signup} noValidate className="grid gap-4">
           <input type="hidden" name="plan" value={plan} />
 
-          <Field label="שם מלא" required error={fieldError(signupState, "fullName")} hint="כך נפנה אליך במערכת ובמיילים">
+          <ErrorSummary
+            errors={errorMap(signupState)}
+            fieldOrder={["fullName", "email", "password", "passwordConfirm", "terms"]}
+          />
+
+          <Field label="שם מלא" required name="fullName" error={fieldError(signupState, "fullName")} hint="כך נפנה אליך במערכת ובמיילים">
             {(field) => (
               <input
                 {...field}
                 className={inputClass(Boolean(fieldError(signupState, "fullName")))}
                 name="fullName"
+                defaultValue={keptValue(signupState, "fullName")}
                 autoComplete="name"
                 placeholder="ישראל ישראלי"
                 minLength={2}
@@ -310,6 +334,7 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
           <Field
             label="כתובת אימייל"
             required
+            name="email"
             error={fieldError(signupState, "email")}
             hint="לכאן יישלח קוד האימות, וגם התראות על פניות חדשות"
           >
@@ -318,6 +343,7 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
                 {...field}
                 className={inputClass(Boolean(fieldError(signupState, "email")))}
                 name="email"
+                defaultValue={keptValue(signupState, "email")}
                 type="email"
                 inputMode="email"
                 dir="ltr"
