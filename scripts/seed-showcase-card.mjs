@@ -8,9 +8,9 @@
  * QA-001: הפרטים הוחלפו ביעדים אמיתיים של NAIMLY. כרטיס תצוגה שמוביל
  * ל-example.com ול-tel:0500000000 מזיק יותר משאין כרטיס תצוגה.
  *
- * הבעלות היא של חשבון האדמין, ולכן פניות מגיעות לדשבורד שלו.
+ * הבעלות היא של חשבון ההדגמה, ולכן פניות מגיעות לדשבורד שלו.
  *
- * שימוש:  node scripts/seed-showcase-card.mjs [--apply]
+ * שימוש:  node scripts/seed-showcase-card.mjs [--apply] [--owner=<email>] [--site=<url>]
  */
 import fs from "node:fs";
 import path from "node:path";
@@ -37,10 +37,17 @@ const admin = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUP
 
 console.log(`\n=== כרטיס התצוגה /${SLUG} ===`);
 
-const { data: profiles } = await admin.from("profiles").select("id,email,role").eq("role", "admin").limit(5);
-const owner = profiles?.[0];
+/*
+ * הבעלות היא של חשבון ההדגמה הייעודי ולא של חשבון האדמין. אדמין הוא
+ * תפקיד תפעולי, ואין סיבה שכרטיס ציבורי, פניות של מבקרים והתראות
+ * יהיו קשורים אליו.
+ */
+const ownerEmail = (process.argv.find((a) => a.startsWith("--owner=")) || "--owner=danbenyakov@gmail.com").slice(8);
+const { data: owner } = await admin.from("profiles").select("id,email").eq("email", ownerEmail).maybeSingle();
 if (!owner) {
-  console.error("\n❌ לא נמצא חשבון אדמין שיחזיק את כרטיס התצוגה.\n");
+  console.error(`
+❌ לא נמצא חשבון ${ownerEmail} שיחזיק את כרטיס התצוגה.
+`);
   process.exit(1);
 }
 console.log(`  בעלים: ${owner.email}`);
