@@ -13,6 +13,7 @@ import { SiteHeader } from "@/components/site-header";
 import { brand, plans } from "@/lib/config";
 import { demoCard } from "@/lib/demo-data";
 import { formatCurrency } from "@/lib/utils";
+import { ShowcaseGallery } from "@/components/marketing/showcase-gallery";
 
 export const metadata: Metadata = { alternates: { canonical: "/" } };
 
@@ -52,6 +53,8 @@ export default function HomePage() {
 
       <HowItWorks />
       <LiveDemo card={demoCard} videoId={process.env.NEXT_PUBLIC_DEMO_VIDEO_ID} />
+      {/* REQ-007: שלושה כרטיסים אמיתיים, לא אותו כרטיס שלוש פעמים. */}
+      <ShowcaseGallery />
     <Reveal as="section" className="bg-[#f3f5fa] py-20 sm:py-28"><div className="container-shell"><div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><span className="eyebrow">מחיר השקה תחרותי</span><h2 className="mt-4 text-4xl font-black tracking-[-0.05em] sm:text-5xl">מתחילים קטן. משדרגים לפי התוצאה.</h2></div><Link href="/pricing" className="button-ghost self-start">השוואה מלאה <ArrowLeft size={17} /></Link></div><div className="mt-10 grid gap-5 lg:grid-cols-3">{featuredPlans.map((plan) => <article key={plan.id} className={`relative flex flex-col rounded-[26px] border bg-white p-7 shadow-[0_12px_35px_rgba(11,24,48,.07)] ${plan.badge ? "border-[#6d4aff] ring-4 ring-[#6d4aff]/8" : "border-[#dfe4ec]"}`}>{plan.badge && <span className="absolute -top-3 right-6 rounded-full bg-[#6d4aff] px-3 py-1 text-xs font-bold text-white">{plan.badge}</span>}<h3 className="text-xl font-extrabold">{plan.name}</h3><p className="mt-2 min-h-12 text-sm text-[#607087]">{plan.description}</p><p className="mt-5"><strong className="text-5xl tracking-tight">{formatCurrency(plan.price)}</strong><span className="text-sm text-[#6b778d]"> / לחודש</span></p><ul className="my-6 grid flex-1 gap-3 text-sm">{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#0a9b81]" />{feature}</li>)}</ul><Link href={`/signup?plan=${plan.id}`} className={plan.badge ? "button-primary w-full" : "button-secondary w-full"}>בחירת מסלול</Link></article>)}</div><p className="mt-5 text-center text-sm text-[#718096]">14 ימי ניסיון ללא חיוב. המחירים לפני חיבור ספק הסליקה הסופי וניתנים לעדכון במקום מרכזי אחד.</p></div></Reveal>
 
       <Testimonials />

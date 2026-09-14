@@ -144,6 +144,29 @@ describe("REQ-007 — אין פרטי דמה בהדגמה", () => {
     assert.ok(!demoCard.email.includes("example"));
     assert.ok(!demoCard.website.includes("example"));
   });
+
+  it("מוצגים שלושה כרטיסים נפרדים ולא אותו כרטיס שלוש פעמים", () => {
+    /*
+     * זו הייתה הפרשנות הלא נכונה הראשונה: דף הבית הציג את demoCard
+     * בגיבור, במגרש המשחקים ובהדגמה החיה — שלוש הופעות של כרטיס אחד.
+     */
+    const gallery = read("src/components/marketing/showcase-gallery.tsx");
+    for (const slug of ["noa-design", "naimly-studio", "naimly-consult"]) {
+      assert.ok(gallery.includes(slug), `חסר ${slug}`);
+    }
+    assert.ok(read("src/app/page.tsx").includes("<ShowcaseGallery />"));
+  });
+
+  it("המחירים בכרטיס התצוגה נגזרים ואינם מוקלדים", () => {
+    /*
+     * הכרטיס הציבורי פרסם "פרימיום 119 ₪ ותמיכה מועדפת" אחרי שהמחירון
+     * השתנה, כי המספר הוקלד בסקריפט הזריעה.
+     */
+    const seed = code("scripts/seed-showcase-cards.mjs");
+    assert.ok(seed.includes("planServices"), "המחירים חייבים להיגזר מ-plans");
+    assert.ok(!seed.includes("119"), "נשאר מחיר מוקלד");
+    assert.ok(!seed.includes("תמיכה מועדפת"), "נשארה יכולת שהוסרה");
+  });
 });
 
 describe("REQ-016 — מסמכים בחלונית", () => {
