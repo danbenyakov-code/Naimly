@@ -20,6 +20,7 @@ export function cardToDatabaseRow(card: CardData | ReturnType<typeof import("@/l
     cover_url: card.coverUrl,
     logo_url: card.logoUrl,
     logo_shape: card.logoShape,
+    logo_position: card.logoPosition,
     video_url: card.videoUrl,
     gallery: card.gallery,
     files: card.files,

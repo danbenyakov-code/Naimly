@@ -40,6 +40,7 @@ export function starterCard(viewer: Viewer): CardData {
     coverUrl: "",
     logoUrl: "",
     logoShape: "rounded",
+    logoPosition: "right",
     videoUrl: "",
     gallery: [],
     files: [],
