@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { BillingToggle } from "@/components/marketing/billing-toggle";
 import { plans } from "@/lib/config";
-import { formatCurrency } from "@/lib/utils";
 import { TRIAL_DAYS, planFeatures, planLimits } from "@/lib/plan-access";
 
 export const metadata: Metadata = { title: "מחירים", description: "מסלולים גמישים לבניית כרטיס ביקור דיגיטלי לעסק.", alternates: { canonical: "/pricing" } };
@@ -46,16 +45,8 @@ export default function PricingPage() {
           <div className="container-shell"><span className="eyebrow">מחירים ברורים. ללא הפתעות.</span><h1 className="mt-5 text-4xl font-black tracking-[-0.05em] sm:text-6xl">המסלול שמתאים לעסק שלך.</h1><p className="mx-auto mt-4 max-w-2xl text-lg text-[#607087]">מתחילים ב‑{TRIAL_DAYS} ימי התנסות מלאים, ללא כרטיס אשראי. אפשר לשדרג, לשנות מסלול או לבטל בכל עת — והכרטיס שבניתם נשמר.</p></div>
         </section>
         <section className="py-14 sm:py-20">
-          <div className="container-shell grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {plans.map((plan) => (
-              <article key={plan.id} className={`card-surface relative flex flex-col p-6 ${plan.badge ? "border-[#6d4aff] ring-4 ring-[#6d4aff]/8" : ""}`}>
-                {plan.badge && <span className="absolute -top-3 right-5 rounded-full bg-[#6d4aff] px-3 py-1 text-xs font-bold text-white">{plan.badge}</span>}
-                <h2 className="text-xl font-extrabold">{plan.name}</h2><p className="mt-2 min-h-14 text-sm text-[#607087]">{plan.description}</p>
-                <p className="mt-4"><strong className="text-4xl">{formatCurrency(plan.price)}</strong><span className="text-sm text-[#6b778d]"> / לחודש</span></p>
-                <ul className="my-6 grid flex-1 gap-3 text-sm">{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#0a9b81]" />{feature}</li>)}</ul>
-                <Link href={plan.id === "trial" ? "/signup" : `/signup?plan=${plan.id}`} className={plan.badge ? "button-primary w-full" : "button-secondary w-full"}>{plan.id === "trial" ? `התחלה — ${TRIAL_DAYS} ימים חינם` : "בחירת מסלול"}</Link>
-              </article>
-            ))}
+          <div className="container-shell">
+            <BillingToggle />
           </div>
         </section>
         <section className="pb-20">

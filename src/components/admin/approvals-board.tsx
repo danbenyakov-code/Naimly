@@ -55,7 +55,11 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
   }
 
   async function review(request: PaymentRequestRecord, action: "approve" | "reject") {
-    const result = await call(`/api/admin/payment-requests/${request.id}`, "POST", { action, months: 1 }, request.id);
+    /*
+     * months לא נשלח: השרת גוזר אותו ממחזור החיוב שנשמר בבקשה. שליחת
+     * 1 קבוע מכאן הייתה מפעילה חודש אחד גם ללקוח ששילם על שנה.
+     */
+    const result = await call(`/api/admin/payment-requests/${request.id}`, "POST", { action }, request.id);
     if (!result) return;
     if (action === "approve") burst(undefined, { count: 80 });
     const trimmed = Array.isArray(result.trimmed) && result.trimmed.length ? ` הכרטיס הותאם למסלול: ${result.trimmed.join(", ")}.` : "";
@@ -140,7 +144,7 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
 
               <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Detail label="מסלול" value={planName(request.planId)} />
-                <Detail label="סכום" value={formatCurrency(request.amount)} />
+                <Detail label="סכום" value={`${formatCurrency(request.amount)} · ${request.billingCycle === "annual" ? "שנתי" : "חודשי"}`} />
                 <Detail label="אסמכתא" value={request.reference} mono />
                 <Detail label="נפתח" value={formatDate(request.createdAt)} />
               </dl>

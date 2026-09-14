@@ -5,20 +5,26 @@ import { Check, MessageCircle } from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
 import { DowngradeNotice } from "@/components/downgrade-notice";
 import { Logo } from "@/components/logo";
-import { billing, isBillingConfigured, plans } from "@/lib/config";
+import { annualSaving, billing, billingCycleLabel, cycleAmount, isBillingConfigured, plans, toBillingCycle } from "@/lib/config";
 import { getDashboardCard, getViewer } from "@/lib/data";
 import { downgradeImpact, resolveAccess, TRIAL_DAYS } from "@/lib/plan-access";
 import { formatCurrency } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "השלמת הזמנה", robots: { index: false, follow: false } };
 
-export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ plan?: string; canceled?: string }> }) {
+export default async function CheckoutPage({ searchParams }: { searchParams: Promise<{ plan?: string; cycle?: string; canceled?: string }> }) {
   const params = await searchParams;
   const plan = plans.find((item) => item.id === params.plan && item.id !== "trial");
   if (!plan) redirect("/pricing");
 
+  // מחזור החיוב מגיע מהמחירון. ערך לא מוכר נופל לחודשי — ברירת המחדל
+  // הזולה יותר, כדי שקלט פגום לא יגרור חיוב גבוה מהצפוי.
+  const cycle = toBillingCycle(params.cycle);
+  const amount = cycleAmount(plan.price, cycle);
+  const saving = annualSaving(plan.price);
+
   const viewer = await getViewer();
-  if (!viewer) redirect(`/signup?plan=${plan.id}`);
+  if (!viewer) redirect(`/signup?plan=${plan.id}&cycle=${cycle}`);
 
   const access = resolveAccess(viewer);
   const card = await getDashboardCard(viewer);
@@ -42,19 +48,30 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
             <div className="mt-5 flex items-start justify-between gap-4 border-b border-white/10 pb-5">
               <div>
                 <strong className="text-lg sm:text-xl">מסלול {plan.name}</strong>
-                <p className="mt-1 text-sm text-white/55">חיוב חודשי מתחדש</p>
+                <p className="mt-1 text-sm text-white/55">{billingCycleLabel[cycle]}</p>
               </div>
-              <strong className="shrink-0 text-2xl">{formatCurrency(plan.price)}</strong>
+              <strong className="shrink-0 text-2xl">{formatCurrency(amount)}</strong>
             </div>
+
+            {/* החיסכון מוצג בסיכום ולא רק במחירון — זו הנקודה שבה הלקוח משלם. */}
+            {cycle === "annual" && (
+              <div className="mt-4 flex justify-between text-sm font-bold text-[#72e3d3]">
+                <span>חיסכון מול חיוב חודשי</span>
+                <span>{formatCurrency(saving)}</span>
+              </div>
+            )}
+
             <div className="mt-4 flex justify-between text-sm text-white/65">
               <span>מע״מ</span>
-              <span>בהתאם למסמך החשבונאי</span>
+              <span>יתווסף כדין</span>
             </div>
             <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-4">
-              <span className="font-bold">סה״כ לחודש</span>
+              <span className="font-bold">{cycle === "annual" ? "סה״כ לשנה" : "סה״כ לחודש"}</span>
               <span className="text-left">
-                <strong className="text-2xl sm:text-3xl">{formatCurrency(plan.price)}</strong>
-                <small className="block text-white/45">ניתן לבטל בכל עת</small>
+                <strong className="text-2xl sm:text-3xl">{formatCurrency(amount)}</strong>
+                <small className="block text-white/45">
+                  {cycle === "annual" ? `${formatCurrency(Math.round(amount / 12))} לחודש בפועל` : "ניתן לבטל בכל עת"}
+                </small>
               </span>
             </div>
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[.055] p-4 text-xs leading-6 text-white/70">
@@ -93,7 +110,7 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
             <div className="mt-6">
               {isBillingConfigured ? (
-                <CheckoutButton planId={plan.id} planName={plan.name} price={plan.price} />
+                <CheckoutButton planId={plan.id} planName={plan.name} price={amount} cycle={cycle} />
               ) : (
                 <p role="alert" className="rounded-xl border border-[#f0bdc3] bg-[#fff2f4] p-4 text-sm leading-6 text-[#a32031]">
                   מספר הוואטסאפ לתשלומים טרם הוגדר. יש להגדיר <code dir="ltr">NEXT_PUBLIC_BILLING_WHATSAPP</code> לפני פתיחת המכירה.

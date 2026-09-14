@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { headers } from "next/headers";
 import { LEGAL_VERSION } from "@/lib/legal";
+import { toBillingCycle } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
@@ -103,7 +104,8 @@ export async function loginAction(_prev: AuthResult | null, formData: FormData):
 // ─────────────────────────────────────────────────────────────────────────────
 export async function signupAction(_prev: AuthResult | null, formData: FormData): Promise<AuthResult> {
   const selectedPlan = ["basic", "pro", "premium"].includes(String(formData.get("plan"))) ? String(formData.get("plan")) : "";
-  const nextPath = selectedPlan ? `/checkout?plan=${selectedPlan}` : "/dashboard";
+  const selectedCycle = toBillingCycle(formData.get("cycle"));
+  const nextPath = selectedPlan ? `/checkout?plan=${selectedPlan}&cycle=${selectedCycle}` : "/dashboard";
 
   const fullName = String(formData.get("fullName") || "").trim();
   const email = String(formData.get("email") || "").trim();

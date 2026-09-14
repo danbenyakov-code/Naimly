@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { billing, isBillingConfigured, plans } from "@/lib/config";
+import { billing, cycleAmount, isBillingConfigured, plans, toBillingCycle } from "@/lib/config";
 import { getViewer } from "@/lib/data";
 import { buildReference, whatsappPaymentLink } from "@/lib/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -11,6 +11,7 @@ import { sendPaymentRequestNotification } from "@/lib/email";
 
 const schema = z.object({
   planId: z.enum(["basic", "pro", "premium"]),
+  cycle: z.enum(["monthly", "annual"]).optional(),
   phone: z.string().max(30).optional(),
   note: z.string().max(500).optional(),
 });
@@ -36,8 +37,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "מספר הוואטסאפ לתשלומים טרם הוגדר במערכת. יש לפנות לתמיכה." }, { status: 503 });
   }
 
+  /*
+   * הסכום נגזר בשרת מהמסלול וממחזור החיוב, ולא מתקבל מהלקוח. מחיר
+   * שמגיע מהדפדפן הוא הצעה, לא עובדה.
+   */
+  const cycle = toBillingCycle(parsed.data.cycle);
+  const amount = cycleAmount(plan.price, cycle);
+
   const reference = buildReference(viewer.id, plan.id);
-  const link = whatsappPaymentLink({ plan, viewer, reference });
+  const link = whatsappPaymentLink({ plan, viewer, reference, cycle });
 
   if (viewer.demo) {
     return NextResponse.json({ reference, whatsappUrl: link, bitPhone: billing.bitPhone, demo: true });
@@ -52,13 +60,14 @@ export async function POST(request: Request) {
     .select("id,reference")
     .eq("user_id", viewer.id)
     .eq("plan_id", plan.id)
+    .eq("billing_cycle", cycle)
     .eq("status", "pending")
     .maybeSingle();
 
   if (existing) {
     return NextResponse.json({
       reference: existing.reference,
-      whatsappUrl: whatsappPaymentLink({ plan, viewer, reference: existing.reference }),
+      whatsappUrl: whatsappPaymentLink({ plan, viewer, reference: existing.reference, cycle }),
       bitPhone: billing.bitPhone,
       reused: true,
     });
@@ -68,7 +77,8 @@ export async function POST(request: Request) {
     user_id: viewer.id,
     reference,
     plan_id: plan.id,
-    amount: plan.price,
+    amount,
+    billing_cycle: cycle,
     method: "bit",
     status: "pending",
     contact_phone: parsed.data.phone || "",
@@ -102,7 +112,8 @@ export async function POST(request: Request) {
     customerName: viewer.fullName,
     customerEmail: viewer.email,
     planName: plan.name,
-    amount: plan.price,
+    amount,
+    cycle,
     reference,
   }).catch(() => null);
 

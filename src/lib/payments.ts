@@ -1,4 +1,4 @@
-import { billing, brand } from "@/lib/config";
+import { billing, brand, cycleAmount, type BillingCycle } from "@/lib/config";
 import type { Plan, Viewer } from "@/lib/types";
 
 /**
@@ -13,6 +13,7 @@ export type PaymentRequest = {
   userId: string;
   planId: Plan["id"];
   amount: number;
+  billingCycle: BillingCycle;
   status: "pending" | "approved" | "rejected" | "canceled";
   createdAt: string;
 };
@@ -24,12 +25,30 @@ export function buildReference(userId: string, planId: string) {
   return `${planId.slice(0, 2).toUpperCase()}-${suffix}-${stamp}`;
 }
 
-export function paymentMessage(input: { plan: Plan; viewer: Pick<Viewer, "email" | "fullName">; reference: string; renewal?: boolean }) {
+type MessageInput = {
+  plan: Plan;
+  viewer: Pick<Viewer, "email" | "fullName">;
+  reference: string;
+  renewal?: boolean;
+  cycle?: BillingCycle;
+};
+
+export function paymentMessage(input: MessageInput) {
   const { plan, viewer, reference, renewal } = input;
+  const cycle = input.cycle || "monthly";
+  const amount = cycleAmount(plan.price, cycle);
+
+  /*
+   * הסכום בהודעה הוא הסכום שייגבה בפועל. לקוח ששילם על שנה וקיבל
+   * הודעה עם המחיר החודשי היה מעביר את הסכום הלא נכון — וזו תקלה
+   * שמתגלה רק אחרי שהכסף כבר עבר.
+   */
   const lines = [
     `שלום ${brand.name}, אני רוצה ${renewal ? "לחדש" : "להפעיל"} מסלול ${plan.name}.`,
     "",
-    `סכום: ${plan.price} ש״ח לחודש`,
+    cycle === "annual"
+      ? `סכום: ${amount} ש״ח לשנה (תשלום מראש ל-12 חודשים)`
+      : `סכום: ${amount} ש״ח לחודש`,
     `אימייל בחשבון: ${viewer.email}`,
     `שם: ${viewer.fullName}`,
     `מספר אסמכתא: ${reference}`,
@@ -43,7 +62,7 @@ export function paymentMessage(input: { plan: Plan; viewer: Pick<Viewer, "email"
 }
 
 /** קישור וואטסאפ מוכן עם ההודעה. מחזיר "" כשמספר החיוב לא הוגדר. */
-export function whatsappPaymentLink(input: { plan: Plan; viewer: Pick<Viewer, "email" | "fullName">; reference: string; renewal?: boolean }) {
+export function whatsappPaymentLink(input: MessageInput) {
   if (!billing.whatsappNumber) return "";
   return `https://wa.me/${billing.whatsappNumber}?text=${encodeURIComponent(paymentMessage(input))}`;
 }

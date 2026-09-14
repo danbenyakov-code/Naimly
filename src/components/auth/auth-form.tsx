@@ -2,6 +2,7 @@
 
 import { useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import type { BillingCycle } from "@/lib/config";
 import Link from "next/link";
 import { ArrowLeft, ArrowRight, KeyRound, Loader2, LockKeyhole, Mail, ShieldCheck, Sparkles } from "lucide-react";
 import type { AuthResult } from "@/app/(auth)/actions";
@@ -42,7 +43,17 @@ const headings: Record<AuthMode, { title: string; description: string }> = {
  * מסך אימות מאוחד. הכניסה היא באימייל וסיסמה בלבד — אין כניסה ללא סיסמה.
  * קוד ה‑OTP משמש רק לאימות כתובת בהרשמה ולזיהוי בשחזור סיסמה.
  */
-export function AuthForm({ initialMode = "login", plan = "", next = "" }: { initialMode?: AuthMode; plan?: string; next?: string }) {
+export function AuthForm({
+  initialMode = "login",
+  plan = "",
+  cycle = "monthly",
+  next = "",
+}: {
+  initialMode?: AuthMode;
+  plan?: string;
+  cycle?: BillingCycle;
+  next?: string;
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<AuthMode>(initialMode);
   // התוצאה שהמשתמש "סגר" בכפתור חזרה, כדי שהשלב לא יחזור מעצמו.
@@ -62,7 +73,7 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
   const [resendReset, resendResetAction, resendResetPending] = useActionState(resendResetOtpAction, null);
   const [updateState, updatePassword, updatePending] = useActionState(updatePasswordAction, null);
 
-  const successTarget = next || (plan ? `/checkout?plan=${plan}` : "/dashboard");
+  const successTarget = next || (plan ? `/checkout?plan=${plan}&cycle=${cycle}` : "/dashboard");
 
   /*
    * השלב נגזר מהתוצאה האחרונה שהחזירה step. הסדר חשוב: choosePassword
@@ -310,6 +321,7 @@ export function AuthForm({ initialMode = "login", plan = "", next = "" }: { init
       {mode === "signup" && (
         <form action={signup} noValidate className="grid gap-4">
           <input type="hidden" name="plan" value={plan} />
+          <input type="hidden" name="cycle" value={cycle} />
 
           <ErrorSummary
             errors={errorMap(signupState)}

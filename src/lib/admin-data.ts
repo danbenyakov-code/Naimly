@@ -2,6 +2,7 @@ import { unstable_noStore as noStore } from "next/cache";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/env";
 import type { PlanId, Viewer } from "@/lib/types";
+import { toBillingCycle, type BillingCycle } from "@/lib/config";
 
 export type PaymentRequestRecord = {
   id: string;
@@ -9,6 +10,7 @@ export type PaymentRequestRecord = {
   userId: string;
   planId: Exclude<PlanId, "trial">;
   amount: number;
+  billingCycle: BillingCycle;
   method: string;
   status: "pending" | "approved" | "rejected" | "canceled";
   contactPhone: string;
@@ -35,9 +37,9 @@ export type AdminCustomer = {
 };
 
 const demoRequests: PaymentRequestRecord[] = [
-  { id: "pr1", reference: "PR-8F21C4-K3A9", userId: "u1", planId: "pro", amount: 49, method: "bit", status: "pending", contactPhone: "0521234567", note: "שילמתי בביט, מצרף צילום מסך בוואטסאפ", adminNote: "", createdAt: "2026-09-05T08:20:00.000Z", reviewedAt: null, customerName: "איתי ברק", customerEmail: "itay@example.com" },
-  { id: "pr2", reference: "BA-2D77A1-M8X2", userId: "u2", planId: "basic", amount: 29, method: "bit", status: "pending", contactPhone: "0549876543", note: "", adminNote: "", createdAt: "2026-09-04T16:05:00.000Z", reviewedAt: null, customerName: "מאיה עזר", customerEmail: "maya@example.com" },
-  { id: "pr3", reference: "PM-91BB03-Q1Z7", userId: "u3", planId: "premium", amount: 79, method: "bit", status: "approved", contactPhone: "0501112233", note: "", adminNote: "אושר לאחר אימות בביט", createdAt: "2026-09-02T11:40:00.000Z", reviewedAt: "2026-09-02T12:10:00.000Z", customerName: "רוני שלו", customerEmail: "roni@example.com" },
+  { id: "pr1", reference: "PR-8F21C4-K3A9", userId: "u1", planId: "pro", amount: 49, billingCycle: "monthly", method: "bit", status: "pending", contactPhone: "0521234567", note: "שילמתי בביט, מצרף צילום מסך בוואטסאפ", adminNote: "", createdAt: "2026-09-05T08:20:00.000Z", reviewedAt: null, customerName: "איתי ברק", customerEmail: "itay@example.com" },
+  { id: "pr2", reference: "BA-2D77A1-M8X2", userId: "u2", planId: "basic", amount: 290, billingCycle: "annual", method: "bit", status: "pending", contactPhone: "0549876543", note: "", adminNote: "", createdAt: "2026-09-04T16:05:00.000Z", reviewedAt: null, customerName: "מאיה עזר", customerEmail: "maya@example.com" },
+  { id: "pr3", reference: "PM-91BB03-Q1Z7", userId: "u3", planId: "premium", amount: 79, billingCycle: "monthly", method: "bit", status: "approved", contactPhone: "0501112233", note: "", adminNote: "אושר לאחר אימות בביט", createdAt: "2026-09-02T11:40:00.000Z", reviewedAt: "2026-09-02T12:10:00.000Z", customerName: "רוני שלו", customerEmail: "roni@example.com" },
 ];
 
 const demoCustomers: AdminCustomer[] = [
@@ -49,7 +51,7 @@ const demoCustomers: AdminCustomer[] = [
 type RequestRow = {
   id: string; reference: string; user_id: string; plan_id: string; amount: number | string; method: string;
   status: string; contact_phone: string | null; note: string | null; admin_note: string | null;
-  created_at: string; reviewed_at: string | null;
+  created_at: string; reviewed_at: string | null; billing_cycle?: string | null;
   profiles?: { full_name?: string | null; email?: string | null } | null;
 };
 
@@ -60,6 +62,7 @@ function mapRequest(row: RequestRow): PaymentRequestRecord {
     userId: row.user_id,
     planId: row.plan_id as PaymentRequestRecord["planId"],
     amount: Number(row.amount) || 0,
+    billingCycle: toBillingCycle(row.billing_cycle),
     method: row.method,
     status: row.status as PaymentRequestRecord["status"],
     contactPhone: row.contact_phone || "",
@@ -82,7 +85,7 @@ export async function getPaymentRequests(viewer: Viewer, status?: PaymentRequest
   if (!admin) return [];
   let query = admin
     .from("payment_requests")
-    .select("id,reference,user_id,plan_id,amount,method,status,contact_phone,note,admin_note,created_at,reviewed_at,profiles(full_name,email)")
+    .select("id,reference,user_id,plan_id,amount,billing_cycle,method,status,contact_phone,note,admin_note,created_at,reviewed_at,profiles(full_name,email)")
     .order("created_at", { ascending: false })
     .limit(200);
   if (status) query = query.eq("status", status);
@@ -129,7 +132,7 @@ export async function getMyPaymentRequests(viewer: Viewer): Promise<PaymentReque
   if (!admin) return [];
   const { data } = await admin
     .from("payment_requests")
-    .select("id,reference,user_id,plan_id,amount,method,status,contact_phone,note,admin_note,created_at,reviewed_at,profiles(full_name,email)")
+    .select("id,reference,user_id,plan_id,amount,billing_cycle,method,status,contact_phone,note,admin_note,created_at,reviewed_at,profiles(full_name,email)")
     .eq("user_id", viewer.id)
     .order("created_at", { ascending: false })
     .limit(10);

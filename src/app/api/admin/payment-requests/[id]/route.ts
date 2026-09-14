@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { plans } from "@/lib/config";
+import { cycleMonths, plans, toBillingCycle } from "@/lib/config";
 import { auditLog, isResponse, requireAdmin } from "@/lib/admin-guard";
 import { clampCardToPlan } from "@/lib/plan-access";
 import { normalizeCard } from "@/lib/data";
@@ -31,7 +31,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const { data: paymentRequest } = await admin
     .from("payment_requests")
-    .select("id,user_id,plan_id,amount,status,reference,profiles(full_name,email)")
+    .select("id,user_id,plan_id,amount,status,reference,billing_cycle,profiles(full_name,email)")
     .eq("id", id)
     .maybeSingle();
   if (!paymentRequest) return NextResponse.json({ error: "הבקשה לא נמצאה" }, { status: 404 });
@@ -52,7 +52,12 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   const plan = plans.find((item) => item.id === paymentRequest.plan_id);
   if (!plan) return NextResponse.json({ error: "המסלול בבקשה אינו מוכר" }, { status: 400 });
-  const months = parsed.data.months || 1;
+  /*
+   * מספר החודשים נגזר ממחזור החיוב שנשמר בבקשה, ולא מברירת מחדל של
+   * חודש. אחרת לקוח ששילם על שנה היה מקבל חודש — והתקלה הייתה מתגלה
+   * רק בעוד אחד-עשר חודשים, כשהמנוי ייסגר לו.
+   */
+  const months = parsed.data.months || cycleMonths(toBillingCycle(paymentRequest.billing_cycle));
 
   const { error: activateError } = await admin.rpc("activate_subscription", {
     target_user: paymentRequest.user_id,

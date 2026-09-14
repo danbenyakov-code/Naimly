@@ -1,5 +1,5 @@
 import nodemailer, { type Transporter } from "nodemailer";
-import { brand } from "@/lib/config";
+import { brand, billingCycleLabel, type BillingCycle } from "@/lib/config";
 
 /**
  * שליחת מיילים דרך SMTP.
@@ -225,7 +225,10 @@ export async function sendPaymentRequestNotification(input: {
   planName: string;
   amount: number;
   reference: string;
+  cycle?: BillingCycle;
 }): Promise<EmailResult> {
+  // מנהל שרואה רק סכום אינו יודע לכמה זמן להפעיל את המנוי.
+  const cycleText = billingCycleLabel[input.cycle || "monthly"];
   const html = layout(
     "בקשת תשלום חדשה",
     `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">בקשת תשלום חדשה</h1>
@@ -234,6 +237,7 @@ export async function sendPaymentRequestNotification(input: {
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:90px">לקוח</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.customerName)}</td></tr>
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אימייל</td><td style="padding:8px 0;font-weight:700" dir="ltr">${escapeHtml(input.customerEmail)}</td></tr>
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מסלול</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.planName)} — ${input.amount} ש״ח</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מחזור חיוב</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(cycleText)}</td></tr>
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אסמכתא</td><td style="padding:8px 0;font-weight:700;font-family:monospace" dir="ltr">${escapeHtml(input.reference)}</td></tr>
      </table>
      <a href="${brand.siteUrl}/admin/approvals" style="display:inline-block;margin-top:8px;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
@@ -247,6 +251,7 @@ export async function sendPaymentRequestNotification(input: {
     `לקוח: ${input.customerName}`,
     `אימייל: ${input.customerEmail}`,
     `מסלול: ${input.planName} — ${input.amount} ש״ח`,
+    `מחזור חיוב: ${cycleText}`,
     `אסמכתא: ${input.reference}`,
     "",
     `${brand.siteUrl}/admin/approvals`,

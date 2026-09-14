@@ -32,6 +32,59 @@ export const isBillingConfigured = Boolean(billing.whatsappNumber);
 export const adminNotificationEmail = process.env.ADMIN_NOTIFICATION_EMAIL || brand.supportEmail;
 
 // המחירים מרוכזים כאן כדי שניתן יהיה לעדכן אותם לפני ההשקה ללא שינוי במסכים.
+/**
+ * תמחור שנתי.
+ *
+ * REQ-010: הנוהג המקובל ב-SaaS הוא "חודשיים מתנה" — תשלום על עשרה
+ * חודשים מראש. זה מסר שקל להבין, בניגוד לאחוז הנחה שדורש חישוב, והוא
+ * לא נראה כמו מבצע נואש.
+ *
+ * החיסכון מחושב מהמחירים בפועל ולא נקבע ידנית, כדי שלא ייווצר מצב שבו
+ * המחירון מבטיח הנחה שאינה תואמת את מה שנגבה.
+ */
+export const ANNUAL_MONTHS_CHARGED = 10;
+
+export function annualPrice(monthly: number) {
+  return monthly * ANNUAL_MONTHS_CHARGED;
+}
+
+export function annualSaving(monthly: number) {
+  return monthly * 12 - annualPrice(monthly);
+}
+
+/** אחוז ההנחה, מעוגל. נגזר מהמספרים ולא נכתב ידנית. */
+export const ANNUAL_DISCOUNT_PERCENT = Math.round((1 - ANNUAL_MONTHS_CHARGED / 12) * 100);
+
+export type BillingCycle = "monthly" | "annual";
+
+/** מספר החודשים שמופעלים בפועל לכל מחזור חיוב. */
+export const ANNUAL_MONTHS_GRANTED = 12;
+
+export function cycleMonths(cycle: BillingCycle) {
+  return cycle === "annual" ? ANNUAL_MONTHS_GRANTED : 1;
+}
+
+/**
+ * הסכום שייגבה בפועל עבור מסלול ומחזור חיוב.
+ *
+ * כל מסך שמציג מחיר וכל נתיב שגובה אותו קוראים לפונקציה הזו. אילו כל
+ * אחד היה מחשב בעצמו, מסך אחד היה מציג סכום אחד והשרת היה רושם אחר.
+ */
+export function cycleAmount(monthly: number, cycle: BillingCycle) {
+  return cycle === "annual" ? annualPrice(monthly) : monthly;
+}
+
+/** קריאת מחזור חיוב מקלט שאינו אמין (query string, גוף בקשה). */
+export function toBillingCycle(value: unknown): BillingCycle {
+  return value === "annual" ? "annual" : "monthly";
+}
+
+/** תיאור מחזור החיוב בעברית — למסכים, להודעות ולמיילים. */
+export const billingCycleLabel: Record<BillingCycle, string> = {
+  monthly: "חיוב חודשי מתחדש",
+  annual: "תשלום שנתי מראש",
+};
+
 export const plans: Plan[] = [
   {
     id: "trial",

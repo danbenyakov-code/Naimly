@@ -1,11 +1,11 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useState } from "react";
 import Link from "next/link";
 import { ArrowLeft, Check, Loader2, Sparkles } from "lucide-react";
 import { FormAlert } from "@/components/ui/field";
 import { legalDocuments } from "@/lib/legal";
-import { plans } from "@/lib/config";
+import { ANNUAL_DISCOUNT_PERCENT, annualSaving, cycleAmount, plans, type BillingCycle } from "@/lib/config";
 import { TRIAL_DAYS } from "@/lib/plan-access";
 import { formatCurrency } from "@/lib/utils";
 import { startTrialAction, type SelectPlanResult } from "@/app/onboarding/plan/actions";
@@ -22,6 +22,8 @@ const paid = plans.filter((plan) => plan.id !== "trial");
  * ולא נוחת בדשבורד עם טיימר על אפס בלי להבין מה קיבל.
  */
 export function PlanChoice({ fullName }: { fullName: string }) {
+  // אותו מתג כמו במחירון: לקוח שראה מחיר שנתי לא אמור לאבד אותו בדרך.
+  const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [state, submit, pending] = useActionState<SelectPlanResult, FormData>(
     async (previous, formData) => {
       /*
@@ -148,14 +150,35 @@ export function PlanChoice({ fullName }: { fullName: string }) {
         התשלום מתבצע בביט דרך וואטסאפ. הכרטיס נפתח מיד עם אישור התשלום.
       </p>
 
+      <div className="mt-5 flex justify-center">
+        <div className="inline-flex rounded-2xl border border-[#dfe4ec] bg-white p-1" role="group" aria-label="מחזור חיוב">
+          {([["monthly", "חודשי"], ["annual", `שנתי · ${ANNUAL_DISCOUNT_PERCENT}% הנחה`]] as const).map(([value, label]) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => setCycle(value)}
+              aria-pressed={cycle === value}
+              className={`min-h-11 rounded-xl px-5 text-sm font-bold transition ${
+                cycle === value ? "bg-[#6d4aff] text-white" : "text-[#5f6d83]"
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
       <div className="mt-6 grid gap-5 md:grid-cols-3">
         {paid.map((plan) => (
           <article key={plan.id} className="card-surface flex flex-col p-6">
             <h3 className="text-xl font-extrabold">{plan.name}</h3>
             <p className="mt-2 min-h-12 text-sm text-[#607087]">{plan.description}</p>
             <p className="mt-4">
-              <strong className="text-3xl">{formatCurrency(plan.price)}</strong>
-              <span className="text-sm text-[#6b778d]"> / לחודש</span>
+              <strong className="text-3xl">{formatCurrency(cycleAmount(plan.price, cycle))}</strong>
+              <span className="text-sm text-[#6b778d]"> / {cycle === "annual" ? "לשנה" : "לחודש"}</span>
+            </p>
+            <p className="mt-1 min-h-5 text-xs font-bold text-[#0a9b81]">
+              {cycle === "annual" ? `חיסכון ${formatCurrency(annualSaving(plan.price))}` : ""}
             </p>
             <ul className="my-5 grid flex-1 gap-2.5 text-sm">
               {plan.features.map((feature) => (
@@ -165,12 +188,15 @@ export function PlanChoice({ fullName }: { fullName: string }) {
                 </li>
               ))}
             </ul>
-            <Link href={`/checkout?plan=${plan.id}`} className="button-secondary min-h-12 w-full">
+            <Link href={`/checkout?plan=${plan.id}&cycle=${cycle}`} className="button-secondary min-h-12 w-full">
               בחירת {plan.name}
             </Link>
           </article>
         ))}
       </div>
+
+      {/* אותה הצהרה כמו במחירון ובמסמכים המשפטיים, באותו נוסח. */}
+      <p className="mt-4 text-center text-xs text-[#8b96a8]">המחירים אינם כוללים מע״מ, שיתווסף כדין.</p>
 
       <p className="mt-10 text-center text-sm text-[#6b778d]">
         רוצה להשוות לעומק?{" "}
