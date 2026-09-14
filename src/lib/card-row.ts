@@ -35,6 +35,8 @@ export function cardToDatabaseRow(card: CardData | ReturnType<typeof import("@/l
     seo_title: card.seoTitle,
     seo_description: card.seoDescription,
     social_image_url: card.socialImageUrl,
+    lead_notification_email: card.leadNotificationEmail,
+    lead_notifications_enabled: card.leadNotificationsEnabled,
     area_served: card.areaServed,
     cover_alt: card.coverAlt,
     logo_alt: card.logoAlt,

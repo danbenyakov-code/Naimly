@@ -9,5 +9,5 @@ export default async function CardBuilderPage({ searchParams }: { searchParams: 
   if (!viewer) return null;
   const card = await getDashboardCard(viewer);
   const access = resolveAccess(viewer);
-  return <CardBuilderV2 initialCard={card} demo={viewer.demo} siteUrl={brand.siteUrl} planId={access.plan} locked={access.locked} lockReason={access.reason} trialActive={access.trial.active} forceTour={query.tour === "1"} initialPreviewMode={query.preview === "desktop" ? "desktop" : "mobile"} />;
+  return <CardBuilderV2 initialCard={card} demo={viewer.demo} siteUrl={brand.siteUrl} planId={access.plan} accountEmail={viewer.email} locked={access.locked} lockReason={access.reason} trialActive={access.trial.active} forceTour={query.tour === "1"} initialPreviewMode={query.preview === "desktop" ? "desktop" : "mobile"} />;
 }

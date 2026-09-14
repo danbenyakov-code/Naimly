@@ -75,6 +75,8 @@ export function starterCard(viewer: Viewer): CardData {
       { id: "message", label: "במה נוכל לעזור?", type: "textarea", required: false },
     ],
     galleryStyle: "grid",
+    leadNotificationEmail: "",
+    leadNotificationsEnabled: true,
     tracking: { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" },
     // ה-vCard נשאר ריק; הוא מתמלא מפרטי הכרטיס בעת הבנייה (QA-027).
     vcard: {

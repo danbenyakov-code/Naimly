@@ -18,15 +18,26 @@ export async function POST(request: Request) {
   if (!isSupabaseAdminConfigured) return NextResponse.json({ ok: true, demo: true });
   const admin = createSupabaseAdminClient();
   if (!admin) return NextResponse.json({ error: "השירות אינו זמין" }, { status: 503 });
-  const { data: card } = await admin.from("cards").select("id,user_id,business_name").eq("slug", parsed.data.slug).eq("is_published", true).maybeSingle();
+  const { data: card } = await admin.from("cards").select("id,user_id,business_name,lead_notification_email,lead_notifications_enabled").eq("slug", parsed.data.slug).eq("is_published", true).maybeSingle();
   if (!card) return NextResponse.json({ error: "הכרטיס לא נמצא" }, { status: 404 });
   const { error } = await admin.from("leads").insert({ card_id: card.id, name: parsed.data.name, phone: parsed.data.phone, email: parsed.data.email || null, message: parsed.data.message, metadata: parsed.data.fields || {}, status: "new" });
   if (error) return NextResponse.json({ error: "לא הצלחנו לשלוח את הפנייה" }, { status: 500 });
   await admin.from("card_events").insert({ card_id: card.id, event_type: "lead", metadata: {} });
+  /*
+   * QA-033: היעד ניתן להגדרה ולכיבוי. ריק = כתובת בעל החשבון, כדי
+   * שכרטיסים קיימים ימשיכו לעבוד בלי שינוי.
+   * הליד כבר נשמר בשלב הזה — ההתראה לעולם אינה תנאי לשמירתו.
+   */
+  if (card.lead_notifications_enabled === false) {
+    return NextResponse.json({ ok: true });
+  }
+
   const { data: owner } = await admin.from("profiles").select("email").eq("id", card.user_id).maybeSingle();
+  const target = String(card.lead_notification_email || "").trim() || owner?.email || "";
+
   // ההתראה לא חוסמת את התשובה ללקוח — פנייה נשמרת גם אם המייל נכשל.
   await sendLeadNotification({
-    to: owner?.email || "",
+    to: target,
     businessName: card.business_name,
     cardSlug: parsed.data.slug,
     lead: { name: parsed.data.name, phone: parsed.data.phone, email: parsed.data.email, message: parsed.data.message },
