@@ -1,9 +1,69 @@
 // ⚠️ קובץ מיוצר. אין לערוך ידנית.
 // נוצר על ידי scripts/build-background-registry.mjs מתוך public/backgrounds.
 //
-// כרגע ריק: טרם הועתקו תמונות. אחרי העתקה יש להריץ
-//   node scripts/build-background-registry.mjs --apply
+// foreground ו-fallback נמדדים מהתמונה עצמה ולא נקבעים ידנית: אומדן
+// שגוי של בהירות פירושו טקסט שאי אפשר לקרוא מעל הרקע.
 
 import type { BackgroundPreset } from "@/lib/backgrounds";
 
-export const imageBackgrounds: BackgroundPreset[] = [];
+export const imageBackgrounds: BackgroundPreset[] = [
+  { id: "img-1", name: "לבן", category: "minimal", foreground: "dark", image: "/backgrounds/1.jpg", css: "#f4f6fa" },
+  { id: "img-10", name: "לבן 2", category: "minimal", foreground: "dark", image: "/backgrounds/10.jpg", css: "#f4f6fa" },
+  { id: "img-11", name: "כחול כהה", category: "dark", foreground: "light", image: "/backgrounds/11.jpg", css: "#111827" },
+  { id: "img-12", name: "אדום בהיר", category: "colorful", foreground: "dark", image: "/backgrounds/12.jpg", css: "#f4f6fa" },
+  { id: "img-13", name: "שחור", category: "dark", foreground: "light", image: "/backgrounds/13.jpg", css: "#111827" },
+  { id: "img-14", name: "לבן 3", category: "minimal", foreground: "dark", image: "/backgrounds/14.jpg", css: "#f4f6fa" },
+  { id: "img-15", name: "לבן 4", category: "minimal", foreground: "dark", image: "/backgrounds/15.jpg", css: "#f4f6fa" },
+  { id: "img-16", name: "כחול כהה 2", category: "dark", foreground: "light", image: "/backgrounds/16.jpg", css: "#111827" },
+  { id: "img-17", name: "לבן 5", category: "minimal", foreground: "dark", image: "/backgrounds/17.jpg", css: "#f4f6fa" },
+  { id: "img-18", name: "אדום כהה", category: "dark", foreground: "light", image: "/backgrounds/18.jpg", css: "#111827" },
+  { id: "img-19", name: "שחור 2", category: "dark", foreground: "light", image: "/backgrounds/19.jpg", css: "#111827" },
+  { id: "img-2", name: "שחור 3", category: "dark", foreground: "light", image: "/backgrounds/2.jpg", css: "#111827" },
+  { id: "img-20", name: "שחור 4", category: "dark", foreground: "light", image: "/backgrounds/20.jpg", css: "#111827" },
+  { id: "img-21", name: "כתום בהיר", category: "colorful", foreground: "dark", image: "/backgrounds/21.jpg", css: "#f4f6fa" },
+  { id: "img-22", name: "כחול כהה 3", category: "dark", foreground: "light", image: "/backgrounds/22.jpg", css: "#111827" },
+  { id: "img-23", name: "לבן 6", category: "minimal", foreground: "dark", image: "/backgrounds/23.jpg", css: "#f4f6fa" },
+  { id: "img-24", name: "לבן 7", category: "minimal", foreground: "dark", image: "/backgrounds/24.jpg", css: "#f4f6fa" },
+  { id: "img-25", name: "שחור 5", category: "dark", foreground: "light", image: "/backgrounds/25.jpg", css: "#111827" },
+  { id: "img-26", name: "לבן 8", category: "minimal", foreground: "dark", image: "/backgrounds/26.jpg", css: "#f4f6fa" },
+  { id: "img-27", name: "שחור 6", category: "dark", foreground: "light", image: "/backgrounds/27.jpg", css: "#111827" },
+  { id: "img-28", name: "טורקיז כהה", category: "dark", foreground: "light", image: "/backgrounds/28.jpg", css: "#111827" },
+  { id: "img-29", name: "לבן 9", category: "minimal", foreground: "dark", image: "/backgrounds/29.jpg", css: "#f4f6fa" },
+  { id: "img-3", name: "כתום", category: "colorful", foreground: "dark", image: "/backgrounds/3.jpg", css: "#f4f6fa" },
+  { id: "img-30", name: "אדום כהה 2", category: "dark", foreground: "light", image: "/backgrounds/30.jpg", css: "#111827" },
+  { id: "img-31", name: "אדום כהה 3", category: "dark", foreground: "light", image: "/backgrounds/31.jpg", css: "#111827" },
+  { id: "img-32", name: "אפור כהה", category: "dark", foreground: "light", image: "/backgrounds/32.jpg", css: "#111827" },
+  { id: "img-33", name: "כתום כהה", category: "dark", foreground: "light", image: "/backgrounds/33.jpg", css: "#111827" },
+  { id: "img-34", name: "כחול בהיר", category: "colorful", foreground: "dark", image: "/backgrounds/34.jpg", css: "#f4f6fa" },
+  { id: "img-35", name: "שחור 7", category: "dark", foreground: "light", image: "/backgrounds/35.jpg", css: "#111827" },
+  { id: "img-36", name: "שחור 8", category: "dark", foreground: "light", image: "/backgrounds/36.jpg", css: "#111827" },
+  { id: "img-37", name: "כחול כהה 4", category: "dark", foreground: "light", image: "/backgrounds/37.jpg", css: "#111827" },
+  { id: "img-38", name: "אפור כהה 2", category: "dark", foreground: "light", image: "/backgrounds/38.jpg", css: "#111827" },
+  { id: "img-39", name: "שחור 9", category: "dark", foreground: "light", image: "/backgrounds/39.jpg", css: "#111827" },
+  { id: "img-4", name: "אדום כהה 4", category: "dark", foreground: "light", image: "/backgrounds/4.jpg", css: "#111827" },
+  { id: "img-40", name: "אדום בהיר 2", category: "colorful", foreground: "dark", image: "/backgrounds/40.jpg", css: "#f4f6fa" },
+  { id: "img-41", name: "אפור כהה 3", category: "dark", foreground: "light", image: "/backgrounds/41.jpg", css: "#111827" },
+  { id: "img-42", name: "ורוד כהה", category: "dark", foreground: "light", image: "/backgrounds/42.jpg", css: "#111827" },
+  { id: "img-43", name: "ורוד כהה 2", category: "dark", foreground: "light", image: "/backgrounds/43.jpg", css: "#111827" },
+  { id: "img-44", name: "לבן 10", category: "minimal", foreground: "dark", image: "/backgrounds/44.jpg", css: "#f4f6fa" },
+  { id: "img-45", name: "כתום בהיר 2", category: "colorful", foreground: "dark", image: "/backgrounds/45.jpg", css: "#f4f6fa" },
+  { id: "img-46", name: "כתום כהה 2", category: "dark", foreground: "light", image: "/backgrounds/46.jpg", css: "#111827" },
+  { id: "img-47", name: "שחור 10", category: "dark", foreground: "light", image: "/backgrounds/47.jpg", css: "#111827" },
+  { id: "img-48", name: "לבן 11", category: "minimal", foreground: "dark", image: "/backgrounds/48.jpg", css: "#f4f6fa" },
+  { id: "img-49", name: "שחור 11", category: "dark", foreground: "light", image: "/backgrounds/49.jpg", css: "#111827" },
+  { id: "img-5", name: "לבן 12", category: "minimal", foreground: "dark", image: "/backgrounds/5.jpg", css: "#f4f6fa" },
+  { id: "img-50", name: "אפור", category: "dark", foreground: "light", image: "/backgrounds/50.jpg", css: "#111827" },
+  { id: "img-51", name: "טורקיז", category: "colorful", foreground: "dark", image: "/backgrounds/51.jpg", css: "#f4f6fa" },
+  { id: "img-52", name: "שחור 12", category: "dark", foreground: "light", image: "/backgrounds/52.jpg", css: "#111827" },
+  { id: "img-53", name: "שחור 13", category: "dark", foreground: "light", image: "/backgrounds/53.jpg", css: "#111827" },
+  { id: "img-54", name: "כתום בהיר 3", category: "colorful", foreground: "dark", image: "/backgrounds/54.jpg", css: "#f4f6fa" },
+  { id: "img-55", name: "ירוק", category: "colorful", foreground: "light", image: "/backgrounds/55.jpg", css: "#111827" },
+  { id: "img-56", name: "זהב כהה", category: "luxury", foreground: "light", image: "/backgrounds/56.jpg", css: "#111827" },
+  { id: "img-57", name: "אפור כהה 4", category: "dark", foreground: "light", image: "/backgrounds/57.jpg", css: "#111827" },
+  { id: "img-58", name: "שחור 14", category: "dark", foreground: "light", image: "/backgrounds/58.jpg", css: "#111827" },
+  { id: "img-59", name: "לבן 13", category: "minimal", foreground: "dark", image: "/backgrounds/59.jpg", css: "#f4f6fa" },
+  { id: "img-6", name: "שחור 15", category: "dark", foreground: "light", image: "/backgrounds/6.jpg", css: "#111827" },
+  { id: "img-7", name: "שחור 16", category: "dark", foreground: "light", image: "/backgrounds/7.jpg", css: "#111827" },
+  { id: "img-8", name: "אדום בהיר 3", category: "colorful", foreground: "dark", image: "/backgrounds/8.jpg", css: "#f4f6fa" },
+  { id: "img-9", name: "לבן 14", category: "minimal", foreground: "dark", image: "/backgrounds/9.jpg", css: "#f4f6fa" },
+];
