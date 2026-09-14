@@ -52,6 +52,7 @@ export const cardSchema = z.object({
   logoPosition: z.enum(["right", "center", "left"]),
   language: z.enum(["he", "en"]),
   videoUrl: optionalUrl,
+  videos: z.array(optionalUrl).max(4, "יותר מדי סרטונים"),
   gallery: z.array(httpUrl).max(100),
   files: z.array(z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(100), url: httpUrl, description: z.string().max(200).optional() })).max(30),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),

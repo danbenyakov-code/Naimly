@@ -103,10 +103,10 @@ describe("QA-028 — מנהל קבצים", () => {
 describe("QA-028 — מכסת הקבצים אחידה בין השכבות", () => {
   it("Limits כולל files", async () => {
     const { planLimits } = await import("../src/lib/plan-access.ts");
-    // הערכים חייבים להתאים ל-plan_limits במיגרציה 003.
+    // המכסות עודכנו במיגרציה 019; ההשוואה המלאה מול המסד ב-plan-tiers.
     assert.equal(planLimits("basic").files, 0);
-    assert.equal(planLimits("pro").files, 10);
-    assert.equal(planLimits("premium").files, 30);
+    assert.equal(planLimits("pro").files, 3);
+    assert.equal(planLimits("premium").files, 10);
   });
 
   it("ההתנסות מקבלת מכסת פרימיום", async () => {

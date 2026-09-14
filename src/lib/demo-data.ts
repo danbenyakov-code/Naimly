@@ -42,6 +42,7 @@ export const demoCard: CardData = {
   language: "he",
   logoShape: "rounded",
   videoUrl: "",
+  videos: [],
   gallery: [],
   files: [],
   primaryColor: "#6d4aff",

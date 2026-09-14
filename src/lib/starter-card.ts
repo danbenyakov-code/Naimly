@@ -43,6 +43,7 @@ export function starterCard(viewer: Viewer): CardData {
     logoPosition: "right",
     language: "he",
     videoUrl: "",
+    videos: [],
     gallery: [],
     files: [],
     primaryColor: "#6d4aff",

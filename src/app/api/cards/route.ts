@@ -15,7 +15,7 @@ const fieldLabels: Record<string, string> = {
   businessName: "שם העסק", ownerName: "שם מלא", slug: "כתובת הכרטיס",
   phone: "טלפון", whatsapp: "וואטסאפ", email: "אימייל", website: "אתר",
   avatarUrl: "תמונת פרופיל", coverUrl: "תמונת קאבר", logoUrl: "לוגו",
-  videoUrl: "קישור לסרטון", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
+  videoUrl: "קישור לסרטון", videos: "סרטונים", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
   files: "קבצים", socialLinks: "רשתות חברתיות", quickActions: "פעולות מהירות",
   smartButtons: "כפתורים חכמים", seoTitle: "כותרת SEO", seoDescription: "תיאור SEO",
   areaServed: "אזור שירות", tracking: "מדידה", cardAddress: "כתובת",
@@ -83,6 +83,18 @@ export async function POST(request: Request) {
   if (parsed.data.quickActions.length > limits.quickActions || parsed.data.quickActionsLimit > limits.quickActions) {
     return denied(`במסלול ${currentPlanName} ניתן להציג עד ${limits.quickActions} פעולות מהירות`, requiredPlanForLimit("quickActions", Math.max(parsed.data.quickActions.length, parsed.data.quickActionsLimit)), "quickActions");
   }
+  /*
+   * מכסת הסרטונים נאכפת גם כאן ולא רק במסד: השכבה הזו מחזירה הודעה
+   * שאומרת לאיזה מסלול לשדרג, בעוד המסד רק דוחה.
+   */
+  const requestedVideos = parsed.data.videos.filter(Boolean);
+  if (!features.video && (requestedVideos.length > 0 || parsed.data.videoUrl)) {
+    return denied("וידג׳ט הסרטון זמין במסלול מקצועי ומעלה", requiredPlanForFeature("video"), "video");
+  }
+  if (requestedVideos.length > limits.videos) {
+    return denied(`במסלול ${currentPlanName} ניתן להוסיף עד ${limits.videos} ${limits.videos === 1 ? "סרטון" : "סרטונים"}`, requiredPlanForLimit("videos", requestedVideos.length), "video");
+  }
+
   if (!features.tracking && Object.values(parsed.data.tracking).some(Boolean)) {
     return denied("חיבור Meta Pixel ו‑Google Analytics זמין במסלול מקצועי ומעלה", requiredPlanForFeature("tracking"), "tracking");
   }

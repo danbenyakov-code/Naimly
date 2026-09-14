@@ -100,6 +100,16 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     language: row.language === "en" ? "en" : "he",
     logoShape: (["circle", "rounded", "square"].includes(stringValue(row.logo_shape)) ? stringValue(row.logo_shape) : "rounded") as CardData["logoShape"],
     videoUrl: stringValue(row.video_url),
+    /*
+     * שורה שנכתבה לפני המיגרציה מחזיקה רק video_url. מיזוגו כאיבר
+     * ראשון שומר על הסרטון של לקוחות קיימים במקום למחוק אותו בשקט.
+     */
+    videos: (() => {
+      const list = Array.isArray(row.videos) ? row.videos.map((value) => stringValue(value)).filter(Boolean) : [];
+      if (list.length) return list;
+      const legacy = stringValue(row.video_url);
+      return legacy ? [legacy] : [];
+    })(),
     gallery: arrayValue(row.gallery, []),
     files: arrayValue(row.files, []),
     primaryColor: stringValue(row.primary_color, "#6d4aff"),

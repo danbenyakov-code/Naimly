@@ -7,7 +7,7 @@ import type { PlanId } from "@/lib/types";
 import { useUpgrade } from "@/components/upgrade-dialog";
 import { cn } from "@/lib/utils";
 
-const shownFeatures: FeatureKey[] = ["smartButtons", "video", "carousel", "files", "tracking", "seo", "leadExport", "prioritySupport"];
+const shownFeatures: FeatureKey[] = ["smartButtons", "video", "carousel", "files", "tracking", "seo", "leadExport"];
 
 /** מציג במפורש מה כלול במסלול ומה נעול — כל שורה נעולה פותחת את פופאפ הרכישה. */
 export function PlanSummaryCard({ plan, locked = false, galleryUsed, quickActionsUsed }: { plan: PlanId; locked?: boolean; galleryUsed: number; quickActionsUsed: number }) {

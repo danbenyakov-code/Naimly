@@ -137,7 +137,10 @@ export type CardData = {
   logoPosition: "right" | "center" | "left";
   /** שפת הכרטיס הציבורי. משפיעה על התוויות, ההודעות וכיוון הטקסט. */
   language: "he" | "en";
+  /** נשמר לתאימות. הקישור הראשון ב-videos גובר עליו. */
   videoUrl: string;
+  /** קישורי הסרטונים בכרטיס. מספרם מוגבל לפי המסלול. */
+  videos: string[];
   gallery: string[];
   files: CardFile[];
   primaryColor: string;
@@ -187,7 +190,7 @@ export type Plan = {
   description: string;
   badge?: string;
   features: string[];
-  limits: { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean; files: number };
+  limits: { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean; files: number; videos: number };
 };
 
 export type Viewer = {

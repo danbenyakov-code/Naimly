@@ -12,8 +12,7 @@ export type FeatureKey =
   | "files"
   | "testimonials"
   | "smartButtons"
-  | "seo"
-  | "prioritySupport";
+  | "seo";
 
 export type FeatureMap = Record<FeatureKey, boolean>;
 /*
@@ -21,11 +20,11 @@ export type FeatureMap = Record<FeatureKey, boolean>;
  * שהממשק אינו יודע להגיד ללקוח מהי המגבלה, והוא מגלה אותה רק כשהשרת
  * דוחה אותו. הערכים תואמים ל-plan_limits במיגרציה 003.
  */
-export type Limits = { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean; files: number };
+export type Limits = { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean; files: number; videos: number };
 
 const allFeatures: FeatureMap = {
   tracking: true, leadExport: true, carousel: true, video: true, files: true,
-  testimonials: true, smartButtons: true, seo: true, prioritySupport: true,
+  testimonials: true, smartButtons: true, seo: true,
 };
 
 /**
@@ -33,15 +32,24 @@ const allFeatures: FeatureMap = {
  * ההתנסות אינה מופיעה כאן בכוונה: היא מקבלת גישה מלאה (ראו trialFeatures).
  */
 const featuresByPlan: Record<Exclude<PlanId, "trial">, FeatureMap> = {
-  basic: { tracking: false, leadExport: false, carousel: false, video: true, files: false, testimonials: true, smartButtons: true, seo: false, prioritySupport: false },
-  pro: { tracking: true, leadExport: false, carousel: true, video: true, files: true, testimonials: true, smartButtons: true, seo: true, prioritySupport: false },
+  basic: { tracking: false, leadExport: false, carousel: false, video: false, files: false, testimonials: true, smartButtons: true, seo: false },
+  pro: { tracking: true, leadExport: false, carousel: true, video: true, files: true, testimonials: true, smartButtons: true, seo: true },
   premium: { ...allFeatures },
 };
 
 /** ההתנסות פותחת את כל היכולות, כדי שהלקוח יתנסה במוצר המלא. */
 export const trialFeatures: FeatureMap = { ...allFeatures };
-/** ומקבלת את המכסות של המסלול הגבוה ביותר. */
-export const trialLimits: Limits = plans.find((plan) => plan.id === "premium")!.limits;
+/**
+ * ומקבלת את המכסות של המסלול הגבוה ביותר — למעט מספר הכרטיסים.
+ *
+ * ירושה מלאה מפרימיום הייתה מעניקה למתנסה כרטיס שני שנסגר בתום
+ * ההתנסות. הבטחה שנשברת גרועה מהיעדר הבטחה, ולכן ההתנסות נשארת על
+ * כרטיס אחד — בדיוק כפי שמוגדר ב-plan_limits במסד.
+ */
+export const trialLimits: Limits = {
+  ...plans.find((plan) => plan.id === "premium")!.limits,
+  cards: plans.find((plan) => plan.id === "trial")!.limits.cards,
+};
 
 export const featureLabels: Record<FeatureKey, string> = {
   tracking: "Meta Pixel ו‑Google Analytics",
@@ -52,7 +60,6 @@ export const featureLabels: Record<FeatureKey, string> = {
   testimonials: "המלצות לקוחות",
   smartButtons: "כפתורים חכמים",
   seo: "SEO מתקדם — אזור שירות ותמונת שיתוף",
-  prioritySupport: "תמיכה מועדפת",
 };
 
 /** מסלולים בתשלום בלבד, מהזול ליקר. */
@@ -78,7 +85,7 @@ export function requiredPlanForFeature(feature: FeatureKey): PlanId {
 }
 
 /** המסלול בתשלום הזול ביותר שמאפשר לפחות את הכמות המבוקשת. */
-export function requiredPlanForLimit(limit: "galleryItems" | "quickActions" | "analyticsDays" | "cards" | "files", amount: number): PlanId {
+export function requiredPlanForLimit(limit: "galleryItems" | "quickActions" | "analyticsDays" | "cards" | "files" | "videos", amount: number): PlanId {
   return paidPlanOrder.find((planId) => planLimits(planId)[limit] >= amount) || "premium";
 }
 
@@ -178,7 +185,7 @@ export type Access = {
 
 const lockedFeatures: FeatureMap = {
   tracking: false, leadExport: false, carousel: false, video: false, files: false,
-  testimonials: false, smartButtons: false, seo: false, prioritySupport: false,
+  testimonials: false, smartButtons: false, seo: false,
 };
 
 /**
@@ -297,6 +304,8 @@ export function clampCardToPlan(card: CardData, targetPlan: PlanId): CardData {
     tracking: features.tracking ? card.tracking : { googleAnalyticsId: "", googleTagManagerId: "", metaPixelId: "" },
     galleryStyle: features.carousel ? card.galleryStyle : "grid",
     files: features.files ? card.files : [],
+    videos: features.video ? card.videos.slice(0, limits.videos) : [],
+    videoUrl: features.video ? card.videoUrl : "",
     areaServed: features.seo ? card.areaServed : "",
     socialImageUrl: features.seo ? card.socialImageUrl : "",
     widgets: card.widgets.map((widget) => {
