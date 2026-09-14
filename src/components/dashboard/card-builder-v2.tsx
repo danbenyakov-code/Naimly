@@ -19,7 +19,7 @@ import { BackgroundPicker } from "@/components/dashboard/background-picker";
 import { ContactCardEditor } from "@/components/dashboard/contact-card-editor";
 import { FormAlert } from "@/components/ui/field";
 import { checkContrast } from "@/lib/contrast";
-import { backgroundPresets, getBackground } from "@/lib/backgrounds";
+import { backgroundCss, backgroundPresets, getBackground } from "@/lib/backgrounds";
 
 const backgroundCount = backgroundPresets.length;
 import { burst, fireworks } from "@/lib/celebrate";
@@ -276,7 +276,34 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
       let url = "";
       if (demo) { if (file.size > 2 * 1024 * 1024) throw new Error("בדמו ניתן להעלות תמונה עד 2MB"); url = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); }); }
       else { const body = new FormData(); body.set("file", file); body.set("kind", "image"); const response = await fetch("/api/uploads", { method: "POST", body }); const result = await response.json(); if (!response.ok) throw new Error(result.error || "ההעלאה נכשלה"); url = result.url; }
-      if (target === "gallery") update("gallery", [...card.gallery, url]); else update(target, url);
+      if (target === "gallery") {
+        update("gallery", [...card.gallery, url]);
+      } else {
+        /*
+         * QA-030: ה-alt נשאר של התמונה הקודמת. משתמש שהחליף לוגו קיבל
+         * כרטיס שמכריז "לוגו NOA Studio" — טקסט חלופי שגוי גרוע מחסר,
+         * כי קורא מסך מוסר מידע לא נכון בביטחון מלא.
+         *
+         * alt שנכתב ידנית נשמר. ריק, או כזה שנגזר אוטומטית מהשם הקודם,
+         * נבנה מחדש משם העסק הנוכחי.
+         */
+        const altKey = target === "coverUrl" ? "coverAlt" : target === "logoUrl" ? "logoAlt" : "avatarAlt";
+        const generated = (name: string) =>
+          altKey === "coverAlt" ? `תמונת נושא של ${name}`
+          : altKey === "logoAlt" ? `לוגו ${name}`
+          : `תמונת הפרופיל של ${name}`;
+
+        const current = String(card[altKey] || "").trim();
+        const wasGenerated = !current || current === generated(initialCard.businessName) || current === generated(card.businessName);
+        const business = card.businessName.trim() || card.ownerName.trim();
+
+        setCard((state) => ({
+          ...state,
+          [target]: url,
+          ...(wasGenerated && business ? { [altKey]: generated(business) } : {}),
+        }));
+        dirtyRef.current = true;
+      }
       setStatus({ type: "success", text: "התמונה הועלתה. יש לשמור כדי לפרסם." });
     } catch (error) { setStatus({ type: "error", text: error instanceof Error ? error.message : "ההעלאה נכשלה" }); } finally { setUploading(""); }
   }
@@ -376,7 +403,7 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
           {tab === "appearance" && <AppearancePanel card={card} onPatch={(patch) => { setCard((current) => ({ ...current, ...patch })); setStatus(null); }} />}
         </div>
       </section>
-      <aside id="live-preview" className={cn("scroll-mt-4", previewMode === "mobile" && "xl:sticky xl:top-4 xl:self-start")}><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><span className="text-sm font-bold">תצוגה חיה</span><p className="mt-0.5 text-xs text-[#748196]">כך הכרטיס ייראה אצל המבקרים</p></div><div className="inline-flex self-start rounded-xl border border-[#dfe4ec] bg-white p-1" role="group" aria-label="בחירת גודל תצוגה"><button type="button" onClick={() => setPreviewMode("mobile")} aria-pressed={previewMode === "mobile"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "mobile" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Smartphone size={17} />נייד</button><button type="button" onClick={() => setPreviewMode("desktop")} aria-pressed={previewMode === "desktop"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "desktop" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Monitor size={17} />מחשב</button></div></div>{previewMode === "mobile" ? <div className="mx-auto w-full max-w-[360px] overflow-y-auto rounded-[28px] border-4 border-[#172033] bg-white shadow-[0_22px_65px_rgba(11,24,48,.2)] sm:rounded-[34px] sm:border-[9px] xl:max-h-[770px]"><CardPreview card={card} contactForm={formPreview} /></div> : <div className="mx-auto w-full max-w-[1040px] overflow-hidden rounded-[22px] border border-[#cad2df] bg-[#eef1f6] shadow-[0_22px_65px_rgba(11,24,48,.16)]"><div className="flex h-11 items-center gap-2 border-b border-[#d8dee8] bg-white px-4" aria-hidden="true"><span className="h-3 w-3 rounded-full bg-[#ff6b61]" /><span className="h-3 w-3 rounded-full bg-[#f5bf4f]" /><span className="h-3 w-3 rounded-full bg-[#14d9c4]" /><span className="mx-auto rounded-lg bg-[#f2f4f8] px-20 py-1 text-[11px] text-[#758198]">{publicUrl}</span></div><div className="max-h-[760px] overflow-y-auto bg-[radial-gradient(circle_at_15%_10%,rgba(109,74,255,.13),transparent_32%),#eef1f6] p-8"><div className="mx-auto max-w-[620px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_24px_70px_rgba(11,16,32,.15)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div>}</aside>
+      <aside id="live-preview" className={cn("scroll-mt-4", previewMode === "mobile" && "xl:sticky xl:top-4 xl:self-start")}><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><span className="text-sm font-bold">תצוגה חיה</span><p className="mt-0.5 text-xs text-[#748196]">כך הכרטיס ייראה אצל המבקרים</p></div><div className="inline-flex self-start rounded-xl border border-[#dfe4ec] bg-white p-1" role="group" aria-label="בחירת גודל תצוגה"><button type="button" onClick={() => setPreviewMode("mobile")} aria-pressed={previewMode === "mobile"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "mobile" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Smartphone size={17} />נייד</button><button type="button" onClick={() => setPreviewMode("desktop")} aria-pressed={previewMode === "desktop"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "desktop" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Monitor size={17} />מחשב</button></div></div>{previewMode === "mobile" ? <div className="mx-auto w-full max-w-[360px] overflow-y-auto rounded-[28px] border-4 border-[#172033] shadow-[0_22px_65px_rgba(11,24,48,.2)] sm:rounded-[34px] sm:border-[9px] xl:max-h-[770px]" style={{ background: backgroundCss(card.backgroundPreset) }}><div className="p-3"><div className="overflow-hidden rounded-[22px] bg-white shadow-[0_10px_30px_rgba(11,24,48,.12)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div> : <div className="mx-auto w-full max-w-[1040px] overflow-hidden rounded-[22px] border border-[#cad2df] bg-[#eef1f6] shadow-[0_22px_65px_rgba(11,24,48,.16)]"><div className="flex h-11 items-center gap-2 border-b border-[#d8dee8] bg-white px-4" aria-hidden="true"><span className="h-3 w-3 rounded-full bg-[#ff6b61]" /><span className="h-3 w-3 rounded-full bg-[#f5bf4f]" /><span className="h-3 w-3 rounded-full bg-[#14d9c4]" /><span className="mx-auto rounded-lg bg-[#f2f4f8] px-20 py-1 text-[11px] text-[#758198]">{publicUrl}</span></div><div className="max-h-[760px] overflow-y-auto p-8" style={{ background: backgroundCss(card.backgroundPreset) }}><div className="mx-auto max-w-[620px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_24px_70px_rgba(11,16,32,.15)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div>}</aside>
     </div>
     <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[#dfe4ec] bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_30px_rgba(11,16,32,.12)] backdrop-blur xl:hidden"><a href="#live-preview" className="button-secondary flex-1"><Eye size={17} />תצוגה</a><button type="button" onClick={() => void save({ publish: true })} disabled={saving} className="button-primary flex-[1.35]">{saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saveState === "publishing" ? "מפרסם..." : saveState === "saving" ? "שומר..." : "שמירה ופרסום"}</button></div>
     {/* סרגל שמירה קבוע בתחתית המסך בנייד. מעל ניווט התחתית של המעטפת. */}

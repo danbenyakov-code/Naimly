@@ -1,3 +1,4 @@
+import { imageBackgrounds } from "@/lib/background-images.generated";
 /**
  * ספריית רקעים לכרטיס.
  *
@@ -27,6 +28,14 @@ export type BackgroundPreset = {
   category: BackgroundCategory;
   /** ערך ה-background המלא. */
   css: string;
+  /**
+   * נתיב לתמונה ב-public/backgrounds.
+   *
+   * כשקיים, css משמש כצבע נסיגה: תמונה חסרה או שנכשלה בטעינה משאירה
+   * רקע אחיד במקום כרטיס שקוף. שכבות background ב-CSS נופלות אחורה
+   * מעצמן, ולכן זה עובד בלי JavaScript.
+   */
+  image?: string;
   /** האם הטקסט מעל הרקע צריך להיות בהיר או כהה. */
   foreground: "dark" | "light";
   /** מילות חיפוש נוספות בעברית. */
@@ -46,7 +55,7 @@ export const backgroundCategories: Array<{ id: BackgroundCategory; label: string
   { id: "geometric", label: "גאומטרי" },
 ];
 
-export const backgroundPresets: BackgroundPreset[] = [
+const cssPresets: BackgroundPreset[] = [
   // ── מקצועי ────────────────────────────────────────────────────────────────
   { id: "aurora", name: "אורורה", category: "professional", foreground: "dark", keywords: ["סגול", "ברירת מחדל"],
     css: "radial-gradient(circle at 15% 10%,color-mix(in srgb,var(--public-primary) 18%,transparent),transparent 32%),#eef1f6" },
@@ -188,6 +197,14 @@ export const backgroundPresets: BackgroundPreset[] = [
     css: "repeating-conic-gradient(#f8f9fc 0 25%,#eff2f7 0 50%) 0 0/32px 32px" },
 ];
 
+/**
+ * כל הרקעים: אלה שנבנים ב-CSS, ואחריהם רקעי התמונה מ-public/backgrounds.
+ *
+ * הרקעים המיוצרים נטענים מקובץ נפרד כדי שהוספת תמונה תהיה העתקת קובץ
+ * והרצת סקריפט, ולא עריכה ידנית של רשימה שנשברת בכל שינוי.
+ */
+export const backgroundPresets: BackgroundPreset[] = [...cssPresets, ...imageBackgrounds];
+
 /** מפה לחיפוש מהיר לפי מזהה. */
 const byId = new Map(backgroundPresets.map((preset) => [preset.id, preset]));
 
@@ -203,7 +220,10 @@ export function isBackgroundId(id: string) {
 
 /** ה-CSS לשימוש ב-style. */
 export function backgroundCss(id: string) {
-  return getBackground(id).css;
+  const preset = getBackground(id);
+  if (!preset.image) return preset.css;
+  // התמונה ראשונה, ה-css אחריה כנסיגה. סדר השכבות הוא מה שמחזיק אותנו.
+  return `url("${preset.image}") center / cover no-repeat, ${preset.css}`;
 }
 
 /** חיפוש חופשי בשם, בקטגוריה ובמילות המפתח. */

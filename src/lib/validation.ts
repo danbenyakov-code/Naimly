@@ -2,6 +2,7 @@ import { z } from "zod";
 import { isHttpUrl, isSameOriginAsset } from "@/lib/safe-url";
 import { isBackgroundId } from "@/lib/backgrounds";
 import { isIconId } from "@/lib/icons";
+import { blockedSlugMessage, isSlugAllowed } from "@/lib/slug-policy";
 
 /** צבע hex בן 6 ספרות. */
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע תקין");
@@ -30,7 +31,9 @@ export const authSchema = z.object({
 
 export const cardSchema = z.object({
   id: z.string().max(100).optional(),
-  slug: z.string().min(3, "נדרשים לפחות 3 תווים").max(60).regex(/^[a-z0-9-]+$/, "הקישור יכול לכלול אותיות באנגלית, מספרים ומקף").refine((value) => !reservedSlugs.has(value), "הכתובת הזו שמורה למערכת. יש לבחור כתובת אחרת"),
+  slug: z.string().min(3, "נדרשים לפחות 3 תווים").max(60).regex(/^[a-z0-9-]+$/, "הקישור יכול לכלול אותיות באנגלית, מספרים ומקף").refine((value) => !reservedSlugs.has(value), "הכתובת הזו שמורה למערכת. יש לבחור כתובת אחרת")
+    // REQ-019: נאכף בשרת. חסימה בממשק בלבד אינה אכיפה.
+    .refine(isSlugAllowed, blockedSlugMessage),
   businessName: z.string().max(80),
   ownerName: z.string().max(80),
   roleTitle: z.string().max(100),
