@@ -1,10 +1,10 @@
 "use client";
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useMemo, useState, useRef } from "react";
+import { useEffect, useMemo, useState, useRef, useId } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
-import { ArrowDown, ArrowLeft, ArrowUp, BarChart3, Check, ContactRound, Copy, Eye, ImagePlus, LayoutGrid, Link2, Loader2, MailCheck, Lock, Monitor, Palette, Plus, Save, Settings2, Share2, Smartphone, Sparkles, Trash2, Type, UploadCloud, X } from "lucide-react";
+import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BarChart3, Check, ContactRound, Copy, Eye, ImagePlus, LayoutGrid, Link2, Loader2, MailCheck, Lock, Monitor, Palette, Plus, Save, Settings2, Share2, Smartphone, Sparkles, Trash2, Type, UploadCloud, X } from "lucide-react";
 import { CardPreview } from "@/components/card/card-preview";
 import type { CardData, CardWidgetType, ContactFormField, QuickAction, QuickActionType, SmartButton } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -43,7 +43,9 @@ const actionOptions: Array<{ value: QuickActionType; label: string; placeholder:
   { value: "youtube", label: "YouTube", placeholder: "https://youtube.com/@..." }, { value: "calendar", label: "קביעת פגישה", placeholder: "https://cal.com/..." },
 ];
 
-export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail = "", locked = false, lockReason = "active", trialActive = false, forceTour = false, initialPreviewMode = "mobile" }: { initialCard: CardData; demo: boolean; siteUrl: string; planId: PlanId; accountEmail?: string; locked?: boolean; lockReason?: AccessReason; trialActive?: boolean; forceTour?: boolean; initialPreviewMode?: "mobile" | "desktop" }) {
+export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail = "",
+  onboardingSeenAt, locked = false, lockReason = "active", trialActive = false, forceTour = false, initialPreviewMode = "mobile" }: { initialCard: CardData; demo: boolean; siteUrl: string; planId: PlanId; accountEmail?: string;
+  onboardingSeenAt?: string; locked?: boolean; lockReason?: AccessReason; trialActive?: boolean; forceTour?: boolean; initialPreviewMode?: "mobile" | "desktop" }) {
   const [card, setCard] = useState(initialCard);
   const [tab, setTab] = useState<Tab>("structure");
   const [saving, setSaving] = useState(false);
@@ -118,11 +120,19 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
     const frame = requestAnimationFrame(() => { const draft = localStorage.getItem("naimly-demo-card"); if (draft) try { setCard({ ...initialCard, ...(JSON.parse(draft) as Partial<CardData>) }); } catch { /* invalid local draft */ } });
     return () => cancelAnimationFrame(frame);
   }, [demo, initialCard]);
+  /*
+   * QA-020: הסיור רץ רק במצב הדגמה, ולכן לקוח אמיתי לא ראה אותו מעולם.
+   * עכשיו הוא מוצג לכל מי שטרם ראה — במצב הדגמה לפי localStorage, ולמשתמש
+   * אמיתי לפי onboardingSeenAt שנשמר בפרופיל ועובר בין מכשירים.
+   */
   useEffect(() => {
-    if (!demo) return;
-    const frame = requestAnimationFrame(() => { if (forceTour || !localStorage.getItem("naimly-demo-onboarding-seen")) setShowTour(true); });
+    const frame = requestAnimationFrame(() => {
+      if (forceTour) { setShowTour(true); return; }
+      const seen = demo ? Boolean(localStorage.getItem("naimly-demo-onboarding-seen")) : Boolean(onboardingSeenAt);
+      if (!seen) setShowTour(true);
+    });
     return () => cancelAnimationFrame(frame);
-  }, [demo, forceTour]);
+  }, [demo, forceTour, onboardingSeenAt]);
   useEffect(() => { QRCode.toDataURL(publicUrl, { width: 360, margin: 2, color: { dark: card.primaryColor, light: "#ffffff" } }).then(setQrData).catch(() => setQrData("")); }, [publicUrl, card.primaryColor]);
   /*
    * QA-032/REQ-001: קודם כל הקלדה מחקה את ההודעה, כולל שגיאה שהמשתמש
@@ -301,6 +311,26 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
     }
   }
 
+  /*
+   * QA-034: השדות קיבלו BAD-ID, WRONG ו-abc בלי שום סימן. הסכמה בשרת
+   * כבר דחתה אותם, אבל הלקוח גילה זאת רק בשמירה — ובלי לדעת איזה שדה.
+   * אותן תבניות בדיוק, גם כאן.
+   */
+  const trackingErrors = useMemo(() => {
+    const found: Record<string, string> = {};
+    const { googleAnalyticsId: ga, googleTagManagerId: gtm, metaPixelId: pixel } = card.tracking;
+    if (ga.trim() && !/^G-[A-Z0-9]{4,20}$/i.test(ga.trim())) {
+      found.googleAnalyticsId = "מזהה Google Analytics מתחיל ב-G- ואחריו אותיות וספרות. לדוגמה: G-ABC1234567";
+    }
+    if (gtm.trim() && !/^GTM-[A-Z0-9]{4,15}$/i.test(gtm.trim())) {
+      found.googleTagManagerId = "מזהה Google Tag Manager מתחיל ב-GTM-. לדוגמה: GTM-ABC1234";
+    }
+    if (pixel.trim() && !/^d{5,25}$/.test(pixel.trim())) {
+      found.metaPixelId = "מזהה Meta Pixel מורכב מספרות בלבד. לדוגמה: 1234567890123";
+    }
+    return found;
+  }, [card.tracking]);
+
   function patchFile(id: string, patch: Partial<CardData["files"][number]>) {
     update("files", card.files.map((item) => (item.id === id ? { ...item, ...patch } : item)));
   }
@@ -358,7 +388,12 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
   function patchButton(id: string, patch: Partial<SmartButton>) { update("smartButtons", card.smartButtons.map((item) => item.id === id ? { ...item, ...patch } : item)); }
   function addFormField() { const field: ContactFormField = { id: crypto.randomUUID(), label: "שדה חדש", type: "text", required: false }; update("contactFormFields", [...card.contactFormFields, field]); }
   function patchFormField(id: string, patch: Partial<ContactFormField>) { update("contactFormFields", card.contactFormFields.map((item) => item.id === id ? { ...item, ...patch } : item)); }
-  function closeTour() { localStorage.setItem("naimly-demo-onboarding-seen", "true"); setShowTour(false); }
+  function closeTour() {
+    setShowTour(false);
+    if (demo) { localStorage.setItem("naimly-demo-onboarding-seen", "true"); return; }
+    // כשל בשמירה אינו חוסם: הסיור ייסגר, ולכל היותר יוצג שוב בפעם הבאה.
+    void fetch("/api/onboarding/seen", { method: "POST" }).catch(() => null);
+  }
 
   const formPreview = <div className="rounded-2xl bg-[#f6f7fb] p-4"><h3 className="font-extrabold">{card.contactFormTitle}</h3><div className="mt-3 grid gap-2">{card.contactFormFields.slice(0, 4).map((field) => <div key={field.id} className="min-h-10 rounded-xl border border-[#dfe4ec] bg-white px-3 py-2 text-xs text-[#7b8799]">{field.label}{field.required ? " *" : ""}</div>)}<div className="grid min-h-10 place-items-center rounded-xl bg-[var(--card-primary)] text-xs font-bold text-white">שליחת פנייה</div></div></div>;
 
@@ -441,7 +476,7 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
           {tab === "actions" && <div className="grid gap-8"><Section title="אייקונים לפעולות מהירות" text={`המערכת בונה את הקישור הנכון לפי סוג הפעולה. במסלול שלך זמינים עד ${currentPlan.limits.quickActions}.`}><div className="mb-4 flex gap-2">{([3, 6, 9] as const).map((limit) => { const locked = limit > limits.quickActions; return <button key={limit} type="button" className={cn("flex min-h-10 items-center gap-1.5 rounded-xl border px-4 text-sm font-bold", locked ? "border-dashed border-[#d5cdf5] text-[#8b7fd4]" : card.quickActionsLimit === limit ? "border-[#6d4aff] bg-[#f1efff] text-[#4b3bad]" : "border-[#dfe4ec]")} onClick={() => locked ? requestUpgrade({ title: `${limit} פעולות מהירות`, description: `מסלול ${currentPlan.name} כולל עד ${limits.quickActions} פעולות מהירות.`, requiredPlan: requiredPlanForLimit("quickActions", limit) }) : update("quickActionsLimit", limit)}>{locked && <Lock size={13} />}{limit} אייקונים</button>; })}</div><div className="grid gap-3">{card.quickActions.slice(0, card.quickActionsLimit).map((item) => <div key={item.id} className="grid gap-2 rounded-2xl border border-[#e2e6ee] p-3 sm:grid-cols-[155px_1fr_1fr_42px]"><select className="field-select" value={item.type} onChange={(e) => changeActionType(item, e.target.value as QuickActionType)} aria-label="סוג פעולה">{actionOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select><input className="field-input" value={item.label} onChange={(e) => patchAction(item.id, { label: e.target.value })} aria-label="שם האייקון" /><input className="field-input" dir="ltr" value={item.value} onChange={(e) => patchAction(item.id, { value: e.target.value })} placeholder={actionOptions.find((entry) => entry.value === item.type)?.placeholder} aria-label="ערך הפעולה" /><button type="button" className="grid h-11 w-11 place-items-center rounded-xl text-[#a73342] hover:bg-[#fff0f2]" onClick={() => update("quickActions", card.quickActions.filter((action) => action.id !== item.id))} aria-label="מחיקה"><Trash2 size={17} /></button></div>)}</div><button type="button" className="button-secondary mt-3" disabled={card.quickActions.length >= Math.min(card.quickActionsLimit, currentPlan.limits.quickActions)} onClick={addAction}><Plus size={17} />הוספת אייקון</button></Section><Section title="כפתורים חכמים" text="קישור, תפריט, קביעת פגישה, תמונה או פעולה ישירה."><div className="grid gap-3">{card.smartButtons.map((button) => <div key={button.id} className="grid gap-3 rounded-2xl border border-[#e2e6ee] p-4"><div className="grid gap-3 sm:grid-cols-[1fr_180px_42px]"><input className="field-input" value={button.label} onChange={(e) => patchButton(button.id, { label: e.target.value })} aria-label="כותרת כפתור" /><select className="field-select" value={button.action} onChange={(e) => patchButton(button.id, { action: e.target.value as SmartButton["action"] })} aria-label="פעולת כפתור"><option value="url">קישור</option><option value="menu">תפריט / קטלוג</option><option value="booking">קביעת פגישה</option><option value="image">פתיחת תמונה</option><option value="phone">טלפון</option><option value="whatsapp">WhatsApp</option><option value="email">אימייל</option><option value="waze">Waze</option><option value="google_maps">Google Maps</option></select><button type="button" className="grid h-11 w-11 place-items-center rounded-xl text-[#a73342]" onClick={() => update("smartButtons", card.smartButtons.filter((item) => item.id !== button.id))} aria-label="מחיקה"><Trash2 size={17} /></button></div><input className="field-input" value={button.description} onChange={(e) => patchButton(button.id, { description: e.target.value })} placeholder="תיאור קצר" /><input className="field-input" dir="ltr" value={button.value} onChange={(e) => patchButton(button.id, { value: e.target.value })} placeholder="קישור, כתובת או מספר" /></div>)}</div><button type="button" className="button-secondary mt-3" onClick={addButton}><Plus size={17} />הוספת כפתור</button></Section></div>}
           {tab === "content" && <div className="grid gap-8"><Section title="פרטי קשר" text="משמשים גם ליצירת הפעולות החכמות."><div className="grid gap-4 sm:grid-cols-2"><Field label="טלפון"><input className="field-input" dir="ltr" value={card.phone} onChange={(e) => update("phone", e.target.value)} /></Field><Field label="WhatsApp"><input className="field-input" dir="ltr" value={card.whatsapp} onChange={(e) => update("whatsapp", e.target.value)} /></Field><Field label="אימייל"><input className="field-input" dir="ltr" value={card.email} onChange={(e) => update("email", e.target.value)} /></Field><Field label="אתר"><input className="field-input" dir="ltr" value={card.website} onChange={(e) => update("website", e.target.value)} /></Field><Field label="כתובת — ממנה נוצרים Waze ו־Maps" wide><input className="field-input" value={card.address} onChange={(e) => update("address", e.target.value)} /></Field></div></Section><Section title="גלריה וקרוסלה" text={`מעלים תמונות ובוחרים כיצד להציג אותן. מסלול ${currentPlan.name} כולל עד ${limits.galleryItems} תמונות (${card.gallery.length} בשימוש).`} badge={!features.carousel ? <LockBadge prompt={lockPrompt("carousel")} /> : null}><div className="flex gap-2">{(["grid", "carousel"] as const).map((style) => { const locked = style === "carousel" && !features.carousel; return <button key={style} type="button" onClick={() => locked ? requestUpgrade(lockPrompt("carousel")) : update("galleryStyle", style)} className={cn("min-h-10 rounded-xl border px-4 text-sm font-bold", locked ? "border-dashed border-[#d5cdf5] text-[#8b7fd4]" : card.galleryStyle === style ? "border-[#6d4aff] bg-[#f1efff] text-[#4b3bad]" : "border-[#dfe4ec]")}>{locked && <Lock size={13} className="ms-1 inline" />}{style === "grid" ? "גלריה" : "קרוסלה"}</button>; })}</div><UploadTile label="הוספת תמונה" spec="gallery" busy={uploading === "gallery"} onFile={(file) => upload(file, "gallery")} /><div className="mt-3 grid grid-cols-3 gap-2 sm:grid-cols-5">{card.gallery.map((url, index) => <div key={`${url}-${index}`} className="relative"><img src={url} alt="" className="aspect-square w-full rounded-xl object-cover" /><button type="button" className="absolute left-1 top-1 grid h-7 w-7 place-items-center rounded-full bg-white text-[#a73342] shadow" onClick={() => update("gallery", card.gallery.filter((_, i) => i !== index))} aria-label="הסרת תמונה"><X size={14} /></button></div>)}</div></Section><Section title="סרטון YouTube" text="הסרטון מוטמע בכרטיס ללא יציאה מהעמוד."><input className="field-input" dir="ltr" value={card.videoUrl} onChange={(e) => update("videoUrl", e.target.value)} placeholder="https://youtube.com/watch?v=..." /></Section><Section title="קבצים להורדה" text={`תפריט, קטלוג או הצעת מחיר. מסלול ${currentPlan.name} כולל עד ${limits.files} קבצים (${card.files.length} בשימוש).`} badge={!features.files ? <LockBadge prompt={lockPrompt("files")} /> : null}><PlanLock locked={!features.files} prompt={lockPrompt("files")}><UploadTile label="הוספת מסמך" spec="document" formats="PDF בלבד" accept="application/pdf" busy={uploading === "document"} onFile={uploadDocument} />{card.files.length > 0 && <div className="mt-3 grid gap-2">{card.files.map((file) => <div key={file.id} className="grid gap-2 rounded-xl border border-[#e2e6ee] p-3 sm:grid-cols-[1fr_1fr_auto]"><Field label="שם הקובץ"><input className="field-input" value={file.title} onChange={(e) => patchFile(file.id, { title: e.target.value })} maxLength={100} /></Field><Field label="תיאור קצר (רשות)"><input className="field-input" value={file.description || ""} onChange={(e) => patchFile(file.id, { description: e.target.value })} maxLength={200} placeholder="מה המבקר יקבל" /></Field><div className="flex items-end gap-1 pb-1"><a href={file.url} target="_blank" rel="noopener noreferrer" className="grid h-11 w-11 place-items-center rounded-xl border border-[#dfe4ec] text-[#4b3bad]" aria-label={`פתיחת ${file.title}`}><Eye size={17} /></a><button type="button" className="grid h-11 w-11 place-items-center rounded-xl text-[#a73342]" onClick={() => update("files", card.files.filter((item) => item.id !== file.id))} aria-label={`הסרת ${file.title}`}><Trash2 size={17} /></button></div></div>)}</div>}</PlanLock></Section></div>}
           {tab === "contact" && <ContactCardEditor card={card} slug={card.slug} isPublished={card.isPublished} onVCardChange={(patch) => update("vcard", { ...card.vcard, ...patch })} onAddressChange={(patch) => update("cardAddress", { ...card.cardAddress, ...patch })} />}
-          {tab === "leads" && <div className="grid gap-8"><Section title="טופס צור קשר דינמי" text="בוחרים שדות, חובה או רשות, והסדר נשמר בכרטיס."><div className="grid gap-4 sm:grid-cols-2"><Field label="כותרת הטופס"><input className="field-input" value={card.contactFormTitle} onChange={(e) => update("contactFormTitle", e.target.value)} /></Field><Field label="הודעה לאחר שליחה"><input className="field-input" value={card.contactFormSuccessMessage} onChange={(e) => update("contactFormSuccessMessage", e.target.value)} /></Field></div><div className="mt-4 grid gap-2">{card.contactFormFields.map((field) => <div key={field.id} className="grid gap-2 rounded-xl border border-[#e2e6ee] p-3 sm:grid-cols-[1fr_150px_auto_42px]"><input className="field-input" value={field.label} onChange={(e) => patchFormField(field.id, { label: e.target.value })} aria-label="שם השדה" /><select className="field-select" value={field.type} onChange={(e) => patchFormField(field.id, { type: e.target.value as ContactFormField["type"] })} aria-label="סוג שדה"><option value="text">טקסט</option><option value="tel">טלפון</option><option value="email">אימייל</option><option value="textarea">טקסט ארוך</option><option value="select">בחירה</option><option value="checkbox">סימון</option></select><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={field.required} onChange={(e) => patchFormField(field.id, { required: e.target.checked })} />חובה</label><button type="button" className="grid h-11 w-11 place-items-center rounded-xl text-[#a73342]" onClick={() => update("contactFormFields", card.contactFormFields.filter((item) => item.id !== field.id))} aria-label="מחיקה"><Trash2 size={17} /></button></div>)}</div><button type="button" className="button-secondary mt-3" onClick={addFormField}><Plus size={17} />הוספת שדה</button></Section><Section title="יעד התראות על פניות" text="לאן נשלח מייל בכל פנייה חדשה. ריק = כתובת החשבון שלך."><div className="grid gap-4 sm:grid-cols-[1fr_auto]"><Field label="כתובת לקבלת התראות"><input className="field-input" dir="ltr" type="email" value={card.leadNotificationEmail} onChange={(e) => update("leadNotificationEmail", e.target.value)} placeholder={accountEmail} aria-describedby="lead-notify-hint" /></Field><label className="flex min-h-12 items-end gap-2 pb-1 text-sm font-bold"><input type="checkbox" className="h-5 w-5 accent-[#6d4aff]" checked={card.leadNotificationsEnabled} onChange={(e) => update("leadNotificationsEnabled", e.target.checked)} />שליחת התראות</label></div><div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" className="button-secondary min-h-11" onClick={sendTestNotification} disabled={testingNotification || !card.leadNotificationsEnabled}>{testingNotification ? <Loader2 size={16} className="animate-spin" /> : <MailCheck size={16} />}{testingNotification ? "שולח..." : "שליחת מייל בדיקה"}</button>{notificationTest && <span role="status" className={cn("text-sm font-bold", notificationTest.ok ? "text-[#08735f]" : "text-[#a32031]")}>{notificationTest.text}</span>}</div><p id="lead-notify-hint" className="mt-2 text-xs text-[#68758a]">הפנייה נשמרת תמיד, גם אם ההתראה נכשלת. כיבוי ההתראות אינו מפסיק את איסוף הפניות.</p></Section><Section title="מדידה ופרסום" text="הקודים נטענים רק לאחר הסכמת המבקר לעוגיות." badge={!features.tracking ? <LockBadge prompt={lockPrompt("tracking")} /> : null}><PlanLock locked={!features.tracking} prompt={lockPrompt("tracking")}><div className="grid gap-4 sm:grid-cols-3"><Field label="Google Analytics"><input className="field-input" dir="ltr" value={card.tracking.googleAnalyticsId} onChange={(e) => update("tracking", { ...card.tracking, googleAnalyticsId: e.target.value.toUpperCase() })} placeholder="G-XXXXXXXX" /></Field><Field label="Google Tag Manager"><input className="field-input" dir="ltr" value={card.tracking.googleTagManagerId} onChange={(e) => update("tracking", { ...card.tracking, googleTagManagerId: e.target.value.toUpperCase() })} placeholder="GTM-XXXXXXX" /></Field><Field label="Meta Pixel"><input className="field-input" dir="ltr" value={card.tracking.metaPixelId} onChange={(e) => update("tracking", { ...card.tracking, metaPixelId: e.target.value })} placeholder="1234567890" /></Field></div></PlanLock></Section></div>}
+          {tab === "leads" && <div className="grid gap-8"><Section title="טופס צור קשר דינמי" text="בוחרים שדות, חובה או רשות, והסדר נשמר בכרטיס."><div className="grid gap-4 sm:grid-cols-2"><Field label="כותרת הטופס"><input className="field-input" value={card.contactFormTitle} onChange={(e) => update("contactFormTitle", e.target.value)} /></Field><Field label="הודעה לאחר שליחה"><input className="field-input" value={card.contactFormSuccessMessage} onChange={(e) => update("contactFormSuccessMessage", e.target.value)} /></Field></div><div className="mt-4 grid gap-2">{card.contactFormFields.map((field) => <div key={field.id} className="grid gap-2 rounded-xl border border-[#e2e6ee] p-3 sm:grid-cols-[1fr_150px_auto_42px]"><input className="field-input" value={field.label} onChange={(e) => patchFormField(field.id, { label: e.target.value })} aria-label="שם השדה" /><select className="field-select" value={field.type} onChange={(e) => patchFormField(field.id, { type: e.target.value as ContactFormField["type"] })} aria-label="סוג שדה"><option value="text">טקסט</option><option value="tel">טלפון</option><option value="email">אימייל</option><option value="textarea">טקסט ארוך</option><option value="select">בחירה</option><option value="checkbox">סימון</option></select><label className="flex min-h-11 items-center gap-2 text-sm"><input type="checkbox" checked={field.required} onChange={(e) => patchFormField(field.id, { required: e.target.checked })} />חובה</label><button type="button" className="grid h-11 w-11 place-items-center rounded-xl text-[#a73342]" onClick={() => update("contactFormFields", card.contactFormFields.filter((item) => item.id !== field.id))} aria-label="מחיקה"><Trash2 size={17} /></button></div>)}</div><button type="button" className="button-secondary mt-3" onClick={addFormField}><Plus size={17} />הוספת שדה</button></Section><Section title="יעד התראות על פניות" text="לאן נשלח מייל בכל פנייה חדשה. ריק = כתובת החשבון שלך."><div className="grid gap-4 sm:grid-cols-[1fr_auto]"><Field label="כתובת לקבלת התראות"><input className="field-input" dir="ltr" type="email" value={card.leadNotificationEmail} onChange={(e) => update("leadNotificationEmail", e.target.value)} placeholder={accountEmail} aria-describedby="lead-notify-hint" /></Field><label className="flex min-h-12 items-end gap-2 pb-1 text-sm font-bold"><input type="checkbox" className="h-5 w-5 accent-[#6d4aff]" checked={card.leadNotificationsEnabled} onChange={(e) => update("leadNotificationsEnabled", e.target.checked)} />שליחת התראות</label></div><div className="mt-3 flex flex-wrap items-center gap-3"><button type="button" className="button-secondary min-h-11" onClick={sendTestNotification} disabled={testingNotification || !card.leadNotificationsEnabled}>{testingNotification ? <Loader2 size={16} className="animate-spin" /> : <MailCheck size={16} />}{testingNotification ? "שולח..." : "שליחת מייל בדיקה"}</button>{notificationTest && <span role="status" className={cn("text-sm font-bold", notificationTest.ok ? "text-[#08735f]" : "text-[#a32031]")}>{notificationTest.text}</span>}</div><p id="lead-notify-hint" className="mt-2 text-xs text-[#68758a]">הפנייה נשמרת תמיד, גם אם ההתראה נכשלת. כיבוי ההתראות אינו מפסיק את איסוף הפניות.</p></Section><Section title="מדידה ופרסום" text="הקודים נטענים רק לאחר הסכמת המבקר לעוגיות." badge={!features.tracking ? <LockBadge prompt={lockPrompt("tracking")} /> : null}><PlanLock locked={!features.tracking} prompt={lockPrompt("tracking")}><div className="grid gap-4 sm:grid-cols-3"><Field label="Google Analytics" error={trackingErrors.googleAnalyticsId}><input className="field-input" dir="ltr" value={card.tracking.googleAnalyticsId} onChange={(e) => update("tracking", { ...card.tracking, googleAnalyticsId: e.target.value.toUpperCase() })} placeholder="G-ABC1234567" aria-invalid={Boolean(trackingErrors.googleAnalyticsId)} /></Field><Field label="Google Tag Manager" error={trackingErrors.googleTagManagerId}><input className="field-input" dir="ltr" value={card.tracking.googleTagManagerId} onChange={(e) => update("tracking", { ...card.tracking, googleTagManagerId: e.target.value.toUpperCase() })} placeholder="GTM-ABC1234" aria-invalid={Boolean(trackingErrors.googleTagManagerId)} /></Field><Field label="Meta Pixel" error={trackingErrors.metaPixelId}><input className="field-input" dir="ltr" inputMode="numeric" value={card.tracking.metaPixelId} onChange={(e) => update("tracking", { ...card.tracking, metaPixelId: e.target.value.replace(/[^0-9]/g, "") })} placeholder="1234567890123" aria-invalid={Boolean(trackingErrors.metaPixelId)} /></Field></div></PlanLock></Section></div>}
           {tab === "publish" && <div className="grid gap-8"><Section title="כתובת הכרטיס" text="הקישור וה־QR נשארים קבועים גם כשהתוכן משתנה."><div className="grid gap-4 sm:grid-cols-[1fr_auto]"><Field label="כתובת אישית" required><div className="flex" dir="ltr"><span className="grid place-items-center rounded-l-xl border border-r-0 border-[#dfe4ec] bg-[#f5f7fa] px-3 text-xs text-[#667389]">/{card.slug}</span><input className="field-input rounded-l-none" value={card.slug} required minLength={3} onChange={(e) => update("slug", e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))} /></div></Field><label className="flex min-h-12 items-center gap-2 self-end rounded-xl border border-[#dfe4ec] px-4 text-sm font-bold"><input type="checkbox" checked={card.isPublished} onChange={(e) => update("isPublished", e.target.checked)} />כרטיס פעיל</label></div><div className="mt-4 flex flex-wrap gap-2"><button type="button" className="button-secondary" onClick={() => { void navigator.clipboard.writeText(publicUrl); setStatus({ type: "success", text: "הקישור הועתק" }); }}><Copy size={17} />העתקת קישור</button>{qrData && <a className="button-secondary" href={qrData} download={`${card.slug}-qr.png`}><UploadCloud size={17} />הורדת QR</a>}</div></Section><Section title="נראות במנועי חיפוש" text="שליטה באינדוקס, בתצוגת Google ובשיתוף ברשתות." badge={!features.seo ? <LockBadge prompt={lockPrompt("seo")} /> : null}><div className="grid gap-4"><label className="flex min-h-12 items-center gap-3 rounded-xl border border-[#dfe4ec] px-4 text-sm font-bold"><input type="checkbox" checked={card.allowIndexing} onChange={(e) => update("allowIndexing", e.target.checked)} />לאפשר הצגה במנועי חיפוש</label><Field label="כותרת SEO"><input className="field-input" value={card.seoTitle} onChange={(e) => update("seoTitle", e.target.value)} maxLength={70} /></Field><Field label="תיאור SEO"><textarea className="field-textarea" value={card.seoDescription} onChange={(e) => update("seoDescription", e.target.value)} maxLength={170} /></Field><PlanLock locked={!features.seo} prompt={lockPrompt("seo")}><div className="grid gap-4 sm:grid-cols-2"><Field label="אזור שירות"><input className="field-input" value={card.areaServed} onChange={(e) => update("areaServed", e.target.value)} placeholder="לדוגמה: תל אביב והמרכז" /></Field><Field label="תמונת שיתוף 1200×630"><input className="field-input" type="url" dir="ltr" value={card.socialImageUrl} onChange={(e) => update("socialImageUrl", e.target.value)} placeholder="https://..." /></Field></div></PlanLock><div className="rounded-2xl border border-[#dfe4ec] bg-white p-4"><span className="text-xs text-[#16825d]">{new URL(publicUrl).hostname} › {card.slug}</span><strong className="mt-1 block text-lg text-[#283f8f]">{card.seoTitle || card.businessName}</strong><p className="mt-1 text-sm leading-6 text-[#56647a]">{card.seoDescription || "תיאור הכרטיס יופיע כאן בתוצאות החיפוש."}</p></div><div className="grid gap-4 sm:grid-cols-3"><Field label="תיאור תמונת קאבר"><input className="field-input" value={card.coverAlt} onChange={(e) => update("coverAlt", e.target.value)} /></Field><Field label="תיאור הלוגו"><input className="field-input" value={card.logoAlt} onChange={(e) => update("logoAlt", e.target.value)} /></Field><Field label="תיאור תמונת הפרופיל"><input className="field-input" value={card.avatarAlt} onChange={(e) => update("avatarAlt", e.target.value)} /></Field></div></div></Section></div>}
           {tab === "appearance" && <AppearancePanel card={card} onPatch={(patch) => { setCard((current) => ({ ...current, ...patch })); setStatus(null); }} />}
         </div>
@@ -458,7 +493,7 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
         </button>
       </div>
     </div>
-    {showTour && <DemoTour step={tourStep} onSkip={closeTour} onNext={() => { if (tourStep === 2) closeTour(); else setTourStep((step) => step + 1); }} />}
+    {showTour && <DemoTour step={tourStep} onSkip={closeTour} onPrev={() => setTourStep((step) => Math.max(0, step - 1))} onNext={() => { if (tourStep === tourSlides.length - 1) closeTour(); else setTourStep((step) => step + 1); }} />}
   </div>;
 }
 
@@ -468,13 +503,66 @@ const tourSlides = [
   { icon: <Share2 size={25} />, title: "מפרסמים ומשתפים", text: "בסיום שומרים, מפעילים את הכרטיס ומשתפים קישור או QR. מד המוכנות יציג מה כדאי להשלים לפני הפרסום." },
 ];
 
-function DemoTour({ step, onSkip, onNext }: { step: number; onSkip: () => void; onNext: () => void }) {
+/**
+ * הדרכת פתיחה.
+ *
+ * REQ-005 דורש הבא, הקודם, דלג וסיום. כפתור "הקודם" חסר היה: משתמש
+ * שדילג בטעות על שלב לא יכול היה לחזור אליו, ונאלץ לסגור ולהתחיל
+ * מחדש — או לוותר.
+ */
+function DemoTour({ step, onSkip, onPrev, onNext }: { step: number; onSkip: () => void; onPrev: () => void; onNext: () => void }) {
   const slide = tourSlides[step];
-  return <div className="fixed inset-0 z-[140] grid place-items-center bg-[#070b16]/65 p-4 backdrop-blur-sm" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="demo-tour-title" className="max-h-[90vh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-[30px] bg-white shadow-[0_30px_100px_rgba(7,11,22,.38)]"><div className="bg-[radial-gradient(circle_at_15%_15%,rgba(20,217,196,.28),transparent_34%),linear-gradient(135deg,#0b1020,#33236f)] p-7 text-white"><div className="flex items-start justify-between"><span className="grid h-13 w-13 place-items-center rounded-2xl bg-white/10 text-[#8ef3e4]">{slide.icon}</span><button type="button" onClick={onSkip} className="min-h-11 rounded-xl px-3 text-sm font-bold text-white/75 hover:bg-white/10" aria-label="דלג על ההסבר">דלג</button></div><p className="mt-7 text-sm font-bold text-[#8ef3e4]">היכרות קצרה · {step + 1} מתוך {tourSlides.length}</p><h2 id="demo-tour-title" className="mt-2 text-3xl font-black tracking-[-0.04em]">{slide.title}</h2><p className="mt-3 max-w-md leading-7 text-[#c8d0df]">{slide.text}</p></div><div className="flex items-center justify-between gap-4 p-5"><div className="flex gap-2" aria-label={`שלב ${step + 1} מתוך ${tourSlides.length}`}>{tourSlides.map((_, index) => <span key={index} className={cn("h-2 rounded-full transition-all", index === step ? "w-7 bg-[#6d4aff]" : "w-2 bg-[#d8dde6]")} />)}</div><button type="button" onClick={onNext} className="button-primary min-w-32">{step === tourSlides.length - 1 ? "מתחילים" : "הבא"}<ArrowLeft size={17} /></button></div></section></div>;
+  const isLast = step === tourSlides.length - 1;
+  return (
+    <div className="fixed inset-0 z-[140] grid place-items-center bg-[#070b16]/65 p-4 backdrop-blur-sm" role="presentation">
+      <section role="dialog" aria-modal="true" aria-labelledby="demo-tour-title" className="max-h-[90vh] w-full max-w-lg overflow-y-auto overscroll-contain rounded-[30px] bg-white shadow-[0_30px_100px_rgba(7,11,22,.38)]">
+        <div className="bg-[radial-gradient(circle_at_15%_15%,rgba(20,217,196,.28),transparent_34%),linear-gradient(135deg,#0b1020,#33236f)] p-7 text-white">
+          <div className="flex items-start justify-between">
+            <span className="grid h-13 w-13 place-items-center rounded-2xl bg-white/10 text-[#8ef3e4]" aria-hidden="true">{slide.icon}</span>
+            <button type="button" onClick={onSkip} className="min-h-11 rounded-xl px-3 text-sm font-bold text-white/75 hover:bg-white/10">דילוג על ההדרכה</button>
+          </div>
+          <p className="mt-7 text-sm font-bold text-[#8ef3e4]">היכרות קצרה · {step + 1} מתוך {tourSlides.length}</p>
+          <h2 id="demo-tour-title" className="mt-2 text-3xl font-black tracking-[-0.04em]">{slide.title}</h2>
+          <p className="mt-3 max-w-md leading-7 text-[#c8d0df]">{slide.text}</p>
+        </div>
+        <div className="flex items-center justify-between gap-3 p-5">
+          <div className="flex gap-2" role="img" aria-label={`שלב ${step + 1} מתוך ${tourSlides.length}`}>
+            {tourSlides.map((_, index) => <span key={index} className={cn("h-2 rounded-full transition-all", index === step ? "w-7 bg-[#6d4aff]" : "w-2 bg-[#d8dde6]")} />)}
+          </div>
+          <div className="flex gap-2">
+            {step > 0 && (
+              <button type="button" onClick={onPrev} className="button-secondary min-h-11">
+                <ArrowRight size={16} aria-hidden="true" />הקודם
+              </button>
+            )}
+            <button type="button" onClick={onNext} className="button-primary min-h-11 min-w-28">
+              {isLast ? "סיום" : "הבא"}<ArrowLeft size={16} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </section>
+    </div>
+  );
 }
 
 function Section({ title, text, badge, children }: { title: string; text: string; badge?: React.ReactNode; children: React.ReactNode }) { return <section><div className="mb-4 flex items-start gap-3"><span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#f1efff] text-[#6d4aff]"><Settings2 size={17} /></span><div><h2 className="flex flex-wrap items-center gap-2 font-extrabold">{title}{badge}</h2><p className="mt-0.5 text-sm text-[#748196]">{text}</p></div></div>{children}</section>; }
-function Field({ label, wide, required, children }: { label: string; wide?: boolean; required?: boolean; children: React.ReactNode }) { return <label className={cn("field-label", wide && "sm:col-span-2")}><span>{label}{required && <span className="required-field">חובה</span>}</span>{children}</label>; }
+/**
+ * שדה בבונה הכרטיס.
+ *
+ * QA-034: הרכיב לא תמך בשגיאות כלל, ולכן אי אפשר היה לסמן שדה שנכשל
+ * או לקשר אליו הסבר. השגיאה מקושרת ב-aria-describedby ומוכרזת
+ * ב-role="alert", כמו בשאר הטפסים במערכת.
+ */
+function Field({ label, wide, required, error, children }: { label: string; wide?: boolean; required?: boolean; error?: string; children: React.ReactNode }) {
+  const id = useId();
+  return (
+    <label className={cn("field-label", wide && "sm:col-span-2")} aria-describedby={error ? `${id}-error` : undefined}>
+      <span>{label}{required && <span className="required-field">חובה</span>}</span>
+      {children}
+      {error && <span id={`${id}-error`} role="alert" className="mt-1 block text-xs font-bold text-[#a32031]">{error}</span>}
+    </label>
+  );
+}
 /**
  * מפרט לכל סוג נכס.
  *

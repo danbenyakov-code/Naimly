@@ -200,6 +200,8 @@ export type Viewer = {
   trialPending?: boolean;
   /** מתי נבחר המסלול. undefined = טרם בחר, ולכן חסום בשער ההצטרפות. */
   planSelectedAt?: string;
+  /** מתי סיים או דילג על ההדרכה. undefined = טרם ראה. */
+  onboardingSeenAt?: string;
   demo: boolean;
 };
 
