@@ -132,11 +132,35 @@ export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEnd
     pending: false,
     expired: false,
     endsAt: new Date(endsAt).toISOString(),
-    daysLeft: Math.ceil(msLeft / 86400000),
-    hoursLeft: Math.ceil(msLeft / 3600000),
+    /*
+     * QA-019: הכותרת הציגה 14 ימים והטיימר 13 — כי כאן עיגלנו כלפי מעלה
+     * ובטיימר כלפי מטה. אותו זמן, שני מספרים, ולקוח שלא מבין למי להאמין.
+     * שניהם משתמשים עכשיו ב-floor, כלומר "ימים שלמים שנותרו".
+     */
+    daysLeft: Math.floor(msLeft / 86400000),
+    hoursLeft: Math.floor((msLeft % 86400000) / 3600000),
     totalDays: TRIAL_DAYS,
     percentUsed: Math.min(100, Math.max(0, Math.round(((totalMs - msLeft) / totalMs) * 100))),
   };
+}
+
+/**
+ * ניסוח הזמן שנותר, במקום אחד.
+ *
+ * QA-019: כל מסך ניסח אחרת — "14 ימים", "נותרו 13 ימים", וטיימר
+ * 13:23:xx. הפונקציה הזו היא הניסוח היחיד, ולכן אי אפשר שיסתרו.
+ */
+export function formatTrialRemaining(trial: TrialState): string {
+  if (trial.expired) return "ההתנסות הסתיימה";
+  if (trial.pending) return `${TRIAL_DAYS} ימים, מרגע בחירת המסלול`;
+  if (!trial.active) return "";
+
+  const days = trial.daysLeft;
+  const hours = trial.hoursLeft;
+
+  if (days === 0) return hours === 1 ? "נותרה שעה אחת" : `נותרו ${hours} שעות`;
+  if (days === 1) return hours ? `נותר יום אחד ו-${hours} שעות` : "נותר יום אחד";
+  return hours ? `נותרו ${days} ימים ו-${hours} שעות` : `נותרו ${days} ימים`;
 }
 
 export type AccessReason = "active" | "trial" | "trial_expired" | "payment_pending" | "inactive" | "plan_not_selected";
