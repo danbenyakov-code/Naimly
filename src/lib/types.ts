@@ -25,6 +25,8 @@ export type CardFile = {
   id: string;
   title: string;
   url: string;
+  /** תיאור קצר. מוצג ליד כפתור ההורדה כדי שהמבקר ידע מה הוא מוריד. */
+  description?: string;
 };
 
 export type QuickActionType = "phone" | "whatsapp" | "email" | "website" | "waze" | "google_maps" | "save_contact" | "instagram" | "facebook" | "linkedin" | "tiktok" | "youtube" | "calendar";
@@ -131,6 +133,8 @@ export type CardData = {
   coverUrl: string;
   logoUrl: string;
   logoShape: "circle" | "rounded" | "square";
+  /** מיקום הלוגו בראש הכרטיס. ברירת מחדל: ימין, כמו כיוון הקריאה. */
+  logoPosition: "right" | "center" | "left";
   videoUrl: string;
   gallery: string[];
   files: CardFile[];
@@ -181,7 +185,7 @@ export type Plan = {
   description: string;
   badge?: string;
   features: string[];
-  limits: { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean };
+  limits: { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean; files: number };
 };
 
 export type Viewer = {

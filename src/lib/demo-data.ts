@@ -38,6 +38,7 @@ export const demoCard: CardData = {
   avatarUrl: SAMPLE_LOGO,
   coverUrl: SAMPLE_COVER,
   logoUrl: "",
+  logoPosition: "right",
   logoShape: "rounded",
   videoUrl: "",
   gallery: [],

@@ -95,6 +95,7 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     avatarUrl: stringValue(row.avatar_url),
     coverUrl: stringValue(row.cover_url),
     logoUrl: stringValue(row.logo_url),
+    logoPosition: (["right", "center", "left"].includes(String(row.logo_position)) ? row.logo_position : "right") as CardData["logoPosition"],
     logoShape: (["circle", "rounded", "square"].includes(stringValue(row.logo_shape)) ? stringValue(row.logo_shape) : "rounded") as CardData["logoShape"],
     videoUrl: stringValue(row.video_url),
     gallery: arrayValue(row.gallery, []),

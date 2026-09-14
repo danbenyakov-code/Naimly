@@ -46,7 +46,7 @@ export const plans: Plan[] = [
       "קבצים, קרוסלה, וידאו וייצוא לידים",
       "בסיום בוחרים מסלול — והכרטיס ממשיך",
     ],
-    limits: { cards: 1, galleryItems: 100, analyticsDays: 730, quickActions: 9, tracking: true },
+    limits: { cards: 1, galleryItems: 100, analyticsDays: 730, quickActions: 9, tracking: true, files: 100 },
   },
   {
     id: "basic",
@@ -55,7 +55,7 @@ export const plans: Plan[] = [
     interval: "month",
     description: "לבעלי עסקים שרוצים נוכחות מקצועית.",
     features: ["כרטיס דיגיטלי מלא", "3 פעולות מהירות", "גלריה, שירותים וטופס פניות", "כפתורים חכמים וסרטון", "נתונים ל‑30 ימים"],
-    limits: { cards: 1, galleryItems: 10, analyticsDays: 30, quickActions: 3, tracking: false },
+    limits: { cards: 1, galleryItems: 10, analyticsDays: 30, quickActions: 3, tracking: false, files: 0 },
   },
   {
     id: "pro",
@@ -65,7 +65,7 @@ export const plans: Plan[] = [
     description: "לעסק שרוצה להפוך צפיות ללקוחות.",
     badge: "הבחירה הפופולרית",
     features: ["כל מה שבבסיסי", "6 פעולות מהירות", "קרוסלה, קבצים וכל הווידג׳טים", "Meta Pixel ו‑Google Analytics", "SEO מתקדם ונתונים לשנה", "עד 30 תמונות"],
-    limits: { cards: 1, galleryItems: 30, analyticsDays: 365, quickActions: 6, tracking: true },
+    limits: { cards: 1, galleryItems: 30, analyticsDays: 365, quickActions: 6, tracking: true, files: 10 },
   },
   {
     id: "premium",
@@ -74,7 +74,7 @@ export const plans: Plan[] = [
     interval: "month",
     description: "לעסקים שרוצים יותר מידע, מדיה ושירות.",
     features: ["כל מה שבמקצועי", "9 פעולות מהירות", "עד 100 תמונות", "נתונים לשנתיים", "ייצוא לידים ל‑CSV", "תמיכה מועדפת"],
-    limits: { cards: 1, galleryItems: 100, analyticsDays: 730, quickActions: 9, tracking: true },
+    limits: { cards: 1, galleryItems: 100, analyticsDays: 730, quickActions: 9, tracking: true, files: 30 },
   },
 ];
 

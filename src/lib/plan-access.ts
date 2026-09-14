@@ -16,7 +16,12 @@ export type FeatureKey =
   | "prioritySupport";
 
 export type FeatureMap = Record<FeatureKey, boolean>;
-export type Limits = { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean };
+/*
+ * QA-028: files חסר כאן אף שהמסד אוכף max_files. פער כזה פירושו
+ * שהממשק אינו יודע להגיד ללקוח מהי המגבלה, והוא מגלה אותה רק כשהשרת
+ * דוחה אותו. הערכים תואמים ל-plan_limits במיגרציה 003.
+ */
+export type Limits = { cards: number; galleryItems: number; analyticsDays: number; quickActions: 3 | 6 | 9; tracking: boolean; files: number };
 
 const allFeatures: FeatureMap = {
   tracking: true, leadExport: true, carousel: true, video: true, files: true,
@@ -73,7 +78,7 @@ export function requiredPlanForFeature(feature: FeatureKey): PlanId {
 }
 
 /** המסלול בתשלום הזול ביותר שמאפשר לפחות את הכמות המבוקשת. */
-export function requiredPlanForLimit(limit: "galleryItems" | "quickActions" | "analyticsDays" | "cards", amount: number): PlanId {
+export function requiredPlanForLimit(limit: "galleryItems" | "quickActions" | "analyticsDays" | "cards" | "files", amount: number): PlanId {
   return paidPlanOrder.find((planId) => planLimits(planId)[limit] >= amount) || "premium";
 }
 
