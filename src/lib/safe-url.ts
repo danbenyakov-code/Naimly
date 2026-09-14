@@ -30,10 +30,45 @@ export function safeHref(value: string | undefined | null) {
   return safeLinkSchemes.has(url.protocol) ? url.toString() : "";
 }
 
-/** כתובת לתצוגה כ‑src של תמונה/מדיה. http/https בלבד. */
+/**
+ * האם המחרוזת מכילה תו בקרה.
+ *
+ * נכתב בלולאה ולא ברגקס: מחלקת תווים עם escapes נשברת בקלות בעריכה
+ * אוטומטית, וכאן שגיאה שקטה פותחת פרצה במקום להיכשל ברעש.
+ */
+function hasControlChars(value: string) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code < 0x20 || code === 0x7f) return true;
+  }
+  return false;
+}
+
+/**
+ * נתיב שורש מאותו מקור, למשל /samples/logo-example.jpg.
+ *
+ * מותר לוכסן יחיד בלבד: //evil.com היא כתובת protocol-relative
+ * שמצביעה החוצה, וגם הצורה עם לוכסן הפוך מנוצלת באותו אופן.
+ */
+function isSameOriginPath(value: string) {
+  if (!value.startsWith("/")) return false;
+  if (value.startsWith("//") || value.startsWith("/\\")) return false;
+  return !hasControlChars(value);
+}
+
+/**
+ * כתובת לתצוגה כ-src של תמונה/מדיה: http/https, או נתיב מאותו מקור.
+ *
+ * new URL זורק על נתיב יחסי, ולכן עד כה נחסמו גם הנכסים של האתר
+ * עצמו — דווקא הבטוחים ביותר. כרטיס ההדגמה הציג בגלל זה רקע ריק
+ * במקום התמונות שב-public/samples.
+ */
 export function safeSrc(value: string | undefined | null) {
   if (!value) return "";
-  const url = parse(String(value));
+  const trimmed = String(value).trim();
+  if (!trimmed) return "";
+  if (isSameOriginPath(trimmed)) return trimmed;
+  const url = parse(trimmed);
   if (!url) return "";
   return safeSchemes.has(url.protocol) ? url.toString() : "";
 }

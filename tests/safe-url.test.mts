@@ -79,3 +79,45 @@ describe("סכמות אימות", () => {
     assert.equal(result.success, false);
   });
 });
+
+describe("safeSrc — נתיבים מאותו מקור", () => {
+  it("מאשר נתיב שורש רגיל", () => {
+    assert.equal(safeSrc("/samples/logo-example.jpg"), "/samples/logo-example.jpg");
+    assert.equal(safeSrc("/_next/static/media/a-b_c.woff2"), "/_next/static/media/a-b_c.woff2");
+  });
+
+  it("חוסם protocol-relative שמצביע החוצה", () => {
+    assert.equal(safeSrc("//evil.example.com/x.jpg"), "");
+    assert.equal(safeSrc("///evil.example.com/x.jpg"), "");
+  });
+
+  it("חוסם לוכסן הפוך שמנוצל כ-protocol-relative", () => {
+    const backslash = String.fromCharCode(92);
+    const payload = "/" + backslash + "evil.example.com/x.jpg";
+    assert.equal(payload.charCodeAt(1), 92, "הבדיקה חייבת להכיל לוכסן הפוך אמיתי");
+    assert.equal(safeSrc(payload), "");
+  });
+
+  it("חוסם תווי בקרה בנתיב", () => {
+    assert.equal(safeSrc("/samples/\u0000logo.jpg"), "");
+    assert.equal(safeSrc("/samples/\u001flogo.jpg"), "");
+    assert.equal(safeSrc("/samples/\u007flogo.jpg"), "");
+  });
+
+  it("מקף ותו רגיל אינם נחשבים תווי בקרה", () => {
+    // רגרסיה: ניסוח שגוי של מחלקת התווים פסל כל מחרוזת עם מקף.
+    assert.equal(safeSrc("/a-b/c-d.jpg"), "/a-b/c-d.jpg");
+    assert.equal(safeSrc("/a b.jpg"), "/a b.jpg");
+  });
+
+  it("עדיין חוסם סכימות מסוכנות", () => {
+    assert.equal(safeSrc("javascript:alert(1)"), "");
+    assert.equal(safeSrc("data:text/html,<script>alert(1)</script>"), "");
+    assert.equal(safeSrc("vbscript:msgbox(1)"), "");
+  });
+
+  it("נתיב יחסי בלי לוכסן פותח נדחה", () => {
+    assert.equal(safeSrc("samples/logo.jpg"), "");
+    assert.equal(safeSrc("../../etc/passwd"), "");
+  });
+});
