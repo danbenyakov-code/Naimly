@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { isEmailLike } from "@/lib/email-format";
 
 /**
  * סכמות אימות משותפות לשרת וללקוח. הודעות השגיאה נכתבות פעם אחת כאן,
@@ -14,10 +15,7 @@ export const emailSchema = z
   .string()
   .min(1, "יש להזין כתובת אימייל.")
   .max(160, "כתובת האימייל ארוכה מדי.")
-  .refine(
-    (value) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value),
-    "כתובת האימייל אינה תקינה. יש להזין כתובת במבנה name@example.com.",
-  );
+  .refine(isEmailLike, "כתובת האימייל אינה תקינה. יש להזין כתובת במבנה name@example.com.");
 
 export const otpSchema = z
   .string()

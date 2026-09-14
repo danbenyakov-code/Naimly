@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
 import { PASSWORD_MIN_LENGTH, evaluatePassword, isStrongPassword, passwordRules } from "../src/lib/password.ts";
+import { cardStrings } from "../src/lib/card-i18n.ts";
 
 /**
  * בדיקות רגרסיה לקבוצה ג׳.
@@ -142,8 +143,10 @@ describe("QA-008 — טופס הלידים אינו נשען על ולידציה
   });
 
   it("הודעות השגיאה בעברית ומסבירות כיצד לתקן", () => {
-    assert.match(source, /לדוגמה: name@example\.com/);
-    assert.match(source, /יש להזין מספר מלא/);
+    // QA-035: ההודעות עברו למילון הכרטיס, שהוא עכשיו מקור האמת שלהן.
+    const he = cardStrings("he");
+    assert.ok(he.invalidEmail("אימייל").includes("לדוגמה: name@example.com"));
+    assert.ok(he.invalidPhone("טלפון").includes("יש להזין מספר מלא"));
   });
 
   it("המיקוד עובר לסיכום אחרי כשל, מתוך useEffect", () => {
@@ -159,8 +162,7 @@ describe("REQ-001 — כשל אינו מאפס את הטופס", () => {
   });
 
   it("ההודעה מבהירה שהפרטים נשמרו", () => {
-    const source = read("src/components/card/public-card-client.tsx");
-    assert.match(source, /הפרטים שהזנת נשארו בטופס/);
+    assert.ok(cardStrings("he").genericError.includes("הפרטים שהזנת נשארו בטופס"));
   });
 });
 

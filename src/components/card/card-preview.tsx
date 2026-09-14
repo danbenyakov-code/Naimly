@@ -14,12 +14,12 @@ import { isActionUsable, resolveActionValue, socialUrl, whatsappLink } from "@/l
  * יכול להגיע מייבוא, מלקוח ישן או מתיקון ידני. הרינדור חייב לשרוד אותו:
  * אייקון ברירת מחדל עדיף על עמוד שקורס.
  */
-const actionIcons: Record<QuickActionType, typeof Phone> = {
+export const actionIcons: Record<QuickActionType, typeof Phone> = {
   phone: Phone, whatsapp: MessageCircle, email: Mail, website: Globe2, waze: Map, google_maps: MapPin, save_contact: UserPlus,
   instagram: Camera, facebook: Users, linkedin: BriefcaseBusiness, tiktok: AtSign, youtube: PlayCircle, calendar: CalendarDays,
 };
 
-function actionHref(action: QuickAction, card: CardData) {
+export function actionHref(action: QuickAction, card: CardData) {
   // QA-024: הערך נגזר ממקור יחיד — פרטי הכרטיס — ולא מעותק בפעולה.
   const value = resolveActionValue(action, card);
   if (action.type === "phone") return `tel:${normalizePhone(value)}`;
@@ -61,7 +61,7 @@ function youtubeEmbedUrl(url: string) {
   return "";
 }
 
-function defaultActions(card: CardData): QuickAction[] {
+export function defaultActions(card: CardData): QuickAction[] {
   return [
     { id: "phone", type: "phone", label: "שיחה", value: card.phone },
     { id: "whatsapp", type: "whatsapp", label: "WhatsApp", value: card.whatsapp },

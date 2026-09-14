@@ -135,6 +135,8 @@ export type CardData = {
   logoShape: "circle" | "rounded" | "square";
   /** מיקום הלוגו בראש הכרטיס. ברירת מחדל: ימין, כמו כיוון הקריאה. */
   logoPosition: "right" | "center" | "left";
+  /** שפת הכרטיס הציבורי. משפיעה על התוויות, ההודעות וכיוון הטקסט. */
+  language: "he" | "en";
   videoUrl: string;
   gallery: string[];
   files: CardFile[];

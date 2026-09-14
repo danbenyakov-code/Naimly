@@ -3,6 +3,7 @@ import { getAnalyticsSummary, getViewer } from "@/lib/data";
 import { formatCompact } from "@/lib/utils";
 import { planName, resolveAccess } from "@/lib/plan-access";
 import { AnalyticsWindowNotice } from "@/components/dashboard/analytics-window-notice";
+import { BackButton } from "@/components/ui/back-button";
 
 const actionLabels: Record<string, string> = { phone: "טלפון", whatsapp: "WhatsApp", whatsapp_primary: "WhatsApp ראשי", email: "אימייל", contact_save: "שמירת איש קשר", map: "ניווט", website: "אתר", share: "שיתוף" };
 
@@ -24,7 +25,7 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-[1260px]">
-      <div><p className="text-sm font-bold text-[#6d4aff]">אנליטיקה</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">הביצועים של הכרטיס</h1><p className="mt-1 text-sm text-[#718096]">צפיות, פעולות ופניות ב־{windowLabel}.</p></div>
+      <div><BackButton fallback="/dashboard" ariaLabel="חזרה מהביצועים של הכרטיס למסך הקודם" className="mb-3" /><p className="text-sm font-bold text-[#6d4aff]">אנליטיקה</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">הביצועים של הכרטיס</h1><p className="mt-1 text-sm text-[#718096]">צפיות, פעולות ופניות ב־{windowLabel}.</p></div>
       <AnalyticsWindowNotice planLabel={planName(access.plan)} days={analyticsDays} />
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, icon: Icon, note }) => <article key={label} className="card-surface p-5"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Icon size={21} /></span><strong className="mt-4 block text-3xl tracking-tight">{value}</strong><span className="text-sm font-semibold">{label}</span><p className="mt-1 text-xs text-[#7d8899]">{note}</p></article>)}

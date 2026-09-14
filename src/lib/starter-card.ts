@@ -41,6 +41,7 @@ export function starterCard(viewer: Viewer): CardData {
     logoUrl: "",
     logoShape: "rounded",
     logoPosition: "right",
+    language: "he",
     videoUrl: "",
     gallery: [],
     files: [],

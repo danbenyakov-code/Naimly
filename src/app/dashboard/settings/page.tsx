@@ -7,6 +7,7 @@ import { formatCurrency } from "@/lib/utils";
 import { formatTrialRemaining, resolveAccess } from "@/lib/plan-access";
 import { TrialTimer } from "@/components/trial-timer";
 import { updateProfileAction } from "./actions";
+import { BackButton } from "@/components/ui/back-button";
 
 export default async function SettingsPage({ searchParams }: { searchParams: Promise<{ message?: string; error?: string }> }) {
   const viewer = await getViewer();
@@ -19,7 +20,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="mx-auto max-w-[1060px]">
-      <div><p className="text-sm font-bold text-[#6d4aff]">חשבון והגדרות</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">הגדרות</h1><p className="mt-1 text-sm text-[#718096]">פרטי חשבון, מסלול וחיבורי המערכת.</p></div>
+      <div><BackButton fallback="/dashboard" ariaLabel="חזרה מההגדרות למסך הקודם" className="mb-3" /><p className="text-sm font-bold text-[#6d4aff]">חשבון והגדרות</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">הגדרות</h1><p className="mt-1 text-sm text-[#718096]">פרטי חשבון, מסלול וחיבורי המערכת.</p></div>
       {params.message && <p role="status" className="mt-5 rounded-xl border border-[#b7e6d8] bg-[#effcf8] p-3 text-sm text-[#08735f]">{params.message}</p>}
       {params.error && <p role="alert" className="mt-5 rounded-xl border border-[#f0bdc3] bg-[#fff2f4] p-3 text-sm text-[#a32031]">{params.error}</p>}
       <div className="mt-6 grid gap-5">

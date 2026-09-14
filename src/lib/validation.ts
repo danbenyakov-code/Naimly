@@ -50,6 +50,7 @@ export const cardSchema = z.object({
   logoUrl: optionalUrl,
   logoShape: z.enum(["circle", "rounded", "square"]),
   logoPosition: z.enum(["right", "center", "left"]),
+  language: z.enum(["he", "en"]),
   videoUrl: optionalUrl,
   gallery: z.array(httpUrl).max(100),
   files: z.array(z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(100), url: httpUrl, description: z.string().max(200).optional() })).max(30),
