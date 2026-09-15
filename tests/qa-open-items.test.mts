@@ -326,3 +326,21 @@ describe("REQ-011 — כרטיס נוסף", () => {
     assert.ok(data.includes('.eq("user_id", viewer.id)'));
   });
 });
+
+describe("Vercel Analytics מאחורי הסכמה", () => {
+  it("אינו נטען ללא אישור קטגוריית המדידה", () => {
+    /*
+     * ה-PR המקורי הוסיף <Analytics /> ללא תנאי. מדיניות העוגיות שלנו
+     * קובעת שללא אישור לא נאסף מידע מדידה כלל — אתר שמפר את המדיניות
+     * שהוא עצמו מפרסם הוא סתירה גרועה מהיעדר המדידה.
+     */
+    const wrapper = read("src/components/consented-analytics.tsx");
+    assert.ok(wrapper.includes('hasConsent("analytics")'));
+    assert.ok(wrapper.includes("if (!allowed) return null"));
+
+    // ה-layout טוען את העטיפה ולא את הרכיב הישיר.
+    const layout = read("src/app/layout.tsx");
+    assert.ok(layout.includes("<ConsentedAnalytics />"));
+    assert.ok(!layout.includes("<Analytics />"), "טעינה ישירה עוקפת את ההסכמה");
+  });
+});

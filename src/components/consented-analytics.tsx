@@ -22,8 +22,14 @@ export function ConsentedAnalytics() {
   const [allowed, setAllowed] = useState(false);
 
   useEffect(() => {
-    // הבדיקה אחרי ההרכבה: localStorage אינו קיים בשרת.
-    setAllowed(hasConsent("analytics"));
+    /*
+     * הבדיקה אחרי ההרכבה: localStorage אינו קיים בשרת.
+     *
+     * דרך requestAnimationFrame ולא קריאה ישירה — setState סינכרוני
+     * בתוך אפקט מפעיל רינדור נוסף מיד, וזה בדיוק מה שהכלל של React
+     * מזהיר מפניו.
+     */
+    const frame = requestAnimationFrame(() => setAllowed(hasConsent("analytics")));
 
     const listener = (event: Event) => {
       const detail = (event as CustomEvent<ConsentState>).detail;
@@ -31,7 +37,10 @@ export function ConsentedAnalytics() {
     };
 
     window.addEventListener(CONSENT_EVENT, listener);
-    return () => window.removeEventListener(CONSENT_EVENT, listener);
+    return () => {
+      cancelAnimationFrame(frame);
+      window.removeEventListener(CONSENT_EVENT, listener);
+    };
   }, []);
 
   if (!allowed) return null;
