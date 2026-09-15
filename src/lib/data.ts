@@ -8,6 +8,7 @@ import { isBackgroundId } from "@/lib/backgrounds";
 import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
 import { starterCard } from "@/lib/starter-card";
+import { cardTemplate } from "@/lib/card-templates";
 
 type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null } | null | undefined;
 
@@ -96,8 +97,20 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     coverUrl: stringValue(row.cover_url),
     logoUrl: stringValue(row.logo_url),
     logoPosition: (["right", "center", "left"].includes(String(row.logo_position)) ? row.logo_position : "right") as CardData["logoPosition"],
+    // שורה שנכתבה לפני המיגרציה מגיעה בלי השדה; עברית היא ברירת המחדל.
+    language: row.language === "en" ? "en" : "he",
     logoShape: (["circle", "rounded", "square"].includes(stringValue(row.logo_shape)) ? stringValue(row.logo_shape) : "rounded") as CardData["logoShape"],
     videoUrl: stringValue(row.video_url),
+    /*
+     * שורה שנכתבה לפני המיגרציה מחזיקה רק video_url. מיזוגו כאיבר
+     * ראשון שומר על הסרטון של לקוחות קיימים במקום למחוק אותו בשקט.
+     */
+    videos: (() => {
+      const list = Array.isArray(row.videos) ? row.videos.map((value) => stringValue(value)).filter(Boolean) : [];
+      if (list.length) return list;
+      const legacy = stringValue(row.video_url);
+      return legacy ? [legacy] : [];
+    })(),
     gallery: arrayValue(row.gallery, []),
     files: arrayValue(row.files, []),
     primaryColor: stringValue(row.primary_color, "#6d4aff"),
@@ -106,7 +119,7 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     headingColor: stringValue(row.heading_color, "#142038"),
     bodyTextColor: stringValue(row.body_text_color, "#53627a"),
     backgroundPreset: isBackgroundId(stringValue(row.background_preset)) ? stringValue(row.background_preset) : "aurora",
-    template: (["spotlight", "clean", "bold"].includes(stringValue(row.template)) ? stringValue(row.template) : "spotlight") as CardData["template"],
+    template: cardTemplate(stringValue(row.template)).id,
     isPublished: Boolean(row.is_published),
     allowIndexing: row.allow_indexing !== false,
     seoTitle: stringValue(row.seo_title),
@@ -141,6 +154,16 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     services: arrayValue(row.services, []),
     testimonials: arrayValue(row.testimonials, []),
     businessHours: arrayValue(row.business_hours, []),
+    /*
+     * שעות מובנות. שורה שנכתבה לפני המיגרציה מחזירה מערך ריק, ואז
+     * הכרטיס מציג את הטקסט החופשי הישן ולא מציג סטטוס כלל.
+     */
+    openingHours: arrayValue(row.opening_hours, []),
+    primaryCta: (() => {
+      const saved = (row.primary_cta && typeof row.primary_cta === "object" ? row.primary_cta : {}) as Partial<CardData["primaryCta"]>;
+      const type = ["whatsapp", "phone", "lead", "meeting"].includes(String(saved.type)) ? saved.type : "whatsapp";
+      return { type: type as CardData["primaryCta"]["type"], label: stringValue(saved.label), value: stringValue(saved.value) };
+    })(),
     updatedAt: stringValue(row.updated_at, new Date().toISOString()),
   };
 }
@@ -161,8 +184,8 @@ export async function getViewer(): Promise<Viewer | null> {
   if (!authData.user) return null;
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
-    supabase.from("profiles").select("full_name,role,plan_id,onboarding_seen_at").eq("id", authData.user.id).maybeSingle(),
-    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at").eq("user_id", authData.user.id).maybeSingle(),
+    supabase.from("profiles").select("full_name,role,plan_id,onboarding_seen_at,terms_version,terms_accepted_at").eq("id", authData.user.id).maybeSingle(),
+    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at,extra_cards").eq("user_id", authData.user.id).maybeSingle(),
   ]);
 
   // הסטטוס נשמר כפי שהוא. תפוגת ההתנסות נגזרת מ‑trialEndsAt דרך plan-access,
@@ -178,18 +201,81 @@ export async function getViewer(): Promise<Viewer | null> {
     trialEndsAt: subscription?.trial_ends_at || undefined,
     trialPending: subscription?.trial_pending === true,
     planSelectedAt: subscription?.plan_selected_at || undefined,
+    extraCards: Number(subscription?.extra_cards) || 0,
     onboardingSeenAt: profile?.onboarding_seen_at || undefined,
+    termsVersion: profile?.terms_version || undefined,
+    termsAcceptedAt: profile?.terms_accepted_at || undefined,
     demo: false,
   };
 }
 
-export async function getDashboardCard(viewer: Viewer): Promise<CardData> {
+/** תקציר כרטיס לבורר, בלי לטעון את כל התוכן. */
+export type CardSummary = {
+  id: string;
+  slug: string;
+  businessName: string;
+  isPublished: boolean;
+  updatedAt: string;
+};
+
+/**
+ * כל הכרטיסים של המשתמש, לפי סדר יצירה (REQ-011).
+ *
+ * הראשון הוא תמיד הכרטיס הראשי — זה שנוצר תחילה — כדי שהבורר לא ישנה
+ * סדר בין טעינות והמשתמש לא יאבד את מקומו.
+ */
+export async function getUserCards(viewer: Viewer): Promise<CardSummary[]> {
+  noStore();
+  if (viewer.demo || !isSupabaseConfigured) {
+    return [{ id: demoCard.id, slug: demoCard.slug, businessName: demoCard.businessName, isPublished: demoCard.isPublished, updatedAt: demoCard.updatedAt }];
+  }
+  const supabase = await createSupabaseServerClient();
+  if (!supabase) return [];
+  const { data } = await supabase
+    .from("cards")
+    .select("id,slug,business_name,is_published,updated_at")
+    .eq("user_id", viewer.id)
+    .order("created_at");
+
+  return (data || []).map((row) => ({
+    id: String(row.id),
+    slug: stringValue(row.slug),
+    businessName: stringValue(row.business_name) || "כרטיס ללא שם",
+    isPublished: row.is_published === true,
+    updatedAt: stringValue(row.updated_at),
+  }));
+}
+
+/**
+ * הכרטיס שנערך כרגע.
+ *
+ * cardId מגיע מהבורר. מזהה שאינו שייך למשתמש פשוט אינו נמצא — התנאי
+ * על user_id הוא שמונע גישה לכרטיס של מישהו אחר דרך שינוי ה-URL.
+ */
+export async function getDashboardCard(viewer: Viewer, cardId?: string): Promise<CardData> {
   noStore();
   if (viewer.demo || !isSupabaseConfigured) return demoCard;
   const supabase = await createSupabaseServerClient();
-  const { data } = supabase
-    ? await supabase.from("cards").select("*").eq("user_id", viewer.id).order("created_at").limit(1).maybeSingle()
-    : { data: null };
+  if (!supabase) return starterCard(viewer);
+
+  if (cardId) {
+    const { data: selected } = await supabase
+      .from("cards")
+      .select("*")
+      .eq("id", cardId)
+      .eq("user_id", viewer.id)
+      .maybeSingle();
+    if (selected) return normalizeCard(selected);
+    // מזהה לא מוכר נופל לכרטיס הראשי במקום להציג מסך ריק.
+  }
+
+  const { data } = await supabase
+    .from("cards")
+    .select("*")
+    .eq("user_id", viewer.id)
+    .order("created_at")
+    .limit(1)
+    .maybeSingle();
   if (data) return normalizeCard(data);
 
   return starterCard(viewer);
@@ -247,12 +333,25 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   return normalizeCard(data);
 }
 
-export async function getAnalyticsSummary(viewer: Viewer): Promise<AnalyticsSummary> {
+/**
+ * נתוני הכרטיס הנבחר.
+ *
+ * REQ-011: הפונקציה קראה תמיד את הכרטיס הראשון, ולכן לקוח עם שני
+ * כרטיסים ראה את המספרים של הראשון בשניהם — מספרים נכונים לכרטיס הלא
+ * נכון, וזו טעות גרועה יותר מאפס.
+ */
+export async function getAnalyticsSummary(viewer: Viewer, cardId?: string): Promise<AnalyticsSummary> {
   noStore();
   if (viewer.demo || !isSupabaseConfigured) return demoAnalytics;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return demoAnalytics;
-  const { data: card } = await supabase.from("cards").select("id").eq("user_id", viewer.id).limit(1).maybeSingle();
+
+  const selected = cardId
+    ? await supabase.from("cards").select("id").eq("id", cardId).eq("user_id", viewer.id).maybeSingle()
+    : { data: null };
+  const { data: card } = selected.data
+    ? selected
+    : await supabase.from("cards").select("id").eq("user_id", viewer.id).order("created_at").limit(1).maybeSingle();
   if (!card) return { views: 0, clicks: 0, leads: 0, contactSaves: 0, conversionRate: 0, daily: [], actions: [] };
 
   const analyticsDays = resolveAccess(viewer).limits.analyticsDays;
@@ -295,7 +394,13 @@ export type LeadRecord = {
   createdAt: string;
 };
 
-export async function getLeads(viewer: Viewer): Promise<LeadRecord[]> {
+/**
+ * הפניות. cardId מסנן לכרטיס אחד; בלעדיו מוחזרות פניות מכל הכרטיסים.
+ *
+ * ברירת המחדל היא איחוד ולא סינון: לקוח שנכנס ל"פניות" רוצה לראות את
+ * כולן, ורק אחר כך לצמצם.
+ */
+export async function getLeads(viewer: Viewer, cardId?: string): Promise<LeadRecord[]> {
   noStore();
   if (viewer.demo || !isSupabaseConfigured) return [
     { id: "l1", name: "דנה לוי", phone: "052-111-2233", email: "dana@example.com", message: "אשמח לקבל הצעה לתהליך מיתוג לעסק חדש.", status: "new", createdAt: "2026-09-04T09:15:00.000Z" },
@@ -305,7 +410,9 @@ export async function getLeads(viewer: Viewer): Promise<LeadRecord[]> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return [];
   const { data: cards } = await supabase.from("cards").select("id").eq("user_id", viewer.id);
-  const cardIds = (cards || []).map((card) => card.id);
+  const owned = (cards || []).map((card) => card.id);
+  // מזהה שאינו שייך למשתמש פשוט אינו ברשימה, ולכן אינו חושף דבר.
+  const cardIds = cardId && owned.includes(cardId) ? [cardId] : owned;
   if (!cardIds.length) return [];
   const { data } = await supabase.from("leads").select("id,name,phone,email,message,status,created_at").in("card_id", cardIds).order("created_at", { ascending: false }).limit(200);
   return (data || []).map((lead) => ({ id: lead.id, name: lead.name, phone: lead.phone, email: lead.email || "", message: lead.message || "", status: lead.status, createdAt: lead.created_at }));

@@ -10,11 +10,27 @@
  *    חוק החוזים האחידים, חוק הגנת הצרכן והוראות הגנת הפרטיות.
  */
 
-/** מזהה הנוסח. יש להעלות בכל שינוי מהותי. */
-export const LEGAL_VERSION = "2026-09-10";
+/**
+ * מזהה הנוסח. יש להעלות בכל שינוי מהותי.
+ *
+ * העלאת הגרסה חוסמת את המערכת לכל מי שאישר נוסח קודם, עד לאישור מחדש
+ * (ראו requiresLegalReAcceptance). זו התנהגות מכוונת: הסכמה לנוסח ישן
+ * אינה הסכמה לנוסח החדש.
+ */
+export const LEGAL_VERSION = "2026-09-14";
 
 /** תאריך תחילת התוקף, כפי שמוצג בראש כל מסמך. */
-export const LEGAL_EFFECTIVE_DATE = "10 בספטמבר 2026";
+export const LEGAL_EFFECTIVE_DATE = "14 בספטמבר 2026";
+
+/**
+ * זהות הספק כפי שהיא מוצגת במסמכים.
+ *
+ * בכוונה ללא שם משפטי, מספר רישום, כתובת פיזית וטלפון: מה שאינו מוצג
+ * אינו יכול להיות מוצג בטעות כלא מדויק. ערוץ הקשר הרשמי הוא הדוא״ל.
+ */
+export const legalEntity = {
+  displayName: "NAIMLY – נעים לי",
+};
 
 export type LegalDocId = "terms" | "privacy" | "acceptable-use" | "refund" | "cookies" | "accessibility";
 
@@ -28,3 +44,14 @@ export const legalDocuments: Array<{ id: LegalDocId; title: string; href: string
 
 /** המסמכים שהלקוח מאשר בעת פתיחת חשבון ובעת בחירת מסלול. */
 export const bindingDocumentIds: LegalDocId[] = ["terms", "privacy", "acceptable-use", "refund", "cookies"];
+
+/**
+ * האם המשתמש חייב לאשר מחדש את המסמכים.
+ *
+ * הסכמה לנוסח קודם אינה הסכמה לנוסח הנוכחי. משתמש שאישר גרסה ישנה —
+ * או שלא אישר כלל — נחסם עד לאישור מחדש, ולא רק מקבל תזכורת שאפשר
+ * לסגור. זו הנקודה שמבדילה בין תיעוד הסכמה לבין אכיפתה.
+ */
+export function requiresLegalReAcceptance(acceptedVersion?: string | null): boolean {
+  return String(acceptedVersion || "").trim() !== LEGAL_VERSION;
+}

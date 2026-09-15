@@ -7,6 +7,7 @@ import { contactTopics, type ContactTopicId } from "@/lib/contact";
 import { ErrorSummary, Field, focusErrorSummary, inputClass } from "@/components/ui/field";
 import { burst } from "@/lib/celebrate";
 import { cn } from "@/lib/utils";
+import { invalidEmailMessage, isEmailLike } from "@/lib/email-format";
 
 type FormState = { topic: ContactTopicId; name: string; email: string; phone: string; message: string };
 
@@ -33,7 +34,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
   function validate() {
     const next: Record<string, string> = {};
     if (form.name.trim().length < 2) next.name = "יש להזין שם מלא (לפחות 2 תווים)";
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) next.email = "כתובת האימייל אינה תקינה";
+    if (!isEmailLike(form.email)) next.email = invalidEmailMessage;
     if (form.message.trim().length < 10) next.message = "יש לפרט לפחות 10 תווים כדי שנוכל לעזור";
     if (form.phone && form.phone.replace(/\D/g, "").length < 9) next.phone = "מספר הטלפון אינו תקין";
     return next;

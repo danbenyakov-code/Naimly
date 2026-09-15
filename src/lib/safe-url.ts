@@ -50,7 +50,7 @@ function hasControlChars(value: string) {
  * מותר לוכסן יחיד בלבד: //evil.com היא כתובת protocol-relative
  * שמצביעה החוצה, וגם הצורה עם לוכסן הפוך מנוצלת באותו אופן.
  */
-function isSameOriginPath(value: string) {
+export function isSameOriginPath(value: string) {
   if (!value.startsWith("/")) return false;
   if (value.startsWith("//") || value.startsWith("/\\")) return false;
   return !hasControlChars(value);

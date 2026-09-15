@@ -1,40 +1,93 @@
 import type { Metadata } from "next";
-import Link from "next/link";
 import { Check, Minus } from "lucide-react";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { plans } from "@/lib/config";
-import { formatCurrency } from "@/lib/utils";
+import { BillingToggle } from "@/components/marketing/billing-toggle";
+import { ogImage, plans } from "@/lib/config";
 import { TRIAL_DAYS, planFeatures, planLimits } from "@/lib/plan-access";
 
-export const metadata: Metadata = { title: "מחירים", description: "מסלולים גמישים לבניית כרטיס ביקור דיגיטלי לעסק.", alternates: { canonical: "/pricing" } };
+const pricingDescription =
+  "מסלולים גמישים לכרטיס ביקור דיגיטלי: מחיר חודשי ושנתי, השוואה מלאה של המכסות, ו-14 ימי התנסות ללא כרטיס אשראי.";
 
-// הטבלה נגזרת מאותו מקור שאוכף את המסלולים בשרת וב‑DB, כדי שהשיווק,
-// המנעולים בממשק והחסימות בפועל לא ייפרדו זה מזה.
-const days = (value: number) => (value >= 365 ? `${Math.round(value / 365)} שנים`.replace("1 שנים", "שנה") : `${value} ימים`);
+export const metadata: Metadata = {
+  title: "מחירים",
+  description: pricingDescription,
+  alternates: { canonical: "/pricing" },
+  // QA-012: בלי מטא ייעודי, שיתוף של עמוד המחירים הציג את תיאור דף הבית.
+  openGraph: { title: "המסלול שמתאים לעסק שלך", description: pricingDescription, url: "/pricing", type: "website", images: [ogImage] },
+  twitter: { card: "summary_large_image", title: "המסלול שמתאים לעסק שלך", description: pricingDescription, images: [ogImage.url] },
+};
 
-const rows: Array<[string, ...Array<string | boolean>]> = [
-  ["מספר כרטיסים", ...plans.map((plan) => String(planLimits(plan.id).cards))],
-  ["פעולות מהירות", ...plans.map((plan) => String(planLimits(plan.id).quickActions))],
-  ["תמונות בגלריה", ...plans.map((plan) => String(planLimits(plan.id).galleryItems))],
-  ["קישור אישי ו‑QR", ...plans.map(() => true)],
-  ["טופס לידים וניהול פניות", ...plans.map(() => true)],
-  ["כפתורים חכמים", ...plans.map((plan) => planFeatures(plan.id).smartButtons)],
-  ["המלצות לקוחות", ...plans.map((plan) => planFeatures(plan.id).testimonials)],
-  ["וידג׳ט סרטון", ...plans.map((plan) => planFeatures(plan.id).video)],
-  ["גלריית קרוסלה", ...plans.map((plan) => planFeatures(plan.id).carousel)],
-  ["קבצים להורדה", ...plans.map((plan) => planFeatures(plan.id).files)],
-  ["היסטוריית נתונים", ...plans.map((plan) => days(planLimits(plan.id).analyticsDays))],
-  ["Meta Pixel ו‑Google Analytics", ...plans.map((plan) => planFeatures(plan.id).tracking)],
-  ["SEO מתקדם", ...plans.map((plan) => planFeatures(plan.id).seo)],
-  ["ייצוא לידים ל‑CSV", ...plans.map((plan) => planFeatures(plan.id).leadExport)],
-  ["תמיכה מועדפת", ...plans.map((plan) => planFeatures(plan.id).prioritySupport)],
+/*
+ * הטבלה נגזרת מאותו מקור שאוכף את המסלולים בשרת וב‑DB, כדי שהשיווק,
+ * המנעולים בממשק והחסימות בפועל לא ייפרדו זה מזה.
+ *
+ * השורות מקובצות לפי מה שמעניין את הלקוח — כמה הוא מקבל, מה תמיד כלול,
+ * ומה פותח לו שיווק ונתונים — ולא לפי המבנה הפנימי של הקוד.
+ */
+const days = (value: number) => {
+  if (value >= 730) return "שנתיים";
+  if (value >= 365) return "שנה";
+  return `${value} ימים`;
+};
+
+/**
+ * מכסה אפס פירושה "לא כלול", ולא "0".
+ *
+ * מספר עירום בטבלה מחייב את הקורא לפרש אותו; סימן "לא כלול" מובן מיד,
+ * ומקבל גם תווית נגישה.
+ */
+const count = (value: number, singular: string, plural: string) => {
+  if (value === 0) return false;
+  return value === 1 ? singular : `${value} ${plural}`;
+};
+
+type Row = [string, ...Array<string | boolean>];
+type Group = { title: string; note?: string; rows: Row[] };
+
+const groups: Group[] = [
+  {
+    title: "מה מקבלים",
+    note: "המספרים הם מכסות בפועל — המערכת חוסמת מעבר להן.",
+    rows: [
+      ["כרטיסים בחשבון", ...plans.map((plan) => count(planLimits(plan.id).cards, "כרטיס אחד", "כרטיסים"))],
+      ["תמונות בגלריה", ...plans.map((plan) => count(planLimits(plan.id).galleryItems, "תמונה אחת", "תמונות"))],
+      ["פעולות מהירות", ...plans.map((plan) => count(planLimits(plan.id).quickActions, "פעולה אחת", "פעולות"))],
+      ["סרטונים בכרטיס", ...plans.map((plan) => count(planLimits(plan.id).videos, "סרטון אחד", "סרטונים"))],
+      ["קבצים להורדה", ...plans.map((plan) => count(planLimits(plan.id).files, "קובץ אחד", "קבצים"))],
+    ],
+  },
+  {
+    title: "כלול בכל מסלול",
+    note: "הבסיס שכל כרטיס מקבל, גם במסלול הזול ביותר.",
+    rows: [
+      ["קישור אישי וקוד QR", ...plans.map(() => true)],
+      ["טופס פניות עם התראה למייל", ...plans.map(() => true)],
+      ["שמירת איש קשר בלחיצה", ...plans.map(() => true)],
+      ["ניהול הפניות באזור האישי", ...plans.map(() => true)],
+      ["כפתורי פעולה חכמים", ...plans.map((plan) => planFeatures(plan.id).smartButtons)],
+      ["המלצות לקוחות", ...plans.map((plan) => planFeatures(plan.id).testimonials)],
+    ],
+  },
+  {
+    title: "שיווק, מדידה ונתונים",
+    note: "מה שהופך את הכרטיס מכרטיס ביקור לכלי שיווק.",
+    rows: [
+      ["שעות פעילות וסטטוס פתוח/סגור", ...plans.map((plan) => planFeatures(plan.id).hours)],
+      ["היסטוריית נתונים", ...plans.map((plan) => days(planLimits(plan.id).analyticsDays))],
+      ["Google Analytics ו‑Tag Manager", ...plans.map((plan) => planFeatures(plan.id).tracking)],
+      ["Meta Pixel", ...plans.map((plan) => planFeatures(plan.id).tracking)],
+      ["SEO מתקדם — אזור שירות ותמונת שיתוף", ...plans.map((plan) => planFeatures(plan.id).seo)],
+      ["גלריית קרוסלה", ...plans.map((plan) => planFeatures(plan.id).carousel)],
+      ["ייצוא הפניות לקובץ CSV", ...plans.map((plan) => planFeatures(plan.id).leadExport)],
+    ],
+  },
 ];
 
 function Value({ value }: { value: string | boolean }) {
   if (value === true) return <Check size={18} className="mx-auto text-[#0a9b81]" aria-label="כלול" />;
   if (value === false) return <Minus size={18} className="mx-auto text-[#9aa4b4]" aria-label="לא כלול" />;
-  return <>{value}</>;
+  return <span className="font-semibold text-[#33415c]">{value}</span>;
 }
 
 export default function PricingPage() {
@@ -43,27 +96,69 @@ export default function PricingPage() {
       <SiteHeader />
       <main>
         <section className="bg-[radial-gradient(circle_at_50%_0%,rgba(109, 74, 255,.18),transparent_43%),#f6f7fb] py-16 text-center sm:py-24">
-          <div className="container-shell"><span className="eyebrow">מחירים ברורים. ללא הפתעות.</span><h1 className="mt-5 text-4xl font-black tracking-[-0.05em] sm:text-6xl">המסלול שמתאים לעסק שלך.</h1><p className="mx-auto mt-4 max-w-2xl text-lg text-[#607087]">מתחילים ב‑{TRIAL_DAYS} ימי התנסות מלאים, ללא כרטיס אשראי. אפשר לשדרג, לשנות מסלול או לבטל בכל עת — והכרטיס שבניתם נשמר.</p></div>
-        </section>
-        <section className="py-14 sm:py-20">
-          <div className="container-shell grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-            {plans.map((plan) => (
-              <article key={plan.id} className={`card-surface relative flex flex-col p-6 ${plan.badge ? "border-[#6d4aff] ring-4 ring-[#6d4aff]/8" : ""}`}>
-                {plan.badge && <span className="absolute -top-3 right-5 rounded-full bg-[#6d4aff] px-3 py-1 text-xs font-bold text-white">{plan.badge}</span>}
-                <h2 className="text-xl font-extrabold">{plan.name}</h2><p className="mt-2 min-h-14 text-sm text-[#607087]">{plan.description}</p>
-                <p className="mt-4"><strong className="text-4xl">{formatCurrency(plan.price)}</strong><span className="text-sm text-[#6b778d]"> / לחודש</span></p>
-                <ul className="my-6 grid flex-1 gap-3 text-sm">{plan.features.map((feature) => <li key={feature} className="flex gap-2"><Check size={16} className="mt-0.5 shrink-0 text-[#0a9b81]" />{feature}</li>)}</ul>
-                <Link href={plan.id === "trial" ? "/signup" : `/signup?plan=${plan.id}`} className={plan.badge ? "button-primary w-full" : "button-secondary w-full"}>{plan.id === "trial" ? `התחלה — ${TRIAL_DAYS} ימים חינם` : "בחירת מסלול"}</Link>
-              </article>
-            ))}
+          <div className="container-shell">
+            <span className="eyebrow">מחירים ברורים. ללא הפתעות.</span>
+            <h1 className="mt-5 text-4xl font-black tracking-[-0.05em] sm:text-6xl">המסלול שמתאים לעסק שלך.</h1>
+            <p className="mx-auto mt-4 max-w-2xl text-lg text-[#607087]">
+              מתחילים ב‑{TRIAL_DAYS} ימי התנסות עם כל היכולות פתוחות, ללא כרטיס אשראי.
+              אפשר לשדרג, לשנות מסלול או לבטל בכל עת — והכרטיס שבניתם נשמר.
+            </p>
           </div>
         </section>
+
+        <section className="py-14 sm:py-20">
+          <div className="container-shell">
+            <BillingToggle />
+          </div>
+        </section>
+
         <section className="pb-20">
           <div className="container-shell card-surface table-scroll">
             <table className="w-full min-w-[760px] border-collapse text-center text-sm">
-              <caption className="px-6 py-6 text-right text-xl font-extrabold">מה כלול בכל מסלול<span className="mt-1 block text-sm font-medium text-[#68758a]">יכולת שאינה כלולה נשארת גלויה במערכת ונעולה — אפשר לשדרג בכל רגע ולפתוח אותה מיד.</span></caption>
-              <thead><tr className="border-y border-[#e5e9f1] bg-[#f8f9fc]"><th scope="col" className="p-4 text-right">יכולת</th>{plans.map((plan) => <th key={plan.id} scope="col" className="p-4">{plan.name}{plan.id === "trial" && <span className="mt-0.5 block text-[11px] font-normal text-[#6d4aff]">{TRIAL_DAYS} יום</span>}</th>)}</tr></thead>
-              <tbody>{rows.map(([label, ...values]) => <tr key={String(label)} className="border-b border-[#edf0f5]"><th scope="row" className="p-4 text-right font-medium">{label}</th>{values.map((value, index) => <td key={index} className="p-4 text-[#5f6d83]"><Value value={value as string | boolean} /></td>)}</tr>)}</tbody>
+              <caption className="px-6 py-6 text-right text-xl font-extrabold">
+                השוואה מלאה
+                <span className="mt-1 block text-sm font-medium text-[#68758a]">
+                  יכולת שאינה כלולה נשארת גלויה במערכת ונעולה — אפשר לשדרג בכל רגע ולפתוח אותה מיד.
+                </span>
+              </caption>
+
+              <thead>
+                <tr className="border-y border-[#e5e9f1] bg-[#f8f9fc]">
+                  <th scope="col" className="p-4 text-right">יכולת</th>
+                  {plans.map((plan) => (
+                    <th key={plan.id} scope="col" className="p-4">
+                      {plan.name}
+                      {plan.id === "trial" && (
+                        <span className="mt-0.5 block text-[11px] font-normal text-[#6d4aff]">{TRIAL_DAYS} יום חינם</span>
+                      )}
+                      {plan.badge && (
+                        <span className="mt-0.5 block text-[11px] font-normal text-[#6d4aff]">{plan.badge}</span>
+                      )}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+
+              {groups.map((group) => (
+                <tbody key={group.title}>
+                  <tr className="bg-[#fbfbfe]">
+                    <th scope="colgroup" colSpan={plans.length + 1} className="border-y border-[#edf0f5] p-3 text-right">
+                      <span className="text-sm font-extrabold text-[#4b3bad]">{group.title}</span>
+                      {group.note && <span className="mr-2 text-xs font-normal text-[#8b96a8]">{group.note}</span>}
+                    </th>
+                  </tr>
+                  {group.rows.map(([label, ...values]) => (
+                    <tr key={String(label)} className="border-b border-[#edf0f5]">
+                      <th scope="row" className="p-4 text-right font-medium">{label}</th>
+                      {values.map((value, index) => (
+                        <td key={index} className="p-4 text-[#5f6d83]">
+                          <Value value={value as string | boolean} />
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              ))}
             </table>
           </div>
         </section>

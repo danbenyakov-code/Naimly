@@ -2,9 +2,10 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { PublicCardClient } from "@/components/card/public-card-client";
 import { ThirdPartyTracking } from "@/components/card/third-party-tracking";
-import { brand } from "@/lib/config";
+import { brand, ogImage } from "@/lib/config";
 import { getPublicCard } from "@/lib/data";
 import { safeSrc } from "@/lib/safe-url";
+import { cardLocale, toCardLanguage } from "@/lib/card-i18n";
 
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const { slug } = await params;
@@ -13,8 +14,17 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const title = card.seoTitle || `${card.ownerName} — ${card.roleTitle}`;
   const description = card.seoDescription || card.bio;
   const socialImage = safeSrc(card.socialImageUrl);
-  const images = socialImage ? [{ url: socialImage, width: 1200, height: 630, alt: `כרטיס דיגיטלי של ${card.businessName}` }] : undefined;
-  return { title, description, alternates: { canonical: `/${card.slug}` }, robots: { index: card.allowIndexing, follow: card.allowIndexing }, openGraph: { title, description, type: "profile", locale: "he_IL", url: `/${card.slug}`, images }, twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((image) => image.url) } };
+  /*
+   * QA-011: כרטיס בלי תמונת שיתוף יצא לרשתות בלי תמונה כלל. כשאין תמונה
+   * ייעודית, תמונת המותג עדיפה על ריבוע ריק.
+   */
+  const images = socialImage
+    ? [{ url: socialImage, width: 1200, height: 630, alt: `כרטיס דיגיטלי של ${card.businessName}` }]
+    : [ogImage];
+  // QA-035: ה-locale נגזר משפת הכרטיס. locale קבוע היה מצהיר על עברית
+  // גם בכרטיס אנגלי, ומטעה כל מי שקורא את התגיות — רשתות וקוראי מסך.
+  const locale = cardLocale(toCardLanguage(card.language));
+  return { title, description, alternates: { canonical: `/${card.slug}` }, robots: { index: card.allowIndexing, follow: card.allowIndexing }, openGraph: { title, description, type: "profile", locale, url: `/${card.slug}`, images }, twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((image) => image.url) } };
 }
 
 export default async function PublicCardPage({ params }: { params: Promise<{ slug: string }> }) {

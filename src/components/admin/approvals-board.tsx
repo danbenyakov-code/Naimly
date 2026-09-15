@@ -6,6 +6,7 @@ import { AlertTriangle, Check, Copy, KeyRound, Loader2, MessageCircle, UserPlus,
 import type { AdminCustomer, PaymentRequestRecord } from "@/lib/admin-data";
 import type { PlanId } from "@/lib/types";
 import { planName } from "@/lib/plan-access";
+import { cycleMonths, LEGAL_VERSION_LABEL } from "@/lib/admin-labels";
 import { cn, formatCurrency } from "@/lib/utils";
 import { burst } from "@/lib/celebrate";
 
@@ -55,7 +56,11 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
   }
 
   async function review(request: PaymentRequestRecord, action: "approve" | "reject") {
-    const result = await call(`/api/admin/payment-requests/${request.id}`, "POST", { action, months: 1 }, request.id);
+    /*
+     * months לא נשלח: השרת גוזר אותו ממחזור החיוב שנשמר בבקשה. שליחת
+     * 1 קבוע מכאן הייתה מפעילה חודש אחד גם ללקוח ששילם על שנה.
+     */
+    const result = await call(`/api/admin/payment-requests/${request.id}`, "POST", { action }, request.id);
     if (!result) return;
     if (action === "approve") burst(undefined, { count: 80 });
     const trimmed = Array.isArray(result.trimmed) && result.trimmed.length ? ` הכרטיס הותאם למסלול: ${result.trimmed.join(", ")}.` : "";
@@ -138,12 +143,43 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
                 <span className="shrink-0 rounded-full bg-[#fff8e8] px-3 py-1 text-xs font-bold text-[#805100]">{statusLabels[request.status]}</span>
               </div>
 
+{/*
+                * מסך האישור הוא הרגע שבו המנהל מאשר שהכסף התקבל. כל מה
+                * שנדרש כדי לקשור העברה בביט לחשבון — הסכום המדויק,
+                * האסמכתא, הטלפון שממנו תגיע ההעברה והאימייל — מוצג כאן,
+                * ולא בטבלה אחרת שצריך לחפש.
+                */}
               <dl className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                 <Detail label="מסלול" value={planName(request.planId)} />
-                <Detail label="סכום" value={formatCurrency(request.amount)} />
+                <Detail
+                  label="סכום לגבייה"
+                  value={`${formatCurrency(request.amount)} · ${request.billingCycle === "annual" ? "שנתי" : "חודשי"}`}
+                />
                 <Detail label="אסמכתא" value={request.reference} mono />
                 <Detail label="נפתח" value={formatDate(request.createdAt)} />
+                <Detail label="אימייל" value={request.customerEmail || "—"} mono />
+                <Detail label="טלפון להעברה" value={request.contactPhone || "לא נמסר"} mono />
+                <Detail
+                  label="יופעל למשך"
+                  value={`${cycleMonths(request.billingCycle)} חודשים`}
+                />
+                <Detail
+                  label="אישור תנאים"
+                  value={
+                    request.termsAcceptedAt
+                      ? `${LEGAL_VERSION_LABEL(request.termsVersion)} · ${formatDate(request.termsAcceptedAt)}`
+                      : "לא תועד אישור"
+                  }
+                />
               </dl>
+
+              {/* אישור חסר או לנוסח ישן אינו עוצר את המנהל, אבל חייב להיראות. */}
+              {!request.termsAcceptedAt && (
+                <p className="mt-3 flex items-start gap-2 rounded-xl border border-[#f1d69a] bg-[#fff8e8] p-3 text-sm leading-6 text-[#805100]">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  לא נמצא תיעוד אישור תנאים ללקוח הזה. מומלץ לבדוק לפני הפעלת המסלול.
+                </p>
+              )}
 
               {request.note && <p className="mt-3 rounded-xl bg-[#f6f7fa] p-3 text-sm leading-6 text-[#5f6d83]">{request.note}</p>}
 

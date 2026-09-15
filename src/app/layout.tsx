@@ -3,7 +3,8 @@ import { Rubik } from "next/font/google";
 import "./globals.css";
 import { CookieConsent } from "@/components/cookie-consent";
 import { FloatingTools } from "@/components/floating-tools";
-import { brand } from "@/lib/config";
+import { brand, ogImage } from "@/lib/config";
+import { ConsentedAnalytics } from "@/components/consented-analytics";
 
 const rubik = Rubik({
   variable: "--font-rubik",
@@ -26,8 +27,8 @@ export const metadata: Metadata = {
   publisher: brand.name,
   category: "business",
   robots: { index: true, follow: true, googleBot: { index: true, follow: true, "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } },
-  openGraph: { type: "website", locale: "he_IL", url: "/", siteName: `${brand.name} | ${brand.hebrewName}`, title: `${brand.name} — ${brand.tagline}`, description: "כרטיס דיגיטלי חכם שהופך היכרות לפנייה, עם QR, WhatsApp, לידים ואנליטיקה." },
-  twitter: { card: "summary_large_image", title: `${brand.name} — ${brand.tagline}`, description: "כרטיס דיגיטלי חכם שהופך היכרות לפנייה." },
+  openGraph: { type: "website", locale: "he_IL", url: "/", siteName: `${brand.name} | ${brand.hebrewName}`, title: `${brand.name} — ${brand.tagline}`, description: "כרטיס דיגיטלי חכם שהופך היכרות לפנייה, עם QR, WhatsApp, לידים ואנליטיקה.", images: [ogImage] },
+  twitter: { card: "summary_large_image", title: `${brand.name} — ${brand.tagline}`, description: "כרטיס דיגיטלי חכם שהופך היכרות לפנייה.", images: [ogImage.url] },
   icons: { icon: "/icon.svg", shortcut: "/icon.svg", apple: "/icon.svg" },
   manifest: "/manifest.webmanifest",
 };
@@ -35,7 +36,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} h-full antialiased`}>
-      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /></body>
+      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /></body>
     </html>
   );
 }

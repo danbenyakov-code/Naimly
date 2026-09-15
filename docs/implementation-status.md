@@ -1,6 +1,13 @@
 # מצב היישום — מפת דרישות
 
-עדכון אחרון: 2026-09-07 · ענף `feat/unified-auth-contact-animations`
+עדכון אחרון: 2026-09-15 · ענף `feat/annual-pricing`
+
+> **מצב נוכחי:** כל 35 באגי ה-QA סגורים; REQ-001..REQ-024 ו-REQ-026 סגורים.
+> REQ-025 (שפת המערכת) ב-HOLD לפי החלטת בעל המערכת — ראו `docs/qa/DECISIONS.md`.
+>
+> חליפות: 400 יחידה · 109 E2E · 17 RLS · 55 אבטחה · Lighthouse 12/12.
+> הפירוט המלא ב-`docs/qa/NAIMLY_QA_FIX_REPORT.md`.
+
 
 ## הסטאק שאומת בפועל
 

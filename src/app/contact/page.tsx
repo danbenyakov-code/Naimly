@@ -3,13 +3,19 @@ import { Clock3, Mail, MessageCircle } from "lucide-react";
 import { ContactForm } from "@/components/contact/contact-form";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
-import { brand } from "@/lib/config";
+import { brand, ogImage } from "@/lib/config";
 import { whatsappTo } from "@/lib/payments";
+
+const contactDescription =
+  "שאלה, תקלה, בקשת הדרכה או רעיון לשיפור — כותבים לנו ואנחנו חוזרים תוך יום עסקים.";
 
 export const metadata: Metadata = {
   title: "צרו קשר",
-  description: "שאלה, תקלה, בקשת הדרכה או רעיון לשיפור — כותבים לנו ואנחנו חוזרים תוך יום עסקים.",
+  description: contactDescription,
   alternates: { canonical: "/contact" },
+  // QA-012: מטא ייעודי, כדי ששיתוף העמוד לא יציג את תיאור דף הבית.
+  openGraph: { title: "מדברים איתנו", description: contactDescription, url: "/contact", type: "website", images: [ogImage] },
+  twitter: { card: "summary_large_image", title: "מדברים איתנו", description: contactDescription, images: [ogImage.url] },
 };
 
 export default async function ContactPage({ searchParams }: { searchParams: Promise<{ topic?: string }> }) {

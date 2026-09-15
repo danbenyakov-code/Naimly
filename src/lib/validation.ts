@@ -3,6 +3,7 @@ import { isHttpUrl, isSameOriginAsset } from "@/lib/safe-url";
 import { isBackgroundId } from "@/lib/backgrounds";
 import { isIconId } from "@/lib/icons";
 import { blockedSlugMessage, isSlugAllowed } from "@/lib/slug-policy";
+import { cardTemplateIds } from "@/lib/card-templates";
 
 /** צבע hex בן 6 ספרות. */
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע תקין");
@@ -50,7 +51,22 @@ export const cardSchema = z.object({
   logoUrl: optionalUrl,
   logoShape: z.enum(["circle", "rounded", "square"]),
   logoPosition: z.enum(["right", "center", "left"]),
+  language: z.enum(["he", "en"]),
   videoUrl: optionalUrl,
+  videos: z.array(optionalUrl).max(4, "יותר מדי סרטונים"),
+  openingHours: z.array(z.object({
+    day: z.number().int().min(0).max(6),
+    closed: z.boolean(),
+    allDay: z.boolean(),
+    // "HH:MM" — נבדק כאורך ותוכן, לא כרגקס שקל לשבור בעריכה.
+    open: z.string().max(5),
+    close: z.string().max(5),
+  })).max(7, "שבעה ימים בשבוע"),
+  primaryCta: z.object({
+    type: z.enum(["whatsapp", "phone", "lead", "meeting"]),
+    label: z.string().max(60),
+    value: z.union([z.literal(""), httpUrl]),
+  }),
   gallery: z.array(httpUrl).max(100),
   files: z.array(z.object({ id: z.string().min(1).max(100), title: z.string().min(1).max(100), url: httpUrl, description: z.string().max(200).optional() })).max(30),
   primaryColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
@@ -59,7 +75,8 @@ export const cardSchema = z.object({
   headingColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   bodyTextColor: z.string().regex(/^#[0-9a-fA-F]{6}$/),
   backgroundPreset: z.string().max(60).refine(isBackgroundId, "הרקע שנבחר אינו קיים בספרייה"),
-  template: z.enum(["spotlight", "clean", "bold"]),
+  // הרשימה נגזרת מספריית התבניות, כדי שהוספת תבנית לא תידחה בשרת.
+  template: z.enum(cardTemplateIds as [string, ...string[]]),
   isPublished: z.boolean(),
   allowIndexing: z.boolean(),
   seoTitle: z.string().max(70),
@@ -75,7 +92,12 @@ export const cardSchema = z.object({
   socialLinks: z.array(z.object({ network: z.enum(["instagram", "facebook", "linkedin", "tiktok", "youtube", "x", "threads"]), url: httpUrl })).max(9),
   quickActions: z.array(z.object({
     id: z.string().min(1).max(100),
-    type: z.enum(["phone", "whatsapp", "email", "website", "waze", "google_maps", "save_contact", "instagram", "facebook", "linkedin", "tiktok", "youtube", "calendar"]),
+    type: z.enum([
+      "phone", "whatsapp", "sms", "email", "gmail", "website",
+      "waze", "google_maps", "calendar", "save_contact",
+      "instagram", "facebook", "messenger", "telegram", "x", "threads",
+      "linkedin", "tiktok", "youtube", "custom",
+    ]),
     label: z.string().min(1).max(30),
     value: z.string().max(500),
   }).superRefine((action, ctx) => {

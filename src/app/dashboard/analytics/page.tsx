@@ -1,15 +1,22 @@
 import { BarChart3, Eye, MessageSquareText, MousePointerClick, UserPlus } from "lucide-react";
-import { getAnalyticsSummary, getViewer } from "@/lib/data";
+import { getAnalyticsSummary, getDashboardCard, getUserCards, getViewer } from "@/lib/data";
 import { formatCompact } from "@/lib/utils";
 import { planName, resolveAccess } from "@/lib/plan-access";
 import { AnalyticsWindowNotice } from "@/components/dashboard/analytics-window-notice";
+import { BackButton } from "@/components/ui/back-button";
+import { CardSwitcher } from "@/components/dashboard/card-switcher";
+import { effectiveMaxCards } from "@/lib/plan-access";
 
 const actionLabels: Record<string, string> = { phone: "טלפון", whatsapp: "WhatsApp", whatsapp_primary: "WhatsApp ראשי", email: "אימייל", contact_save: "שמירת איש קשר", map: "ניווט", website: "אתר", share: "שיתוף" };
 
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ card?: string }> }) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const analytics = await getAnalyticsSummary(viewer);
+  const params = await searchParams;
+  const [selectedCard, cards] = await Promise.all([getDashboardCard(viewer, params.card), getUserCards(viewer)]);
+  const analytics = await getAnalyticsSummary(viewer, selectedCard.id);
+  const maxCards = effectiveMaxCards(viewer);
+  const selectedCardId = selectedCard.id;
   // חלון הנתונים נקבע לפי המסלול, ולכן הכותרות משקפות אותו במקום מספר קבוע.
   const access = resolveAccess(viewer);
   const analyticsDays = access.limits.analyticsDays;
@@ -24,7 +31,18 @@ export default async function AnalyticsPage() {
 
   return (
     <div className="mx-auto max-w-[1260px]">
-      <div><p className="text-sm font-bold text-[#6d4aff]">אנליטיקה</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">הביצועים של הכרטיס</h1><p className="mt-1 text-sm text-[#718096]">צפיות, פעולות ופניות ב־{windowLabel}.</p></div>
+      {/* REQ-011: מעבר בין כרטיסים בכל מסך, לא רק בעורך. */}
+      <CardSwitcher
+        cards={cards}
+        activeId={selectedCardId}
+        maxCards={maxCards}
+        planName={planName(access.plan)}
+        canAdd={maxCards > cards.length && !access.locked}
+        canBuy={!access.locked}
+        demo={viewer.demo}
+        basePath="/dashboard/analytics"
+      />
+      <div><BackButton fallback="/dashboard" ariaLabel="חזרה מהביצועים של הכרטיס למסך הקודם" className="mb-3" /><p className="text-sm font-bold text-[#6d4aff]">אנליטיקה</p><h1 className="mt-1 text-3xl font-black tracking-[-0.04em]">הביצועים של הכרטיס</h1><p className="mt-1 text-sm text-[#718096]">צפיות, פעולות ופניות ב־{windowLabel}.</p></div>
       <AnalyticsWindowNotice planLabel={planName(access.plan)} days={analyticsDays} />
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {metrics.map(({ label, value, icon: Icon, note }) => <article key={label} className="card-surface p-5"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Icon size={21} /></span><strong className="mt-4 block text-3xl tracking-tight">{value}</strong><span className="text-sm font-semibold">{label}</span><p className="mt-1 text-xs text-[#7d8899]">{note}</p></article>)}

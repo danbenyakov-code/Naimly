@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import { describe, it } from "node:test";
 import { PASSWORD_MIN_LENGTH, evaluatePassword, isStrongPassword, passwordRules } from "../src/lib/password.ts";
+import { cardStrings } from "../src/lib/card-i18n.ts";
 
 /**
  * בדיקות רגרסיה לקבוצה ג׳.
@@ -48,14 +49,20 @@ describe("QA-003 — טפסים שולחים ב-POST", () => {
 });
 
 describe("QA-004 — כותרת H1 בכרטיס הציבורי", () => {
-  it("שם בעל הכרטיס מוצג כ-H1 בתצוגה המלאה", () => {
+  /*
+   * הכותרת נבחרת דינמית מאז פירוק הכרטיס לרכיבים. הבדיקה עברה מהסימון
+   * לכלל עצמו — אותה התנהגות, בלי תלות באיך בדיוק נכתב ה-JSX.
+   */
+  it("שם בעל הכרטיס מוצג כ-H1 בתצוגה המלאה וכ-H2 במוקטנת", () => {
     const source = read("src/components/card/card-preview.tsx");
-    assert.match(source, /<h1[^>]*>\{card\.ownerName\}<\/h1>/, "בלי H1 אין כותרת ראשית לקורא מסך ול-SEO");
+    assert.match(source, /const Heading = compact \? "h2" : "h1"/, "בלי H1 אין כותרת ראשית לקורא מסך ול-SEO");
+    assert.match(source, /<Heading[^>]*>\s*\{card\.ownerName\}/);
   });
 
-  it("בתצוגה מוקטנת נשארת H2, כי היא רכיב בתוך עמוד אחר", () => {
-    const source = read("src/components/card/card-preview.tsx");
-    assert.match(source, /compact[\s\S]{0,120}<h2/);
+  it("אין כותרת ראשית נוספת במקטעים", () => {
+    // שני H1 באותו עמוד שוללים את המשמעות של הראשון.
+    const sections = read("src/components/card/sections/card-sections.tsx");
+    assert.ok(!sections.includes("<h1"), "מקטע אינו רשאי לשאת H1");
   });
 });
 
@@ -142,8 +149,10 @@ describe("QA-008 — טופס הלידים אינו נשען על ולידציה
   });
 
   it("הודעות השגיאה בעברית ומסבירות כיצד לתקן", () => {
-    assert.match(source, /לדוגמה: name@example\.com/);
-    assert.match(source, /יש להזין מספר מלא/);
+    // QA-035: ההודעות עברו למילון הכרטיס, שהוא עכשיו מקור האמת שלהן.
+    const he = cardStrings("he");
+    assert.ok(he.invalidEmail("אימייל").includes("לדוגמה: name@example.com"));
+    assert.ok(he.invalidPhone("טלפון").includes("יש להזין מספר מלא"));
   });
 
   it("המיקוד עובר לסיכום אחרי כשל, מתוך useEffect", () => {
@@ -159,8 +168,7 @@ describe("REQ-001 — כשל אינו מאפס את הטופס", () => {
   });
 
   it("ההודעה מבהירה שהפרטים נשמרו", () => {
-    const source = read("src/components/card/public-card-client.tsx");
-    assert.match(source, /הפרטים שהזנת נשארו בטופס/);
+    assert.ok(cardStrings("he").genericError.includes("הפרטים שהזנת נשארו בטופס"));
   });
 });
 

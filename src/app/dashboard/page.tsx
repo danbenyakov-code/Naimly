@@ -1,27 +1,50 @@
 import Link from "next/link";
 import { ArrowLeft, BarChart3, Clock3, Eye, MessageSquareText, MousePointerClick, QrCode, Sparkles, UserPlus } from "lucide-react";
-import { getAnalyticsSummary, getDashboardCard, getViewer } from "@/lib/data";
+import { getAnalyticsSummary, getDashboardCard, getUserCards, getViewer } from "@/lib/data";
 import { formatCompact } from "@/lib/utils";
-import { resolveAccess } from "@/lib/plan-access";
+import { effectiveMaxCards, planName, resolveAccess } from "@/lib/plan-access";
 import { TrialTimer } from "@/components/trial-timer";
 import { LockedOverlay } from "@/components/dashboard/locked-overlay";
 import { PlanSummaryCard } from "@/components/dashboard/plan-summary-card";
+import { CardSwitcher } from "@/components/dashboard/card-switcher";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ card?: string }> }) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const [card, analytics] = await Promise.all([getDashboardCard(viewer), getAnalyticsSummary(viewer)]);
+  const params = await searchParams;
+  const [card, cards] = await Promise.all([getDashboardCard(viewer, params.card), getUserCards(viewer)]);
+  const analytics = await getAnalyticsSummary(viewer, card.id);
   const access = resolveAccess(viewer);
+  const maxCards = effectiveMaxCards(viewer);
+  const selectedCardId = card.id;
   const trial = access.trial;
+  /*
+   * QA-017: כאן הוצגו מגמות קבועות בקוד — "+18%", "+12%" — ליד נתונים
+   * אמיתיים, כולל אפסים. חשבון חדש בלי פעילות הציג "עלייה של 18%"
+   * מול אפס צפיות. מדד שלא נמדד לא מוצג.
+   *
+   * המגמה תחזור כשיהיה חלון השוואה אמיתי; עד אז מוצג נפח הנתונים.
+   */
   const stats = [
-    { label: "צפיות ב‑30 יום", value: formatCompact(analytics.views), icon: Eye, change: "+18%" },
-    { label: "לחיצות", value: formatCompact(analytics.clicks), icon: MousePointerClick, change: "+12%" },
-    { label: "פניות חדשות", value: analytics.leads.toString(), icon: MessageSquareText, change: "+7" },
-    { label: "שמירת איש קשר", value: analytics.contactSaves.toString(), icon: UserPlus, change: "+9%" },
+    { label: "צפיות ב‑30 יום", value: formatCompact(analytics.views), icon: Eye, raw: analytics.views },
+    { label: "לחיצות", value: formatCompact(analytics.clicks), icon: MousePointerClick, raw: analytics.clicks },
+    { label: "פניות חדשות", value: analytics.leads.toString(), icon: MessageSquareText, raw: analytics.leads },
+    { label: "שמירת איש קשר", value: analytics.contactSaves.toString(), icon: UserPlus, raw: analytics.contactSaves },
   ];
 
   return (
     <div className="mx-auto max-w-[1260px]">
+      {/* REQ-011: מעבר בין כרטיסים בכל מסך, לא רק בעורך. */}
+      <CardSwitcher
+        cards={cards}
+        activeId={selectedCardId}
+        maxCards={maxCards}
+        planName={planName(access.plan)}
+        canAdd={maxCards > cards.length && !access.locked}
+        canBuy={!access.locked}
+        demo={viewer.demo}
+        basePath="/dashboard"
+      />
       {viewer.demo && <div className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#d8d0ff] bg-[#f3f0ff] p-4 text-sm text-[#4636a6] sm:flex-row sm:items-center"><span><strong>מצב הדגמה:</strong> כל המסכים פעילים עם נתוני דוגמה. חיבור Supabase יפעיל חשבונות ונתונים אמיתיים.</span><Link href="/dashboard/settings" className="font-bold underline underline-offset-4">פרטי החיבור</Link></div>}
       {access.locked
         ? <div className="mb-5"><LockedOverlay reason={access.reason} /></div>
@@ -36,7 +59,7 @@ export default async function DashboardPage() {
       </div>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="מדדים מרכזיים">
-        {stats.map(({ label, value, icon: Icon, change }) => <article key={label} className="card-surface p-5"><div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Icon size={21} /></span><span className="rounded-full bg-[#e9fbf7] px-2 py-1 text-[11px] font-bold text-[#08735f]">{change}</span></div><strong className="mt-4 block text-3xl tracking-tight">{value}</strong><span className="text-sm text-[#718096]">{label}</span></article>)}
+        {stats.map(({ label, value, icon: Icon, raw }) => <article key={label} className="card-surface p-5"><div className="flex items-start justify-between"><span className="grid h-11 w-11 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Icon size={21} /></span>{raw === 0 && <span className="rounded-full bg-[#f1f3f7] px-2 py-1 text-[11px] font-bold text-[#7c8799]">אין מספיק נתונים</span>}</div><strong className="mt-4 block text-3xl tracking-tight">{value}</strong><span className="text-sm text-[#718096]">{label}</span></article>)}
       </section>
 
       <div className="mt-6"><PlanSummaryCard plan={access.plan} locked={access.locked} galleryUsed={card.gallery.length} quickActionsUsed={card.quickActions.length} /></div>

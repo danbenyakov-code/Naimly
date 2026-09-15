@@ -6,15 +6,16 @@ import type { PlanId } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { cardSchema, missingForPublish } from "@/lib/validation";
 import { cardToDatabaseRow } from "@/lib/card-row";
-import { lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
+import { effectiveMaxCards, lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
+import { requiresLegalReAcceptance } from "@/lib/legal";
 
 /** תווית קריאה לכל שדה, כדי שהשגיאה תגיד "תמונת שיתוף" ולא "socialImageUrl". */
 const fieldLabels: Record<string, string> = {
   businessName: "שם העסק", ownerName: "שם מלא", slug: "כתובת הכרטיס",
   phone: "טלפון", whatsapp: "וואטסאפ", email: "אימייל", website: "אתר",
   avatarUrl: "תמונת פרופיל", coverUrl: "תמונת קאבר", logoUrl: "לוגו",
-  videoUrl: "קישור לסרטון", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
+  videoUrl: "קישור לסרטון", videos: "סרטונים", openingHours: "שעות פעילות", socialImageUrl: "תמונת שיתוף", gallery: "גלריה",
   files: "קבצים", socialLinks: "רשתות חברתיות", quickActions: "פעולות מהירות",
   smartButtons: "כפתורים חכמים", seoTitle: "כותרת SEO", seoDescription: "תיאור SEO",
   areaServed: "אזור שירות", tracking: "מדידה", cardAddress: "כתובת",
@@ -23,6 +24,19 @@ const fieldLabels: Record<string, string> = {
 export async function POST(request: Request) {
   const viewer = await getViewer();
   if (!viewer) return NextResponse.json({ error: "נדרשת התחברות" }, { status: 401 });
+
+  /*
+   * אותה חסימה כמו בשער הכניסה, גם כאן. חסימה בממשק בלבד היא הצגה:
+   * בקשה ישירה ל-API הייתה עוקפת אותה ומאפשרת להמשיך לעבוד תחת נוסח
+   * שלא אושר.
+   */
+  if (!viewer.demo && requiresLegalReAcceptance(viewer.termsVersion)) {
+    return NextResponse.json({
+      error: "פורסם נוסח מעודכן של תנאי השימוש. יש לאשר אותו לפני שמירת שינויים.",
+      reason: "terms_outdated",
+      acceptUrl: "/legal/accept",
+    }, { status: 403 });
+  }
 
   const access = resolveAccess(viewer);
   if (access.locked) {
@@ -69,8 +83,23 @@ export async function POST(request: Request) {
   if (parsed.data.quickActions.length > limits.quickActions || parsed.data.quickActionsLimit > limits.quickActions) {
     return denied(`במסלול ${currentPlanName} ניתן להציג עד ${limits.quickActions} פעולות מהירות`, requiredPlanForLimit("quickActions", Math.max(parsed.data.quickActions.length, parsed.data.quickActionsLimit)), "quickActions");
   }
+  /*
+   * מכסת הסרטונים נאכפת גם כאן ולא רק במסד: השכבה הזו מחזירה הודעה
+   * שאומרת לאיזה מסלול לשדרג, בעוד המסד רק דוחה.
+   */
+  const requestedVideos = parsed.data.videos.filter(Boolean);
+  if (!features.video && (requestedVideos.length > 0 || parsed.data.videoUrl)) {
+    return denied("וידג׳ט הסרטון זמין במסלול מקצועי ומעלה", requiredPlanForFeature("video"), "video");
+  }
+  if (requestedVideos.length > limits.videos) {
+    return denied(`במסלול ${currentPlanName} ניתן להוסיף עד ${limits.videos} ${limits.videos === 1 ? "סרטון" : "סרטונים"}`, requiredPlanForLimit("videos", requestedVideos.length), "video");
+  }
+
   if (!features.tracking && Object.values(parsed.data.tracking).some(Boolean)) {
     return denied("חיבור Meta Pixel ו‑Google Analytics זמין במסלול מקצועי ומעלה", requiredPlanForFeature("tracking"), "tracking");
+  }
+  if (!features.hours && parsed.data.openingHours.length > 0) {
+    return denied("שעות פעילות זמינות במסלול מקצועי ומעלה", requiredPlanForFeature("hours"), "hours");
   }
   if (!features.seo && (parsed.data.areaServed || parsed.data.socialImageUrl)) {
     return denied("אזור שירות ותמונת שיתוף מותאמת זמינים במסלול מקצועי ומעלה", requiredPlanForFeature("seo"), "seo");
@@ -109,7 +138,8 @@ export async function POST(request: Request) {
   const row = cardToDatabaseRow(parsed.data, viewer.id);
   if (!parsed.data.id) {
     const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("user_id", viewer.id);
-    if ((count || 0) >= limits.cards) return denied(`המסלול ${currentPlanName} מאפשר עד ${limits.cards} כרטיסים`, requiredPlanForLimit("cards", (count || 0) + 1), "cards");
+    const maxCards = effectiveMaxCards(viewer);
+    if ((count || 0) >= maxCards) return denied(`החשבון שלך מאפשר עד ${maxCards} כרטיסים`, requiredPlanForLimit("cards", (count || 0) + 1), "cards");
   }
   const query = parsed.data.id
     ? supabase.from("cards").update(row).eq("id", parsed.data.id).eq("user_id", viewer.id).select("id,slug").single()

@@ -1,4 +1,4 @@
-import { billing, brand } from "@/lib/config";
+import { billing, brand, cycleAmount, type BillingCycle } from "@/lib/config";
 import type { Plan, Viewer } from "@/lib/types";
 
 /**
@@ -13,6 +13,7 @@ export type PaymentRequest = {
   userId: string;
   planId: Plan["id"];
   amount: number;
+  billingCycle: BillingCycle;
   status: "pending" | "approved" | "rejected" | "canceled";
   createdAt: string;
 };
@@ -24,26 +25,84 @@ export function buildReference(userId: string, planId: string) {
   return `${planId.slice(0, 2).toUpperCase()}-${suffix}-${stamp}`;
 }
 
-export function paymentMessage(input: { plan: Plan; viewer: Pick<Viewer, "email" | "fullName">; reference: string; renewal?: boolean }) {
+type MessageInput = {
+  plan: Plan;
+  viewer: Pick<Viewer, "email" | "fullName">;
+  reference: string;
+  renewal?: boolean;
+  cycle?: BillingCycle;
+  /** טלפון שהלקוח מסר בטופס, אם מסר. */
+  phone?: string;
+  /** גרסת המסמכים שאושרה, לתיעוד בתוך ההודעה עצמה. */
+  termsVersion?: string;
+  /** מועד האישור, בפורמט ISO. */
+  acceptedAt?: string;
+};
+
+/** תאריך קריא בעברית, לפי שעון ישראל. */
+function formatStamp(value?: string) {
+  if (!value) return "";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "";
+  return date.toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" });
+}
+
+/**
+ * ההודעה שנפתחת בוואטסאפ מול מספר החיוב.
+ *
+ * ההודעה היא המסמך היחיד ששני הצדדים רואים ברגע התשלום, ולכן היא
+ * מכילה את מלוא הפרטים: מי משלם, על מה, כמה, באיזה מחזור, לפי איזו
+ * אסמכתא ותחת איזו גרסת תקנון. בלי זה המנהל מקבל העברה בביט ואין לו
+ * דרך לקשור אותה לחשבון — וזו בדיוק התקלה שמגיעה אחרי שהכסף עבר.
+ */
+export function paymentMessage(input: MessageInput) {
   const { plan, viewer, reference, renewal } = input;
+  const cycle = input.cycle || "monthly";
+  const amount = cycleAmount(plan.price, cycle);
+  const accepted = formatStamp(input.acceptedAt);
+
+  /*
+   * הסכום בהודעה הוא הסכום שייגבה בפועל. לקוח ששילם על שנה וקיבל
+   * הודעה עם המחיר החודשי היה מעביר את הסכום הלא נכון.
+   */
   const lines = [
     `שלום ${brand.name}, אני רוצה ${renewal ? "לחדש" : "להפעיל"} מסלול ${plan.name}.`,
     "",
-    `סכום: ${plan.price} ש״ח לחודש`,
-    `אימייל בחשבון: ${viewer.email}`,
-    `שם: ${viewer.fullName}`,
+    "── פרטי ההזמנה ──",
+    `מסלול: ${plan.name}`,
+    `מחזור חיוב: ${cycle === "annual" ? "שנתי — תשלום מראש ל-12 חודשים" : "חודשי מתחדש"}`,
+    cycle === "annual"
+      ? `סכום לתשלום: ${amount} ש״ח לשנה (כולל מע״מ)`
+      : `סכום לתשלום: ${amount} ש״ח לחודש (כולל מע״מ)`,
     `מספר אסמכתא: ${reference}`,
+    "",
+    "── פרטי המזמין ──",
+    `שם: ${viewer.fullName}`,
+    `אימייל בחשבון: ${viewer.email}`,
   ];
-  if (billing.bitPhone) {
-    lines.push("", `אשלח את התשלום בביט למספר ${billing.bitPhone} (${billing.bitDisplayName}) ואצרף צילום מסך.`);
-  } else {
-    lines.push("", "אשמח לקבל את פרטי התשלום בביט.");
+
+  if (input.phone) lines.push(`טלפון: ${input.phone}`);
+
+  if (input.termsVersion) {
+    lines.push(
+      "",
+      "── אישור תנאים ──",
+      `אישרתי את תנאי השימוש ומדיניות הפרטיות, גרסה ${input.termsVersion}${accepted ? ` (${accepted})` : ""}.`,
+    );
   }
+
+  lines.push("", "── תשלום ──");
+  if (billing.bitPhone) {
+    lines.push(`אשלח את התשלום בביט למספר ${billing.bitPhone} (${billing.bitDisplayName}) ואצרף צילום מסך.`);
+  } else {
+    lines.push("אשמח לקבל את פרטי התשלום בביט.");
+  }
+
   return lines.join("\n");
 }
 
 /** קישור וואטסאפ מוכן עם ההודעה. מחזיר "" כשמספר החיוב לא הוגדר. */
-export function whatsappPaymentLink(input: { plan: Plan; viewer: Pick<Viewer, "email" | "fullName">; reference: string; renewal?: boolean }) {
+export function whatsappPaymentLink(input: MessageInput) {
   if (!billing.whatsappNumber) return "";
   return `https://wa.me/${billing.whatsappNumber}?text=${encodeURIComponent(paymentMessage(input))}`;
 }

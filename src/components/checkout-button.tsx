@@ -6,6 +6,8 @@ import { ArrowLeft, Check, Copy, Loader2, MessageCircle, ShieldCheck } from "luc
 import type { PlanId } from "@/lib/types";
 import { fireworks } from "@/lib/celebrate";
 import { legalDocuments } from "@/lib/legal";
+import type { BillingCycle } from "@/lib/config";
+import { LegalLink } from "@/components/legal/legal-dialog";
 
 type Opened = { reference: string; whatsappUrl: string; bitPhone: string; reused?: boolean };
 
@@ -13,7 +15,18 @@ type Opened = { reference: string; whatsappUrl: string; bitPhone: string; reused
  * אין סליקה באתר. הכפתור פותח בקשת תשלום עם אסמכתא, ומעביר לוואטסאפ
  * כדי להשלים את ההעברה בביט מול העסק. ההפעלה מתבצעת לאחר אישור מנהל.
  */
-export function CheckoutButton({ planId, planName, price }: { planId: PlanId; planName: string; price: number }) {
+export function CheckoutButton({
+  planId,
+  planName,
+  price,
+  cycle = "monthly",
+}: {
+  planId: PlanId | "extra_card";
+  planName: string;
+  /** הסכום שייגבה בפועל למחזור הנבחר, כפי שחושב בשרת. */
+  price: number;
+  cycle?: BillingCycle;
+}) {
   const [accepted, setAccepted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -30,7 +43,7 @@ export function CheckoutButton({ planId, planName, price }: { planId: PlanId; pl
       const response = await fetch("/api/payments/request", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ planId, phone: phone.trim() || undefined }),
+        body: JSON.stringify({ planId, cycle, phone: phone.trim() || undefined }),
       });
       const result = await response.json();
       if (!response.ok) throw new Error(result.error || "לא הצלחנו לפתוח את בקשת התשלום");
@@ -119,11 +132,12 @@ export function CheckoutButton({ planId, planName, price }: { planId: PlanId; pl
           קראתי ואני מאשר/ת את{" "}
           {legalDocuments.map((doc, index) => (
             <span key={doc.id}>
-              <Link href={doc.href} target="_blank" className="font-bold text-[#6d4aff] underline underline-offset-2">{doc.title}</Link>
+              {/* REQ-016: חלונית ולא לשונית חדשה. */}
+              <LegalLink docId={doc.id}>{doc.title}</LegalLink>
               {index < legalDocuments.length - 2 ? ", " : index === legalDocuments.length - 2 ? " ו" : ""}
             </span>
           ))}
-          , ואני מודע/ת לכך שהמנוי מתחדש אוטומטית עד לביטולו.
+          , ואני מודע/ת לכך שהמנוי מתחדש אוטומטית {cycle === "annual" ? "מדי שנה" : "מדי חודש"} עד לביטולו.
         </span>
       </label>
 

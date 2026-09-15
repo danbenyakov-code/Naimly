@@ -5,50 +5,44 @@ import { ChevronLeft, ChevronRight, Quote, Star } from "lucide-react";
 import { CountUp, Reveal } from "@/components/ui/reveal";
 import { Portrait, type PortraitId } from "@/components/marketing/portrait";
 import { cn } from "@/lib/utils";
+import { backgroundPresets } from "@/lib/backgrounds";
+import { TRIAL_DAYS } from "@/lib/plan-access";
 
 /**
- * המלצות לקוחות. התוכן כאן הוא דוגמה לצורך העיצוב — יש להחליף בהמלצות
- * אמיתיות עם אישור הלקוחות לפני ההשקה.
+ * המלצות ונתונים בדף הבית.
+ *
+ * QA-002: כאן הוצגו ארבע המלצות עם שמות ותפקידים, ושלושה נתונים —
+ * "1,200+ כרטיסים פעילים", "94% ממשיכים" ו-"15 דק׳ הקמה" — שכולם
+ * הומצאו לצורך העיצוב. הצגת נתון מסחרי שלא נמדד ועדות של אדם שאינו
+ * לקוח היא הטעיה לפי חוק הגנת הצרכן, ולא בעיית תוכן.
+ *
+ * הרישיון השיווקי שבתנאי השימוש מתיר שימוש בשם ובהמלצה של לקוח —
+ * הוא אינו יכול להכשיר המצאה של לקוח שאינו קיים.
+ *
+ * לכן הרשימה ריקה, והמקטע מציג נתונים שניתן לאמת מול המוצר עצמו.
+ * כשיהיו המלצות אמיתיות יש להוסיף אותן כאן; הקרוסלה תופיע מאליה.
  */
-const testimonials = [
-  {
-    name: "נועה כהן",
-    role: "מיתוג ועיצוב לעסקים",
-    portrait: "noa" as PortraitId,
-    rating: 5,
-    text: "תוך רבע שעה היה לי כרטיס שנראה יותר טוב מהאתר שלי. מאז כל פגישה מסתיימת בסריקה של ה‑QR, ואני רואה בדיוק מי חזר אליי.",
-    highlight: "פי 3 יותר פניות מהטלפון",
-  },
-  {
-    name: "איתי ברק",
-    role: "יועץ משכנתאות",
-    portrait: "amir" as PortraitId,
-    rating: 5,
-    text: "הכי אהבתי שאני מעדכן מחיר או שירות והקישור נשאר אותו קישור. לא צריך להדפיס כרטיסים מחדש בכל שינוי.",
-    highlight: "חסך לי הדפסות בכל רבעון",
-  },
-  {
-    name: "מאיה עזר",
-    role: "סטודיו לפילאטיס",
-    portrait: "maya" as PortraitId,
-    rating: 5,
-    text: "הטופס בכרטיס מביא לי לידים גם כשאני באימון. הכול מגיע מסודר לאזור האישי ואני חוזרת אליהם בערב.",
-    highlight: "לידים גם בשעות שאני לא זמינה",
-  },
-  {
-    name: "רוני שלו",
-    role: "קבלן שיפוצים",
-    portrait: "roni" as PortraitId,
-    rating: 5,
-    text: "אני לא איש מחשבים בכלל. בניתי את הכרטיס לבד מהנייד, בלי שאף אחד יעזור לי. זה באמת פשוט.",
-    highlight: "נבנה לגמרי מהנייד",
-  },
-];
+type Testimonial = {
+  name: string;
+  role: string;
+  portrait: PortraitId;
+  rating: number;
+  text: string;
+  highlight: string;
+};
 
+const testimonials: Testimonial[] = [];
+
+/**
+ * נתונים שנגזרים מהמוצר ולא מהערכה שיווקית.
+ *
+ * מספר הרקעים נספר מהספרייה בפועל, וימי ההתנסות מגיעים מאותו קבוע
+ * שאוכף את התקופה. נתון שלא ניתן לגזור — אין לו מקום כאן.
+ */
 const stats = [
-  { value: 1200, suffix: "+", label: "כרטיסים פעילים" },
-  { value: 94, suffix: "%", label: "ממשיכים אחרי ההתנסות" },
-  { value: 15, suffix: " דק׳", label: "זמן הקמה ממוצע" },
+  { value: TRIAL_DAYS, suffix: "", label: "ימי התנסות עם כל היכולות פתוחות" },
+  { value: 0, suffix: " ₪", label: "להתחלה — ללא כרטיס אשראי" },
+  { value: backgroundPresets.length, suffix: "", label: "רקעים מוכנים לבחירה" },
 ];
 
 export function Testimonials() {
@@ -60,9 +54,9 @@ export function Testimonials() {
     <section id="testimonials" className="scroll-mt-20 py-16 sm:py-24">
       <div className="container-shell">
         <Reveal className="text-center">
-          <span className="eyebrow">לקוחות מספרים</span>
+          <span className="eyebrow">{testimonials.length ? "לקוחות מספרים" : "למה להתחיל כאן"}</span>
           <h2 className="mx-auto mt-5 max-w-2xl text-3xl font-black leading-[1.15] tracking-[-0.05em] sm:text-5xl">
-            עסקים שכבר עברו לכרטיס חכם.
+            {testimonials.length ? "עסקים שכבר עברו לכרטיס חכם." : "מתחילים בלי התחייבות ובלי כרטיס אשראי."}
           </h2>
         </Reveal>
 
@@ -83,7 +77,8 @@ export function Testimonials() {
           </dl>
         </Reveal>
 
-        {/* קרוסלה בנייד, רשת במסך רחב */}
+        {/* הקרוסלה מופיעה רק כשיש המלצות אמיתיות להציג. */}
+        {testimonials.length > 0 && (
         <div className="mt-10">
           <div className="grid gap-4 lg:grid-cols-2 xl:grid-cols-4">
             {testimonials.map((item, position) => (
@@ -139,6 +134,7 @@ export function Testimonials() {
             </button>
           </div>
         </div>
+        )}
       </div>
     </section>
   );

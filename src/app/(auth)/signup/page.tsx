@@ -3,12 +3,15 @@ import Link from "next/link";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { AuthForm } from "@/components/auth/auth-form";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { toBillingCycle } from "@/lib/config";
 
 export const metadata: Metadata = { title: "פתיחת חשבון", robots: { index: false, follow: false } };
 
-export default async function Page({ searchParams }: { searchParams: Promise<{ mode?: string; plan?: string; next?: string; error?: string; message?: string }> }) {
+export default async function Page({ searchParams }: { searchParams: Promise<{ mode?: string; plan?: string; cycle?: string; next?: string; error?: string; message?: string }> }) {
   const params = await searchParams;
   const plan = ["basic", "pro", "premium"].includes(params.plan || "") ? params.plan! : "";
+  // מחזור החיוב שנבחר במחירון ממשיך איתו דרך ההרשמה אל התשלום.
+  const cycle = toBillingCycle(params.cycle);
   const mode = params.mode === "signup" ? "signup" : params.mode === "forgot" ? "forgot" : "signup";
 
   return (
@@ -31,7 +34,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ m
         <div role="status" className="mb-5 rounded-xl border border-[#b7e6d8] bg-[#effcf8] p-3 text-sm text-[#08735f]">{params.message}</div>
       )}
 
-      <AuthForm initialMode={mode} plan={plan} next={params.next || ""} />
+      <AuthForm initialMode={mode} plan={plan} cycle={cycle} next={params.next || ""} />
     </AuthShell>
   );
 }
