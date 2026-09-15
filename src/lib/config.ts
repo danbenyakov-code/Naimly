@@ -153,6 +153,38 @@ export const plans: Plan[] = [
   },
 ];
 
+/**
+ * מחיר כרטיס נוסף, לחודש (REQ-011).
+ *
+ * מתומחר כמו מסלול בסיסי: כרטיס שני הוא כרטיס מלא לכל דבר, ותמחור
+ * נמוך ממנו היה הופך אותו לדרך זולה לעקוף את המסלול.
+ */
+export const EXTRA_CARD_PRICE = 29;
+
+/**
+ * "כרטיס נוסף" כפריט לרכישה.
+ *
+ * אינו מסלול ואינו מופיע ב-plans — לקוח לא אמור לראות אותו בעמוד
+ * המחירים כאילו היה חלופה למסלול. הוא עובר באותו צינור תשלום כדי לא
+ * להכפיל את הלוגיקה ואת מקומות הכשל.
+ */
+export const extraCardProduct = {
+  id: "extra_card" as const,
+  name: "כרטיס נוסף",
+  price: EXTRA_CARD_PRICE,
+  description: "כרטיס דיגיטלי נוסף תחת אותו חשבון, עם כתובת, QR ופניות משלו.",
+  features: [
+    "כרטיס מלא נוסף עם כתובת וקוד QR משלו",
+    "פניות ונתונים נפרדים לכל כרטיס",
+    "מעבר בין הכרטיסים מכל מסך באזור האישי",
+    "מכסות התוכן נגזרות מהמסלול שלך",
+  ],
+};
+
+export function isExtraCard(value: unknown): boolean {
+  return value === extraCardProduct.id;
+}
+
 export const marketingNav = [
   { label: "איך זה עובד", href: "/#how-it-works" },
   { label: "דוגמה חיה", href: "/noa-design" },

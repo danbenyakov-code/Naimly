@@ -1,17 +1,22 @@
 import Link from "next/link";
 import { ArrowLeft, BarChart3, Clock3, Eye, MessageSquareText, MousePointerClick, QrCode, Sparkles, UserPlus } from "lucide-react";
-import { getAnalyticsSummary, getDashboardCard, getViewer } from "@/lib/data";
+import { getAnalyticsSummary, getDashboardCard, getUserCards, getViewer } from "@/lib/data";
 import { formatCompact } from "@/lib/utils";
-import { resolveAccess } from "@/lib/plan-access";
+import { effectiveMaxCards, planName, resolveAccess } from "@/lib/plan-access";
 import { TrialTimer } from "@/components/trial-timer";
 import { LockedOverlay } from "@/components/dashboard/locked-overlay";
 import { PlanSummaryCard } from "@/components/dashboard/plan-summary-card";
+import { CardSwitcher } from "@/components/dashboard/card-switcher";
 
-export default async function DashboardPage() {
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ card?: string }> }) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const [card, analytics] = await Promise.all([getDashboardCard(viewer), getAnalyticsSummary(viewer)]);
+  const params = await searchParams;
+  const [card, cards] = await Promise.all([getDashboardCard(viewer, params.card), getUserCards(viewer)]);
+  const analytics = await getAnalyticsSummary(viewer, card.id);
   const access = resolveAccess(viewer);
+  const maxCards = effectiveMaxCards(viewer);
+  const selectedCardId = card.id;
   const trial = access.trial;
   /*
    * QA-017: כאן הוצגו מגמות קבועות בקוד — "+18%", "+12%" — ליד נתונים
@@ -29,6 +34,17 @@ export default async function DashboardPage() {
 
   return (
     <div className="mx-auto max-w-[1260px]">
+      {/* REQ-011: מעבר בין כרטיסים בכל מסך, לא רק בעורך. */}
+      <CardSwitcher
+        cards={cards}
+        activeId={selectedCardId}
+        maxCards={maxCards}
+        planName={planName(access.plan)}
+        canAdd={maxCards > cards.length && !access.locked}
+        canBuy={!access.locked}
+        demo={viewer.demo}
+        basePath="/dashboard"
+      />
       {viewer.demo && <div className="mb-5 flex flex-col justify-between gap-3 rounded-2xl border border-[#d8d0ff] bg-[#f3f0ff] p-4 text-sm text-[#4636a6] sm:flex-row sm:items-center"><span><strong>מצב הדגמה:</strong> כל המסכים פעילים עם נתוני דוגמה. חיבור Supabase יפעיל חשבונות ונתונים אמיתיים.</span><Link href="/dashboard/settings" className="font-bold underline underline-offset-4">פרטי החיבור</Link></div>}
       {access.locked
         ? <div className="mb-5"><LockedOverlay reason={access.reason} /></div>

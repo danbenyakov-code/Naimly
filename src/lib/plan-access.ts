@@ -91,6 +91,16 @@ export function requiredPlanForLimit(limit: "galleryItems" | "quickActions" | "a
   return paidPlanOrder.find((planId) => planLimits(planId)[limit] >= amount) || "premium";
 }
 
+/**
+ * מכסת הכרטיסים בפועל: זכאות המסלול ועוד מה שנרכש (REQ-011).
+ *
+ * הסכום ולא המקסימום: שדרוג מסלול אינו מבטל רכישה, ושנמוך אינו מוחק
+ * כרטיס ששולם עליו. חייב להישאר תואם ל-effective_max_cards במסד.
+ */
+export function effectiveMaxCards(viewer: Pick<Viewer, "plan" | "subscriptionStatus" | "trialEndsAt" | "trialPending" | "planSelectedAt" | "extraCards">): number {
+  return resolveAccess(viewer).limits.cards + (viewer.extraCards || 0);
+}
+
 export function isUpgrade(from: PlanId, to: PlanId) {
   return planOrder.indexOf(to) > planOrder.indexOf(from);
 }

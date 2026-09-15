@@ -261,16 +261,61 @@ describe("REQ-011 — כרטיס נוסף", () => {
     assert.equal(planLimits("trial").cards, 1);
   });
 
-  it("קיים בורר כרטיסים", () => {
+  it("קיים בורר כרטיסים בכל מסך", () => {
     const switcher = read("src/components/dashboard/card-switcher.tsx");
     assert.ok(switcher.includes("aria-pressed={active}"));
     // הבחירה נשמרת ב-URL כדי שרענון וכפתור חזרה יחזירו את אותו כרטיס.
-    assert.ok(switcher.includes("/dashboard/card?card="));
+    assert.ok(switcher.includes("?card="));
+    // המעבר נשאר במסך הנוכחי במקום לזרוק את המשתמש לעורך.
+    assert.ok(switcher.includes("basePath"));
+
+    for (const path of [
+      "src/app/dashboard/page.tsx",
+      "src/app/dashboard/leads/page.tsx",
+      "src/app/dashboard/analytics/page.tsx",
+      "src/app/dashboard/card/page.tsx",
+    ]) {
+      assert.ok(read(path).includes("<CardSwitcher"), `${path} ללא בורר`);
+    }
+  });
+
+  it("הנתונים מוצגים לכרטיס הנבחר ולא לראשון", () => {
+    /*
+     * getAnalyticsSummary קראה תמיד את הכרטיס הראשון, ולכן לקוח עם שני
+     * כרטיסים ראה את אותם מספרים בשניהם — נכונים לכרטיס הלא נכון.
+     */
+    const data = read("src/lib/data.ts");
+    assert.ok(data.includes("getAnalyticsSummary(viewer: Viewer, cardId?: string)"));
+    assert.ok(data.includes("getLeads(viewer: Viewer, cardId?: string)"));
+    assert.ok(read("src/app/dashboard/page.tsx").includes("getAnalyticsSummary(viewer, card.id)"));
+  });
+
+  it("אפשר לרכוש כרטיס נוסף מעבר למכסה", () => {
+    /*
+     * זכאות מסלול בלבד השאירה את הלקוח מול קיר: הודעה שהמכסה מלאה,
+     * בלי דרך לעשות משהו עם זה.
+     */
+    assert.ok(read("src/components/dashboard/card-switcher.tsx").includes("/checkout?plan=extra_card"));
+    assert.ok(read("src/lib/config.ts").includes("extraCardProduct"));
+    assert.ok(read("src/app/api/payments/request/route.ts").includes("isExtraCard"));
+    assert.ok(read("src/app/api/admin/payment-requests/[id]/route.ts").includes("grant_extra_card"));
+  });
+
+  it("רכישת כרטיס נוסף אינה משנה מסלול", () => {
+    // mark_plan_selected על רכישת כרטיס היה משנה ללקוח את החבילה.
+    assert.ok(read("src/app/api/payments/request/route.ts").includes("if (!extra) {"));
+  });
+
+  it("המכסה האפקטיבית מסכמת מסלול ורכישות", () => {
+    const access = read("src/lib/plan-access.ts");
+    assert.ok(access.includes("resolveAccess(viewer).limits.cards + (viewer.extraCards || 0)"));
+    // המסד חייב להסכים, אחרת הממשק מרשה מה שהטריגר חוסם.
+    assert.ok(read("supabase/migrations/024_extra_cards.sql").includes("effective_max_cards"));
   });
 
   it("היצירה נחסמת במכסת המסלול", () => {
     const route = read("src/app/api/cards/new/route.ts");
-    assert.ok(route.includes("existing >= limits.cards"));
+    assert.ok(route.includes("existing >= maxCards"));
     assert.ok(route.includes('feature: "cards"'));
   });
 

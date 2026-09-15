@@ -6,7 +6,7 @@ import type { PlanId } from "@/lib/types";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { cardSchema, missingForPublish } from "@/lib/validation";
 import { cardToDatabaseRow } from "@/lib/card-row";
-import { lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
+import { effectiveMaxCards, lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { requiresLegalReAcceptance } from "@/lib/legal";
 
@@ -138,7 +138,8 @@ export async function POST(request: Request) {
   const row = cardToDatabaseRow(parsed.data, viewer.id);
   if (!parsed.data.id) {
     const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("user_id", viewer.id);
-    if ((count || 0) >= limits.cards) return denied(`המסלול ${currentPlanName} מאפשר עד ${limits.cards} כרטיסים`, requiredPlanForLimit("cards", (count || 0) + 1), "cards");
+    const maxCards = effectiveMaxCards(viewer);
+    if ((count || 0) >= maxCards) return denied(`החשבון שלך מאפשר עד ${maxCards} כרטיסים`, requiredPlanForLimit("cards", (count || 0) + 1), "cards");
   }
   const query = parsed.data.id
     ? supabase.from("cards").update(row).eq("id", parsed.data.id).eq("user_id", viewer.id).select("id,slug").single()

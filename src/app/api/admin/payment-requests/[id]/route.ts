@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { cycleMonths, plans, toBillingCycle } from "@/lib/config";
+import { cycleMonths, isExtraCard, plans, toBillingCycle } from "@/lib/config";
 import { auditLog, isResponse, requireAdmin } from "@/lib/admin-guard";
 import { clampCardToPlan } from "@/lib/plan-access";
 import { normalizeCard } from "@/lib/data";
@@ -48,6 +48,31 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
     if (error) return NextResponse.json({ error: "לא הצלחנו לעדכן את הבקשה" }, { status: 500 });
     await auditLog(context, "payment_request.reject", "payment_request", id, { reference: paymentRequest.reference });
     return NextResponse.json({ ok: true, status: "rejected" });
+  }
+
+  /*
+   * REQ-011: בקשה עבור כרטיס נוסף אינה משנה מסלול — היא מזכה כרטיס
+   * במכסה. טיפול בה כמסלול היה משנה ללקוח את החבילה שהוא משלם עליה.
+   */
+  if (isExtraCard(paymentRequest.plan_id)) {
+    const { error: grantError } = await admin.rpc("grant_extra_card", {
+      target_user: paymentRequest.user_id,
+      quantity: 1,
+      actor: viewer.id,
+    });
+    if (grantError) return NextResponse.json({ error: "זיכוי הכרטיס הנוסף נכשל" }, { status: 500 });
+
+    await admin
+      .from("payment_requests")
+      .update({ status: "approved", reviewed_by: viewer.id, reviewed_at: new Date().toISOString() })
+      .eq("id", id)
+      .eq("status", "pending");
+
+    await auditLog(context, "payment_request.approve", "payment_request", id, {
+      reference: paymentRequest.reference,
+      product: "extra_card",
+    });
+    return NextResponse.json({ ok: true, status: "approved", extraCard: true });
   }
 
   const plan = plans.find((item) => item.id === paymentRequest.plan_id);

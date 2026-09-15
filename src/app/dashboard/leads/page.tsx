@@ -1,15 +1,30 @@
 import { LeadsTable } from "@/components/dashboard/leads-table";
 import { LeadExportButton } from "@/components/dashboard/lead-export-button";
-import { getLeads, getViewer } from "@/lib/data";
-import { resolveAccess } from "@/lib/plan-access";
+import { getLeads, getUserCards, getViewer } from "@/lib/data";
+import { effectiveMaxCards, planName, resolveAccess } from "@/lib/plan-access";
 import { BackButton } from "@/components/ui/back-button";
+import { CardSwitcher } from "@/components/dashboard/card-switcher";
 
-export default async function LeadsPage() {
+export default async function LeadsPage({ searchParams }: { searchParams: Promise<{ card?: string }> }) {
   const viewer = await getViewer();
   if (!viewer) return null;
-  const leads = await getLeads(viewer);
+  const params = await searchParams;
+  const [leads, cards] = await Promise.all([getLeads(viewer, params.card), getUserCards(viewer)]);
+  const access = resolveAccess(viewer);
+  const maxCards = effectiveMaxCards(viewer);
   return (
     <div className="mx-auto max-w-[1260px]">
+      {/* REQ-011: מעבר בין כרטיסים בכל מסך, לא רק בעורך. */}
+      <CardSwitcher
+        cards={cards}
+        activeId={params.card || cards[0]?.id || ""}
+        maxCards={maxCards}
+        planName={planName(access.plan)}
+        canAdd={maxCards > cards.length && !access.locked}
+        canBuy={!access.locked}
+        demo={viewer.demo}
+        basePath="/dashboard/leads"
+      />
       <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-end">
         <div>
           {/* REQ-017: הכפתור מעל הכותרת, בצד ימין, בכל מסך פנימי. */}

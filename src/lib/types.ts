@@ -232,6 +232,8 @@ export type Viewer = {
   trialPending?: boolean;
   /** מתי נבחר המסלול. undefined = טרם בחר, ולכן חסום בשער ההצטרפות. */
   planSelectedAt?: string;
+  /** כרטיסים שנרכשו מעבר למכסת המסלול. נעדר = אפס. */
+  extraCards?: number;
   /** מתי סיים או דילג על ההדרכה. undefined = טרם ראה. */
   onboardingSeenAt?: string;
   /** גרסת המסמכים המשפטיים שאושרה לאחרונה. אי-התאמה לנוכחית חוסמת. */

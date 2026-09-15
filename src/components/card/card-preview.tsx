@@ -135,6 +135,15 @@ export function CardPreview({
             src={card.coverUrl}
             alt={card.coverAlt}
             className="h-full w-full object-cover"
+            /*
+             * הקאבר נמצא מעל הקפל, ולכן אינו lazy — טעינה עצלה של
+             * התמונה הראשונה דוחה את ה-LCP במקום לשפר אותו.
+             */
+            fetchPriority="high"
+            decoding="async"
+            sizes="(max-width: 620px) 100vw, 620px"
+            width={620}
+            height={template.coverHeight}
             fallback={
               <>
                 <div className="absolute -left-8 -top-10 h-32 w-32 rounded-full bg-white/10" />
@@ -160,6 +169,9 @@ export function CardPreview({
               src={card.logoUrl || card.avatarUrl}
               alt={card.logoUrl ? card.logoAlt : card.avatarAlt}
               className="h-full w-full object-cover"
+              decoding="async"
+              width={template.logoSize}
+              height={template.logoSize}
               fallback={initials(card.ownerName)}
             />
           </div>

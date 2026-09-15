@@ -2,7 +2,7 @@ import { CardBuilderV2 } from "@/components/dashboard/card-builder-v2";
 import { CardSwitcher } from "@/components/dashboard/card-switcher";
 import { brand } from "@/lib/config";
 import { getDashboardCard, getUserCards, getViewer } from "@/lib/data";
-import { planLimits, planName, resolveAccess } from "@/lib/plan-access";
+import { effectiveMaxCards, planName, resolveAccess } from "@/lib/plan-access";
 
 export default async function CardBuilderPage({
   searchParams,
@@ -20,16 +20,17 @@ export default async function CardBuilderPage({
    */
   const [card, cards] = await Promise.all([getDashboardCard(viewer, query.card), getUserCards(viewer)]);
   const access = resolveAccess(viewer);
-  const limits = planLimits(access.plan);
+  const maxCards = effectiveMaxCards(viewer);
 
   return (
     <>
       <CardSwitcher
         cards={cards}
         activeId={card.id}
-        maxCards={limits.cards}
+        maxCards={maxCards}
         planName={planName(access.plan)}
-        canAdd={limits.cards > 1 && !access.locked}
+        canAdd={maxCards > cards.length && !access.locked}
+        canBuy={!access.locked}
         demo={viewer.demo}
       />
       <CardBuilderV2

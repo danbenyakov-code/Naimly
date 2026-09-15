@@ -4,7 +4,7 @@ import { getViewer } from "@/lib/data";
 import { starterCard } from "@/lib/starter-card";
 import { cardToDatabaseRow } from "@/lib/card-row";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
-import { planLimits, planName, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
+import { effectiveMaxCards, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { requiresLegalReAcceptance } from "@/lib/legal";
 
@@ -45,13 +45,14 @@ export async function POST() {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return NextResponse.json({ error: "שירות הנתונים אינו זמין" }, { status: 503 });
 
-  const limits = planLimits(access.plan);
+  // המכסה כוללת כרטיסים שנרכשו (REQ-011), ולא רק את זכאות המסלול.
+  const maxCards = effectiveMaxCards(viewer);
   const { count } = await supabase.from("cards").select("id", { count: "exact", head: true }).eq("user_id", viewer.id);
   const existing = count || 0;
 
-  if (existing >= limits.cards) {
+  if (existing >= maxCards) {
     return NextResponse.json({
-      error: `מסלול ${planName(access.plan)} מאפשר עד ${limits.cards} ${limits.cards === 1 ? "כרטיס" : "כרטיסים"}.`,
+      error: `החשבון שלך מאפשר עד ${maxCards} ${maxCards === 1 ? "כרטיס" : "כרטיסים"}. אפשר לרכוש כרטיס נוסף.`,
       reason: "plan_limit",
       feature: "cards",
       upgradeTo: requiredPlanForLimit("cards", existing + 1),

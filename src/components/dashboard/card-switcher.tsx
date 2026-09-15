@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Check, CreditCard, Loader2, Lock, Plus } from "lucide-react";
+import Link from "next/link";
+import { Check, CreditCard, Loader2, Plus } from "lucide-react";
 import type { CardSummary } from "@/lib/data";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +23,10 @@ export function CardSwitcher({
   planName,
   canAdd,
   demo,
+  /** המסך הנוכחי. המעבר נשאר בו במקום לזרוק את המשתמש לעורך. */
+  basePath = "/dashboard/card",
+  /** מותר לרכוש כרטיס נוסף מעבר למכסה. */
+  canBuy = false,
 }: {
   cards: CardSummary[];
   activeId: string;
@@ -29,6 +34,8 @@ export function CardSwitcher({
   planName: string;
   canAdd: boolean;
   demo: boolean;
+  basePath?: string;
+  canBuy?: boolean;
 }) {
   const router = useRouter();
   const [creating, setCreating] = useState(false);
@@ -36,8 +43,8 @@ export function CardSwitcher({
 
   const atLimit = cards.length >= maxCards;
 
-  // כרטיס יחיד בלי אפשרות להוסיף — אין מה להחליף ואין מה להציע.
-  if (cards.length <= 1 && !canAdd) return null;
+  // כרטיס יחיד בלי אפשרות להוסיף או לרכוש — אין מה להחליף ואין מה להציע.
+  if (cards.length <= 1 && !canAdd && !canBuy) return null;
 
   async function createCard() {
     if (demo) {
@@ -53,7 +60,7 @@ export function CardSwitcher({
         setError(result.error || "לא הצלחנו ליצור כרטיס נוסף");
         return;
       }
-      router.push(`/dashboard/card?card=${result.id}`);
+      router.push(`${basePath}?card=${result.id}`);
       router.refresh();
     } catch {
       setError("אין חיבור לרשת. אפשר לנסות שוב.");
@@ -75,7 +82,7 @@ export function CardSwitcher({
                 key={card.id}
                 type="button"
                 aria-pressed={active}
-                onClick={() => router.push(`/dashboard/card?card=${card.id}`)}
+                onClick={() => router.push(`${basePath}?card=${card.id}`)}
                 className={cn(
                   "flex min-h-11 items-center gap-2 rounded-xl border px-3 text-sm font-bold transition",
                   active ? "border-[#6d4aff] bg-[#f1efff] text-[#4b3bad]" : "border-[#dfe4ec] bg-white text-[#5f6d83] hover:border-[#a99feb]",
@@ -93,10 +100,20 @@ export function CardSwitcher({
         </div>
 
         {atLimit ? (
-          <span className="flex min-h-11 items-center gap-1.5 rounded-xl border border-dashed border-[#d5cdf5] px-3 text-xs font-bold text-[#8b7fd4]">
-            <Lock size={14} aria-hidden="true" />
-            מסלול {planName} כולל עד {maxCards} {maxCards === 1 ? "כרטיס" : "כרטיסים"}
-          </span>
+          /*
+           * REQ-011: בהגעה למכסה מוצעת רכישה ולא רק הודעה. הודעה לבדה
+           * משאירה את הלקוח מול קיר בלי לומר לו מה לעשות.
+           */
+          <Link
+            href="/checkout?plan=extra_card"
+            className="flex min-h-11 items-center gap-1.5 rounded-xl border border-dashed border-[#c3b9f0] px-3 text-sm font-bold text-[#5a49c4] transition hover:border-[#6d4aff]"
+          >
+            <Plus size={15} aria-hidden="true" />
+            רכישת כרטיס נוסף
+            <span className="text-xs font-normal text-[#8b7fd4]">
+              (מסלול {planName} כולל {maxCards})
+            </span>
+          </Link>
         ) : (
           <button
             type="button"

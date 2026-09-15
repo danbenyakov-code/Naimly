@@ -21,7 +21,7 @@ export function CheckoutButton({
   price,
   cycle = "monthly",
 }: {
-  planId: PlanId;
+  planId: PlanId | "extra_card";
   planName: string;
   /** הסכום שייגבה בפועל למחזור הנבחר, כפי שחושב בשרת. */
   price: number;

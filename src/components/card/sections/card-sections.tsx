@@ -127,6 +127,14 @@ export function GallerySection({ card, title }: SectionProps) {
             alt={`${card.businessName}, תמונה ${index + 1}`}
             className={carousel ? "aspect-[4/5] w-[78%] shrink-0 snap-center rounded-2xl object-cover" : "aspect-square w-full rounded-2xl object-cover"}
             loading="lazy"
+            decoding="async"
+            /*
+             * sizes אומר לדפדפן כמה רוחב התמונה תופסת בפועל, כדי שלא
+             * יוריד קובץ ברוחב מסך מלא עבור משבצת של חצי עמודה.
+             */
+            sizes={carousel ? "(max-width: 620px) 78vw, 480px" : "(max-width: 620px) 50vw, 300px"}
+            width={carousel ? 480 : 300}
+            height={carousel ? 600 : 300}
           />
         ))}
       </div>

@@ -185,7 +185,7 @@ export async function getViewer(): Promise<Viewer | null> {
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
     supabase.from("profiles").select("full_name,role,plan_id,onboarding_seen_at,terms_version,terms_accepted_at").eq("id", authData.user.id).maybeSingle(),
-    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at").eq("user_id", authData.user.id).maybeSingle(),
+    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at,extra_cards").eq("user_id", authData.user.id).maybeSingle(),
   ]);
 
   // הסטטוס נשמר כפי שהוא. תפוגת ההתנסות נגזרת מ‑trialEndsAt דרך plan-access,
@@ -201,6 +201,7 @@ export async function getViewer(): Promise<Viewer | null> {
     trialEndsAt: subscription?.trial_ends_at || undefined,
     trialPending: subscription?.trial_pending === true,
     planSelectedAt: subscription?.plan_selected_at || undefined,
+    extraCards: Number(subscription?.extra_cards) || 0,
     onboardingSeenAt: profile?.onboarding_seen_at || undefined,
     termsVersion: profile?.terms_version || undefined,
     termsAcceptedAt: profile?.terms_accepted_at || undefined,
@@ -332,12 +333,25 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   return normalizeCard(data);
 }
 
-export async function getAnalyticsSummary(viewer: Viewer): Promise<AnalyticsSummary> {
+/**
+ * נתוני הכרטיס הנבחר.
+ *
+ * REQ-011: הפונקציה קראה תמיד את הכרטיס הראשון, ולכן לקוח עם שני
+ * כרטיסים ראה את המספרים של הראשון בשניהם — מספרים נכונים לכרטיס הלא
+ * נכון, וזו טעות גרועה יותר מאפס.
+ */
+export async function getAnalyticsSummary(viewer: Viewer, cardId?: string): Promise<AnalyticsSummary> {
   noStore();
   if (viewer.demo || !isSupabaseConfigured) return demoAnalytics;
   const supabase = await createSupabaseServerClient();
   if (!supabase) return demoAnalytics;
-  const { data: card } = await supabase.from("cards").select("id").eq("user_id", viewer.id).limit(1).maybeSingle();
+
+  const selected = cardId
+    ? await supabase.from("cards").select("id").eq("id", cardId).eq("user_id", viewer.id).maybeSingle()
+    : { data: null };
+  const { data: card } = selected.data
+    ? selected
+    : await supabase.from("cards").select("id").eq("user_id", viewer.id).order("created_at").limit(1).maybeSingle();
   if (!card) return { views: 0, clicks: 0, leads: 0, contactSaves: 0, conversionRate: 0, daily: [], actions: [] };
 
   const analyticsDays = resolveAccess(viewer).limits.analyticsDays;
@@ -380,7 +394,13 @@ export type LeadRecord = {
   createdAt: string;
 };
 
-export async function getLeads(viewer: Viewer): Promise<LeadRecord[]> {
+/**
+ * הפניות. cardId מסנן לכרטיס אחד; בלעדיו מוחזרות פניות מכל הכרטיסים.
+ *
+ * ברירת המחדל היא איחוד ולא סינון: לקוח שנכנס ל"פניות" רוצה לראות את
+ * כולן, ורק אחר כך לצמצם.
+ */
+export async function getLeads(viewer: Viewer, cardId?: string): Promise<LeadRecord[]> {
   noStore();
   if (viewer.demo || !isSupabaseConfigured) return [
     { id: "l1", name: "דנה לוי", phone: "052-111-2233", email: "dana@example.com", message: "אשמח לקבל הצעה לתהליך מיתוג לעסק חדש.", status: "new", createdAt: "2026-09-04T09:15:00.000Z" },
@@ -390,7 +410,9 @@ export async function getLeads(viewer: Viewer): Promise<LeadRecord[]> {
   const supabase = await createSupabaseServerClient();
   if (!supabase) return [];
   const { data: cards } = await supabase.from("cards").select("id").eq("user_id", viewer.id);
-  const cardIds = (cards || []).map((card) => card.id);
+  const owned = (cards || []).map((card) => card.id);
+  // מזהה שאינו שייך למשתמש פשוט אינו ברשימה, ולכן אינו חושף דבר.
+  const cardIds = cardId && owned.includes(cardId) ? [cardId] : owned;
   if (!cardIds.length) return [];
   const { data } = await supabase.from("leads").select("id,name,phone,email,message,status,created_at").in("card_id", cardIds).order("created_at", { ascending: false }).limit(200);
   return (data || []).map((lead) => ({ id: lead.id, name: lead.name, phone: lead.phone, email: lead.email || "", message: lead.message || "", status: lead.status, createdAt: lead.created_at }));

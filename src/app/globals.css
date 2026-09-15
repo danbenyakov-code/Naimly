@@ -15,6 +15,36 @@
   --danger: #c93445;
   --shadow-sm: 0 1px 2px rgba(11, 24, 48, 0.05), 0 8px 24px rgba(11, 24, 48, 0.06);
   --shadow-lg: 0 24px 80px rgba(30, 24, 92, 0.18);
+
+  /*
+   * שכבת הכרטיס (BENCH-010).
+   *
+   * הטוקנים האלה הוגדרו עד כה inline בתוך הרכיב, ולכן כל שינוי במרווח
+   * או ברדיוס חייב עריכה בכל מקטע בנפרד. כאן הם במקום אחד — וזו השפה
+   * החזותית של NAIMLY, לא חיקוי של אף אחד.
+   *
+   * --card-primary וחבריו נדרסים ברכיב לפי צבעי הלקוח: המותג שלנו
+   * במעטפת, והכרטיס עצמו שלו.
+   */
+  --card-primary: var(--brand);
+  --card-accent: var(--aqua);
+  --card-button: var(--brand);
+  --card-heading: var(--ink);
+  --card-body: var(--ink-soft);
+
+  --card-radius-sm: 12px;
+  --card-radius: 16px;
+  --card-radius-lg: 24px;
+  --card-radius-hero: 32px;
+
+  --card-gap: 12px;
+  --card-section-gap: 28px;
+  --card-pad: 20px;
+
+  --card-surface-soft: #f6f7fb;
+  --card-line: #e8ecf3;
+  /* גובה מינימלי לאזור לחיצה. 44px הוא הסף של WCAG 2.2 AA. */
+  --card-tap: 44px;
 }
 
 @theme inline {

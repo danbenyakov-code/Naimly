@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { billing, cycleAmount, isBillingConfigured, plans, toBillingCycle } from "@/lib/config";
+import { billing, cycleAmount, extraCardProduct, isBillingConfigured, isExtraCard, plans, toBillingCycle } from "@/lib/config";
 import { getViewer } from "@/lib/data";
 import { buildReference, whatsappPaymentLink } from "@/lib/payments";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -10,7 +10,7 @@ import { adminNotificationEmail } from "@/lib/config";
 import { sendLegalAcceptanceNotification, sendPaymentRequestNotification } from "@/lib/email";
 
 const schema = z.object({
-  planId: z.enum(["basic", "pro", "premium"]),
+  planId: z.enum(["basic", "pro", "premium", "extra_card"]),
   cycle: z.enum(["monthly", "annual"]).optional(),
   phone: z.string().max(30).optional(),
   note: z.string().max(500).optional(),
@@ -31,7 +31,14 @@ export async function POST(request: Request) {
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "המסלול אינו תקין" }, { status: 400 });
 
-  const plan = plans.find((item) => item.id === parsed.data.planId);
+  /*
+   * "כרטיס נוסף" אינו מסלול, ולכן אינו ב-plans. הוא מקבל צורה תואמת
+   * כדי לעבור באותו צינור — בקשה, אסמכתא, אישור מנהל.
+   */
+  const extra = isExtraCard(parsed.data.planId);
+  const plan = extra
+    ? { id: extraCardProduct.id, name: extraCardProduct.name, price: extraCardProduct.price } as unknown as (typeof plans)[number]
+    : plans.find((item) => item.id === parsed.data.planId);
   if (!plan) return NextResponse.json({ error: "המסלול לא נמצא" }, { status: 404 });
   if (!isBillingConfigured) {
     return NextResponse.json({ error: "מספר הוואטסאפ לתשלומים טרם הוגדר במערכת. יש לפנות לתמיכה." }, { status: 503 });
@@ -109,7 +116,10 @@ export async function POST(request: Request) {
    * effective_plan נשאר 'none' עד לאישור המנהל. בלי הסימון הזה לקוח
    * שבחר מסלול בתשלום היה נזרק חזרה לשער בכל כניסה.
    */
-  await admin.rpc("mark_plan_selected", { target_user: viewer.id, target_plan: plan.id });
+  // רכישת כרטיס נוסף אינה בחירת מסלול, ואסור לה לשנות את המסלול הקיים.
+  if (!extra) {
+    await admin.rpc("mark_plan_selected", { target_user: viewer.id, target_plan: plan.id });
+  }
 
   // תיעוד ההסכמה למסמכים, עם גרסה ו-IP. ראיה, לא תיבת סימון בממשק.
   // REQ-012: המסלול נרשם יחד עם ההסכמה, ומוחזר מזהה קצר לציטוט.
