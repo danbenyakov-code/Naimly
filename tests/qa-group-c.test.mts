@@ -83,16 +83,36 @@ describe("QA-005 — טבלת המחירים נגישה", () => {
   });
 });
 
-describe("QA-006 — honeypot מוסתר גם מקורא מסך", () => {
-  it("בטופס יצירת הקשר", () => {
-    const source = read("src/components/contact/contact-form.tsx");
-    assert.match(source, /aria-hidden="true"[^>]*className="sr-only"[\s\S]{0,160}name="company"/);
+describe("QA-006 — honeypot מוסתר, ואינו נגרר למילוי אוטומטי", () => {
+  it("מוסתר מהעין, מקורא המסך ומסדר ה-Tab", () => {
+    const honeypot = read("src/lib/honeypot.ts");
+    assert.ok(honeypot.includes("tabIndex: -1"));
+    assert.ok(honeypot.includes('"aria-hidden": true'));
+    assert.ok(honeypot.includes('autoComplete: "off"'));
+
+    for (const path of ["src/components/contact/contact-form.tsx", "src/components/card/public-card-client.tsx"]) {
+      assert.ok(read(path).includes('className="sr-only"'), `${path} ללא הסתרה חזותית`);
+      assert.ok(read(path).includes("honeypotInputProps"), `${path} אינו משתמש במקור המשותף`);
+    }
   });
 
-  it("בטופס הלידים בכרטיס", () => {
-    const source = read("src/components/card/public-card-client.tsx");
-    assert.match(source, /aria-hidden="true"[^>]*className="sr-only"[\s\S]{0,160}name="website"/,
-      "sr-only לבדו מסתיר חזותית אך קורא המסך עדיין מכריז את השדה");
+  it("השם אינו אסימון autofill מוכר", async () => {
+    /*
+     * זו הייתה התקלה האמיתית מאחורי QA-006, ומסתבר גם מאחורי QA-013
+     * ו-QA-033: השדות נקראו "website" ו-"company" — שני אסימוני autofill
+     * תקניים. הדפדפן מילא אותם, השרת ראה מלכודת שהופעלה, והפנייה נדחתה
+     * בשקט עם תשובת הצלחה. שום ליד לא נשמר ושום מייל לא יצא.
+     */
+    const { HONEYPOT_FIELD } = await import("../src/lib/honeypot.ts");
+    for (const token of ["website", "company", "url", "organization", "email", "name", "tel", "address"]) {
+      assert.notEqual(HONEYPOT_FIELD, token);
+    }
+  });
+
+  it("השמות הישנים אינם נבדקים יותר בשרת", () => {
+    // דף ישן במטמון עדיין שולח אותם; בדיקתם הייתה ממשיכה לדחות לקוחות.
+    const leads = read("src/app/api/leads/route.ts");
+    assert.ok(!leads.includes("parsed.data.website"), "השם הישן עדיין נבדק");
   });
 });
 

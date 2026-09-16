@@ -7,6 +7,7 @@ import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { isSupabaseAdminConfigured } from "@/lib/supabase/env";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { getViewer } from "@/lib/data";
+import { HONEYPOT_FIELD, looksLikeBot } from "@/lib/honeypot";
 
 const schema = z.object({
   topic: z.enum(contactTopicIds),
@@ -16,7 +17,7 @@ const schema = z.object({
   message: z.string().min(10, "יש לפרט לפחות 10 תווים").max(2000),
   // מלכודת ספאם: שדה מוסתר שרק בוט ימלא. מתקבל בסכמה ונבדק בקוד,
   // כדי שהתשובה תיראה תקינה ולא תסגיר מה חסם אותו.
-  company: z.string().max(200).optional(),
+  [HONEYPOT_FIELD]: z.string().max(200).optional(),
 });
 
 export async function POST(request: Request) {
@@ -34,7 +35,11 @@ export async function POST(request: Request) {
   }
 
   // בוט שמילא את המלכודת מקבל תשובה תקינה, כדי לא ללמד אותו מה נחסם.
-  if (parsed.data.company) return NextResponse.json({ ok: true });
+  // ראו QA-006: "company" נגרר למילוי אוטומטי ודחה פניות אמיתיות.
+  if (looksLikeBot(parsed.data[HONEYPOT_FIELD])) {
+    console.warn("[contact] honeypot");
+    return NextResponse.json({ ok: true });
+  }
 
   const viewer = await getViewer().catch(() => null);
   const record = {

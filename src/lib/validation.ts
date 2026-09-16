@@ -4,6 +4,7 @@ import { isBackgroundId } from "@/lib/backgrounds";
 import { isIconId } from "@/lib/icons";
 import { blockedSlugMessage, isSlugAllowed } from "@/lib/slug-policy";
 import { cardTemplateIds } from "@/lib/card-templates";
+import { HONEYPOT_FIELD } from "@/lib/honeypot";
 
 /** צבע hex בן 6 ספרות. */
 const hexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "יש לבחור צבע תקין");
@@ -19,7 +20,7 @@ const acceptableUrl = (value: string) => isHttpUrl(value) || isSameOriginAsset(v
 const urlMessage = "כתובת חייבת להתחיל ב‑http:// או https://";
 const httpUrl = z.string().max(2000).refine(acceptableUrl, urlMessage);
 const optionalUrl = z.union([z.literal(""), httpUrl]);
-const reservedSlugs = new Set(["admin", "api", "auth", "checkout", "dashboard", "login", "signup", "pricing", "legal", "accessibility", "robots.txt", "sitemap.xml", "forgot-password", "reset-password", "_next", "well-known", "favicon.ico", "manifest.webmanifest", "icon.svg", "noa-design", "onboarding", "contact"]);
+export const reservedSlugs = new Set(["admin", "api", "auth", "checkout", "dashboard", "login", "signup", "pricing", "legal", "accessibility", "robots.txt", "sitemap.xml", "forgot-password", "reset-password", "_next", "well-known", "favicon.ico", "manifest.webmanifest", "icon.svg", "onboarding", "contact"]);
 
 // רק פעולות שמתורגמות ל‑href חופשי נדרשות לבדיקת URL מלאה.
 const freeLinkActions = new Set(["website", "instagram", "facebook", "linkedin", "tiktok", "youtube", "calendar"]);
@@ -222,5 +223,10 @@ export const leadSchema = z.object({
   email: z.union([z.literal(""), z.string().email("כתובת האימייל אינה תקינה")]),
   message: z.string().max(1000),
   fields: z.record(z.string().max(100), z.union([z.string().max(2000), z.boolean()])).optional(),
-  website: z.string().max(0).optional(),
+  /*
+   * שדה המלכודת מתקבל כמחרוזת חופשית ואינו נפסל בוולידציה.
+   * קודם הוא הוגדר `max(0)`, ולכן דפדפן שמילא אותו במילוי אוטומטי גרם
+   * לשגיאת ולידציה גנרית — הפנייה נדחתה בלי שאיש יבין למה.
+   */
+  [HONEYPOT_FIELD]: z.string().max(200).optional(),
 });

@@ -9,6 +9,7 @@ import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
 import { starterCard } from "@/lib/starter-card";
 import { cardTemplate } from "@/lib/card-templates";
+import { normalizeContactFormFields } from "@/lib/contact-form";
 
 type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null } | null | undefined;
 
@@ -140,11 +141,11 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     ]),
     contactFormTitle: stringValue(row.contact_form_title, "רוצה שנחזור אליך?"),
     contactFormSuccessMessage: stringValue(row.contact_form_success_message, "תודה! הפרטים התקבלו."),
-    contactFormFields: arrayValue(row.contact_form_fields, [
-      { id: "name", label: "שם מלא", type: "text", required: true },
-      { id: "phone", label: "טלפון", type: "tel", required: true },
-      { id: "message", label: "במה אפשר לעזור?", type: "textarea", required: false },
-    ]),
+    /*
+     * QA-008/QA-013: arrayValue נפל לברירת המחדל רק כשהערך אינו מערך,
+     * ומערך ריק הוא מערך. כרטיס שנשמר עם [] קיבל טופס בלי שדות כלל.
+     */
+    contactFormFields: normalizeContactFormFields(row.contact_form_fields),
     leadNotificationEmail: String(row.lead_notification_email || ""),
     leadNotificationsEnabled: row.lead_notifications_enabled !== false,
     galleryStyle: (stringValue(row.gallery_style) === "carousel" ? "carousel" : "grid") as CardData["galleryStyle"],

@@ -93,6 +93,17 @@ const base = {
   testimonials: [],
   social_links: [],
   contact_form_success_message: "קיבלנו את הפנייה ונחזור אליך בהקדם.",
+  /*
+   * QA-008/QA-013 · סיבת השורש. הסקריפט לא כתב את השדות, ברירת המחדל
+   * בעמודה הייתה [], והקוד נפל לברירת מחדל רק כשהערך אינו מערך —
+   * ומערך ריק הוא מערך. שלושת כרטיסי התצוגה עלו עם טופס בלי שדות.
+   */
+  contact_form_fields: [
+    { id: "name", label: "שם מלא", type: "text", required: true, enabled: true, placeholder: "" },
+    { id: "phone", label: "טלפון", type: "tel", required: true, enabled: true, placeholder: "050-0000000" },
+    { id: "email", label: "אימייל", type: "email", required: false, enabled: true, placeholder: "name@example.com" },
+    { id: "message", label: "במה נוכל לעזור?", type: "textarea", required: true, enabled: true, placeholder: "" },
+  ],
   // ה-vCard נגזר מהכרטיס דרך resolveVCard, ולכן נשאר ריק בכוונה.
   vcard: {
     fullName: "", firstName: "", lastName: "", organization: "", title: "",

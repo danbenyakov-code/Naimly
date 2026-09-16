@@ -95,6 +95,10 @@ export type ContactFormField = {
   label: string;
   type: "text" | "email" | "tel" | "textarea" | "select" | "checkbox";
   required: boolean;
+  /** מוצג בטופס. היעדר הערך = מוצג, לתאימות עם כרטיסים ותיקים. */
+  enabled?: boolean;
+  /** טקסט רמז בשדה. */
+  placeholder?: string;
   options?: string[];
 };
 

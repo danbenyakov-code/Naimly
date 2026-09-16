@@ -9,6 +9,7 @@ import { cardToDatabaseRow } from "@/lib/card-row";
 import { effectiveMaxCards, lockMessages, planName, requiredPlanForFeature, requiredPlanForLimit, resolveAccess } from "@/lib/plan-access";
 import { rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { requiresLegalReAcceptance } from "@/lib/legal";
+import { hasUsableContactForm, unusableFormMessage } from "@/lib/contact-form";
 
 /** תווית קריאה לכל שדה, כדי שהשגיאה תגיד "תמונת שיתוף" ולא "socialImageUrl". */
 const fieldLabels: Record<string, string> = {
@@ -119,6 +120,19 @@ export async function POST(request: Request) {
    * רק בממשק — בקשה ישירה ל-API עוקפת כל נעילה בצד הלקוח.
    */
   if (parsed.data.isPublished) {
+    /*
+     * QA-008: כרטיס עם טופס בלי שדה למילוי אינו ניתן לפרסום. האכיפה
+     * כאן ובמסד — בקשה ישירה ל-API עוקפת כל בדיקה בממשק.
+     */
+    if (!hasUsableContactForm(parsed.data.contactFormFields)) {
+      return NextResponse.json({
+        error: unusableFormMessage,
+        field: "contactFormFields",
+        fieldLabel: "טופס הפניות",
+        reason: "incomplete",
+      }, { status: 400 });
+    }
+
     const missing = missingForPublish(parsed.data);
     if (missing.length) {
       return NextResponse.json({

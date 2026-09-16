@@ -14,6 +14,8 @@ import { CONSENT_EVENT, hasConsent, type ConsentState } from "@/lib/consent";
 import { countDigits, isEmailLike } from "@/lib/email-format";
 import { ContactFab } from "@/components/card/contact-fab";
 import { cardDir, cardStrings, toCardLanguage, type CardStrings } from "@/lib/card-i18n";
+import { HONEYPOT_FIELD, honeypotInputProps } from "@/lib/honeypot";
+import { visibleFields } from "@/lib/contact-form";
 
 export function PublicCardClient({ card }: { card: CardData }) {
   const language = toCardLanguage(card.language);
@@ -29,6 +31,9 @@ export function PublicCardClient({ card }: { card: CardData }) {
   useEffect(() => {
     if (focusLeadSummary > 0) focusErrorSummary();
   }, [focusLeadSummary]);
+  // רק שדות שבעל הכרטיס בחר להציג. מוסתר אינו מרונדר ואינו נשלח.
+  const shownFields = visibleFields(card.contactFormFields);
+
   const [showQr, setShowQr] = useState(false);
   const [qrData, setQrData] = useState("");
 
@@ -72,7 +77,7 @@ export function PublicCardClient({ card }: { card: CardData }) {
   function validateLead(formData: FormData): Record<string, string> {
     const found: Record<string, string> = {};
 
-    for (const field of card.contactFormFields) {
+    for (const field of shownFields) {
       const key = `field_${field.id}`;
       const raw = field.type === "checkbox" ? formData.get(key) === "on" : String(formData.get(key) || "").trim();
 
@@ -113,8 +118,8 @@ export function PublicCardClient({ card }: { card: CardData }) {
 
     setLeadState("sending");
     const fields: Record<string, string | boolean> = {};
-    card.contactFormFields.forEach((field) => { const key = `field_${field.id}`; fields[field.label] = field.type === "checkbox" ? formData.get(key) === "on" : String(formData.get(key) || ""); });
-    const first = (predicate: (field: ContactFormField) => boolean) => { const field = card.contactFormFields.find(predicate); return field ? String(formData.get(`field_${field.id}`) || "") : ""; };
+    shownFields.forEach((field) => { const key = `field_${field.id}`; fields[field.label] = field.type === "checkbox" ? formData.get(key) === "on" : String(formData.get(key) || ""); });
+    const first = (predicate: (field: ContactFormField) => boolean) => { const field = shownFields.find(predicate); return field ? String(formData.get(`field_${field.id}`) || "") : ""; };
     const name = first((field) => field.label.includes("שם")) || first((field) => field.type === "text") || "ללא שם";
     const phone = first((field) => field.type === "tel");
     const email = first((field) => field.type === "email");
@@ -124,7 +129,7 @@ export function PublicCardClient({ card }: { card: CardData }) {
       const response = await fetch("/api/leads", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ slug: card.slug, name, phone, email, message, fields, website: formData.get("website") }),
+        body: JSON.stringify({ slug: card.slug, name, phone, email, message, fields, [HONEYPOT_FIELD]: formData.get(HONEYPOT_FIELD) }),
       });
       if (response.ok) {
         setLeadState("success");
@@ -145,7 +150,7 @@ export function PublicCardClient({ card }: { card: CardData }) {
 
   const contactForm = leadState === "success"
     ? <div className="flex items-center gap-3 rounded-2xl bg-[#ecfbf6] p-5 text-[#08735f]"><span className="grid h-10 w-10 place-items-center rounded-full bg-white"><Check size={20} /></span><span><strong className="block">{t.sentTitle}</strong><span className="text-sm">{card.contactFormSuccessMessage}</span></span></div>
-    : <div><h2 className="text-xl font-black">{card.contactFormTitle}</h2><p className="mt-1 text-sm text-[#6a778c]">{t.formIntro(card.businessName)}</p><form className="mt-5 grid gap-3" method="post" action="/api/leads" noValidate onSubmit={submitLead}><ErrorSummary errors={leadErrors} />{card.contactFormFields.map((field) => <DynamicField key={field.id} field={field} error={leadErrors[`field_${field.id}`]} t={t} />)}<label className="flex min-h-11 items-start gap-2 text-sm leading-6"><input className="mt-1" name="privacyConsent" type="checkbox" data-field="privacyConsent" aria-required="true" aria-invalid={Boolean(leadErrors.privacyConsent)} aria-describedby={leadErrors.privacyConsent ? "lead-consent-error" : undefined} /><span>{t.privacyConsentText(card.businessName)}<Link href="/legal/privacy" className="font-bold text-[#5134cc] underline">{t.privacyConsentLink}</Link>. <span className="required-field">{t.requiredMark}</span>{leadErrors.privacyConsent && <span id="lead-consent-error" className="mt-1 block text-xs font-bold text-[#b7293a]">{leadErrors.privacyConsent}</span>}</span></label><div aria-hidden="true" className="sr-only"><label>אתר<input name="website" tabIndex={-1} autoComplete="off" /></label></div>{leadState === "error" && <p role="alert" className="text-sm text-[#b7293a]">{leadServerError || t.genericError}</p>}<button className="button-primary w-full" type="submit" disabled={leadState === "sending"} style={{ background: card.primaryColor, borderColor: card.primaryColor }}>{leadState === "sending" && <Loader2 size={18} className="animate-spin" />}{leadState === "sending" ? t.sending : t.submit}</button></form></div>;
+    : <div><h2 className="text-xl font-black">{card.contactFormTitle}</h2><p className="mt-1 text-sm text-[#6a778c]">{t.formIntro(card.businessName)}</p><form className="mt-5 grid gap-3" method="post" action="/api/leads" noValidate onSubmit={submitLead}><ErrorSummary errors={leadErrors} />{shownFields.map((field) => <DynamicField key={field.id} field={field} error={leadErrors[`field_${field.id}`]} t={t} />)}<label className="flex min-h-11 items-start gap-2 text-sm leading-6"><input className="mt-1" name="privacyConsent" type="checkbox" data-field="privacyConsent" aria-required="true" aria-invalid={Boolean(leadErrors.privacyConsent)} aria-describedby={leadErrors.privacyConsent ? "lead-consent-error" : undefined} /><span>{t.privacyConsentText(card.businessName)}<Link href="/legal/privacy" className="font-bold text-[#5134cc] underline">{t.privacyConsentLink}</Link>. <span className="required-field">{t.requiredMark}</span>{leadErrors.privacyConsent && <span id="lead-consent-error" className="mt-1 block text-xs font-bold text-[#b7293a]">{leadErrors.privacyConsent}</span>}</span></label><div aria-hidden="true" className="sr-only"><input {...honeypotInputProps} aria-label="" /></div>{leadState === "error" && <p role="alert" className="text-sm text-[#b7293a]">{leadServerError || t.genericError}</p>}<button className="button-primary w-full" type="submit" disabled={leadState === "sending"} style={{ background: card.primaryColor, borderColor: card.primaryColor }}>{leadState === "sending" && <Loader2 size={18} className="animate-spin" />}{leadState === "sending" ? t.sending : t.submit}</button></form></div>;
 
 
   /*
@@ -177,7 +182,7 @@ function DynamicField({ field, error, t }: { field: ContactFormField; error?: st
   } as const;
   const message = error ? <span id={errorId} role="alert" className="mt-1 block text-xs font-bold text-[#b7293a]">{error}</span> : null;
   if (field.type === "checkbox") return <label className="flex min-h-11 items-center gap-2 text-sm"><input name={name} type="checkbox" {...a11y} /><FieldLabel field={field} t={t} />{message}</label>;
-  if (field.type === "textarea") return <label className="field-label"><FieldLabel field={field} t={t} /><textarea className="field-textarea" name={name} {...a11y} maxLength={2000} />{message}</label>;
+  if (field.type === "textarea") return <label className="field-label"><FieldLabel field={field} t={t} /><textarea className="field-textarea" name={name} placeholder={field.placeholder || undefined} {...a11y} maxLength={2000} />{message}</label>;
   if (field.type === "select") return <label className="field-label"><FieldLabel field={field} t={t} /><select className="field-select" name={name} {...a11y}><option value="">{t.selectPlaceholder}</option>{(field.options || []).map((option) => <option key={option}>{option}</option>)}</select>{message}</label>;
-  return <label className="field-label"><FieldLabel field={field} t={t} /><input className="field-input" name={name} type={field.type} {...a11y} autoComplete={field.type === "email" ? "email" : field.type === "tel" ? "tel" : undefined} />{message}</label>;
+  return <label className="field-label"><FieldLabel field={field} t={t} /><input className="field-input" name={name} type={field.type} placeholder={field.placeholder || undefined} {...a11y} autoComplete={field.type === "email" ? "email" : field.type === "tel" ? "tel" : undefined} />{message}</label>;
 }

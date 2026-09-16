@@ -8,6 +8,7 @@ import { ErrorSummary, Field, focusErrorSummary, inputClass } from "@/components
 import { burst } from "@/lib/celebrate";
 import { cn } from "@/lib/utils";
 import { invalidEmailMessage, isEmailLike } from "@/lib/email-format";
+import { HONEYPOT_FIELD, honeypotInputProps } from "@/lib/honeypot";
 
 type FormState = { topic: ContactTopicId; name: string; email: string; phone: string; message: string };
 
@@ -46,6 +47,12 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    /*
+     * ערך המלכודת נקרא מה-DOM ולא מה-state: הוא אינו שדה שהמשתמש
+     * ממלא, ולכן אין לו מקום ב-state. עד כה הוא לא נשלח כלל, ובדיקת
+     * השרת הייתה חסרת משמעות.
+     */
+    const trap = String(new FormData(event.currentTarget).get(HONEYPOT_FIELD) || "");
     setServerError("");
     const found = validate();
     setErrors(found);
@@ -59,7 +66,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
       const response = await fetch("/api/contact", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify({ ...form, [HONEYPOT_FIELD]: trap }),
       });
       const result = await response.json();
       if (!response.ok) {
@@ -226,9 +233,15 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
         )}
       </Field>
 
-      {/* מלכודת ספאם — מוסתרת מהמשתמש ומקורא המסך */}
+      {/*
+        * מלכודת ספאם.
+        *
+        * QA-006: השם היה "company" — אסימון autofill תקני, שהדפדפן מילא
+        * וגרם לדחיית פניות אמיתיות. אין כאן label בכוונה: תווית מושכת
+        * את המילוי האוטומטי בדיוק כמו השם.
+        */}
       <div aria-hidden="true" className="sr-only">
-        <label>חברה<input name="company" tabIndex={-1} autoComplete="off" /></label>
+        <input {...honeypotInputProps} aria-label="" />
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

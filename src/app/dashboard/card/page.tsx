@@ -33,7 +33,17 @@ export default async function CardBuilderPage({
         canBuy={!access.locked}
         demo={viewer.demo}
       />
+      {/*
+        * NEW-007 · סיבת השורש: CardBuilderV2 מחזיק `useState(initialCard)`,
+        * ו-useState מתעלם מה-prop אחרי ההרכבה הראשונה. בהחלפת כרטיס
+        * הרכיב נשאר עם הנתונים הקודמים — והשמירה שלחה את מזהה הכרטיס
+        * הישן, כלומר עריכת כרטיס ב׳ הייתה נכתבת לכרטיס א׳.
+        *
+        * key לפי מזהה הכרטיס מאלץ הרכבה מחדש, ואיתה מתאפסים גם דגל
+        * ה-dirty וטיימר השמירה האוטומטית — שאחרת היו חוצים כרטיסים.
+        */}
       <CardBuilderV2
+        key={card.id}
         initialCard={card}
         demo={viewer.demo}
         siteUrl={brand.siteUrl}
