@@ -50,13 +50,18 @@ export function OtpInput({ name, error, disabled = false, length = 6 }: { name: 
       setAt(index - 1, "");
       event.preventDefault();
     }
-    if (event.key === "ArrowRight" && index > 0) refs.current[index - 1]?.focus();
-    if (event.key === "ArrowLeft" && index < length - 1) refs.current[index + 1]?.focus();
+    /*
+     * NEW-005: החיצים היו הפוכים. המכל מוגדר dir="ltr" כדי שהספרות
+     * יוקלדו כמו שהקוד נראה במייל, ולכן ימינה מתקדם ושמאלה חוזר —
+     * בדיוק כמו שהעין רואה.
+     */
+    if (event.key === "ArrowLeft" && index > 0) refs.current[index - 1]?.focus();
+    if (event.key === "ArrowRight" && index < length - 1) refs.current[index + 1]?.focus();
   }
 
   return (
     <div className="grid gap-2">
-      <label htmlFor={`${id}-0`} className="text-[0.9rem] font-semibold">
+      <label id={`${id}-label`} htmlFor={`${id}-0`} className="text-[0.9rem] font-semibold">
         קוד אימות<span className="required-field">חובה</span>
       </label>
 
@@ -75,7 +80,18 @@ export function OtpInput({ name, error, disabled = false, length = 6 }: { name: 
             )}
             type="text"
             inputMode="numeric"
-            autoComplete={index === 0 ? "one-time-code" : "off"}
+            /*
+             * NEW-005: pattern מבקש מקלדת ספרות ב-iOS, ו-enterKeyHint
+             * הופך את מקש האישור ל"סיום" במקום "הבא".
+             */
+            pattern="[0-9]*"
+            enterKeyHint="done"
+            /*
+             * one-time-code על כל התיבות ולא רק על הראשונה: iOS מציע
+             * את הקוד לשדה שבמיקוד, ומשתמש שלחץ על התיבה השלישית לא
+             * קיבל הצעה כלל. handleChange מפצל קוד מלא לכל התיבות.
+             */
+            autoComplete="one-time-code"
             maxLength={length}
             value={digit}
             disabled={disabled}

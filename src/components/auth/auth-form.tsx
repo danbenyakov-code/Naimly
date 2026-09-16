@@ -23,6 +23,7 @@ import { OtpInput } from "@/components/auth/otp-input";
 import { ResendButton } from "@/components/auth/resend-button";
 import { burst } from "@/lib/celebrate";
 import { cn } from "@/lib/utils";
+import { LegalLink } from "@/components/legal/legal-dialog";
 
 export type AuthMode = "login" | "signup" | "forgot";
 
@@ -418,9 +419,9 @@ export function AuthForm({
               />
               <span>
                 קראתי ואני מאשר/ת את{" "}
-                <Link href="/legal/terms" className="font-semibold text-[#6d4aff] underline underline-offset-2">תנאי השימוש</Link>
+                <LegalLink docId="terms">תנאי השימוש</LegalLink>
                 {" "}ואת{" "}
-                <Link href="/legal/privacy" className="font-semibold text-[#6d4aff] underline underline-offset-2">מדיניות הפרטיות</Link>
+                <LegalLink docId="privacy">מדיניות הפרטיות</LegalLink>
                 <span className="required-field">חובה</span>
               </span>
             </label>

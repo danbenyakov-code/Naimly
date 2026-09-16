@@ -169,7 +169,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
       </fieldset>
 
       <div className="grid gap-4 sm:grid-cols-2">
-        <Field label="שם מלא" required error={errors.name}>
+        <Field label="שם מלא" name="name" required error={errors.name}>
           {(field) => (
             <input
               {...field}
@@ -183,7 +183,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
           )}
         </Field>
 
-        <Field label="אימייל" required error={errors.email} hint="לכתובת הזו נחזור אליך">
+        <Field label="אימייל" name="email" required error={errors.email} hint="לכתובת הזו נחזור אליך">
           {(field) => (
             <input
               {...field}
@@ -201,7 +201,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
         </Field>
       </div>
 
-      <Field label="טלפון" optional error={errors.phone} hint="אם נוח לך שנחזור בוואטסאפ">
+      <Field label="טלפון" name="phone" optional error={errors.phone} hint="אם נוח לך שנחזור בוואטסאפ">
         {(field) => (
           <input
             {...field}
@@ -218,7 +218,7 @@ export function ContactForm({ defaultTopic, supportEmail }: { defaultTopic?: str
         )}
       </Field>
 
-      <Field label="פירוט הפנייה" required error={errors.message} hint={`${form.message.length}/2000 תווים`}>
+      <Field label="פירוט הפנייה" name="message" required error={errors.message} hint={`${form.message.length}/2000 תווים`}>
         {(field) => (
           <textarea
             {...field}

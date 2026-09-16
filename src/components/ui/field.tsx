@@ -231,7 +231,12 @@ export function ErrorSummary({
       role="alert"
       tabIndex={-1}
       data-error-summary
-      className="rounded-2xl border border-[#f0bdc3] bg-[#fff2f4] p-4 outline-none focus-visible:shadow-[0_0_0_3px_rgba(201,52,69,.25)]"
+      /*
+       * QA-009: הטבעת הוגדרה על focus-visible בלבד. קריאה תוכנתית
+       * ל-focus() אינה מפעילה את המצב הזה ברוב הדפדפנים, ולכן המיקוד
+       * אכן עבר — אבל שום דבר לא השתנה על המסך, וזה נראה כמו כשל.
+       */
+      className="rounded-2xl border border-[#f0bdc3] bg-[#fff2f4] p-4 outline-none focus:shadow-[0_0_0_3px_rgba(201,52,69,.25)]"
     >
       <p className="flex items-center gap-2 font-bold text-[#a32031]">
         <AlertCircle size={17} aria-hidden="true" />
@@ -244,9 +249,14 @@ export function ErrorSummary({
               href={`#field-${key}`}
               onClick={(event) => {
                 event.preventDefault();
+                /*
+                 * כשהשדה אינו נמצא — למשל כשלא הועבר לו name — עדיף
+                 * להשאיר את המיקוד בסיכום מאשר לאבד אותו לגמרי.
+                 */
                 const target = document.querySelector<HTMLElement>(`[data-field="${key}"]`);
-                target?.focus();
-                target?.scrollIntoView({ block: "center", behavior: "smooth" });
+                if (!target) return;
+                target.focus();
+                target.scrollIntoView({ block: "center", behavior: "smooth" });
               }}
               className="text-[#a2434f] underline underline-offset-2 hover:text-[#a32031]"
             >
