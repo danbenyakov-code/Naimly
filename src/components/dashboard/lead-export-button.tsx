@@ -17,7 +17,7 @@ export function LeadExportButton({ unlocked, plan }: { unlocked: boolean; plan: 
   if (unlocked) {
     return (
       <Link href="/api/leads/export" className="button-secondary self-start">
-        <Download size={17} />ייצוא CSV
+        <Download size={17} />ייצוא ל‑Excel
       </Link>
     );
   }
@@ -27,12 +27,12 @@ export function LeadExportButton({ unlocked, plan }: { unlocked: boolean; plan: 
       type="button"
       className="button-secondary self-start border-dashed border-[#d5cdf5] text-[#6d4aff]"
       onClick={() => requestUpgrade({
-        title: "ייצוא לידים ל‑CSV",
-        description: `ייצוא כל הפניות לקובץ CSV אינו כלול במסלול ${planName(plan)}. הוא נפתח במסלול ${planName(requiredPlan)}, וכל הפניות שכבר נאספו ייוצאו מיד לאחר השדרוג.`,
+        title: "ייצוא לידים ל‑Excel",
+        description: `ייצוא כל הפניות לקובץ Excel אינו כלול במסלול ${planName(plan)}. הוא נפתח במסלול ${planName(requiredPlan)}, וכל הפניות שכבר נאספו ייוצאו מיד לאחר השדרוג.`,
         requiredPlan,
       })}
     >
-      <Lock size={16} />ייצוא CSV
+      <Lock size={16} />ייצוא ל‑Excel
     </button>
   );
 }

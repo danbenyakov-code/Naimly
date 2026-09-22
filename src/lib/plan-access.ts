@@ -54,7 +54,7 @@ export const trialLimits: Limits = {
 
 export const featureLabels: Record<FeatureKey, string> = {
   tracking: "Meta Pixel ו‑Google Analytics",
-  leadExport: "ייצוא לידים ל‑CSV",
+  leadExport: "ייצוא לידים ל‑Excel",
   carousel: "גלריית קרוסלה",
   video: "וידג׳ט סרטון",
   files: "קבצים להורדה",
@@ -294,7 +294,7 @@ export function downgradeImpact(card: CardData, targetPlan: PlanId): ImpactItem[
     items.push({ key: "seo", kind: "removed", label: "אזור השירות ותמונת השיתוף המותאמת יימחקו" });
   }
   if (!features.leadExport) {
-    items.push({ key: "leadExport", kind: "disabled", label: "ייצוא הלידים ל‑CSV ייסגר (הלידים עצמם נשמרים)" });
+    items.push({ key: "leadExport", kind: "disabled", label: "ייצוא הלידים ל‑Excel ייסגר (הלידים עצמם נשמרים)" });
   }
 
   return items;

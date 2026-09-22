@@ -79,7 +79,7 @@ const groups: Group[] = [
       ["Meta Pixel", ...plans.map((plan) => planFeatures(plan.id).tracking)],
       ["SEO מתקדם — אזור שירות ותמונת שיתוף", ...plans.map((plan) => planFeatures(plan.id).seo)],
       ["גלריית קרוסלה", ...plans.map((plan) => planFeatures(plan.id).carousel)],
-      ["ייצוא הפניות לקובץ CSV", ...plans.map((plan) => planFeatures(plan.id).leadExport)],
+      ["ייצוא הפניות לקובץ Excel", ...plans.map((plan) => planFeatures(plan.id).leadExport)],
     ],
   },
 ];
