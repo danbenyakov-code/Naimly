@@ -149,6 +149,18 @@ const cards = [
     button_color: "#6d4aff",
     template: "spotlight",
     background_preset: "aurora",
+    /*
+     * NEW-004: הכרטיס עלה בלי שום תמונה. קאבר הדוגמה מיועד גם לכרטיס
+     * הזה לפי public/samples/README.md — אבל הלוגו הוא האייקון האמיתי
+     * של NAIMLY (src/app/icon.svg), לא הדיוקן האנושי מ-samples/, כי
+     * הכרטיס מציג "צוות נעימלי" ולא אדם ספציפי. שיוך תמונת פורטרט של
+     * אדם לזהות בדויה על כרטיס אמיתי ואינדקסבל הוא בדיוק ההטעיה
+     * שהוסרה כבר ב-QA-002.
+     */
+    cover_url: "/samples/cover-example.jpg",
+    logo_url: "/icon.svg",
+    cover_alt: "רקע ממותג NAIMLY",
+    logo_alt: "לוגו NAIMLY",
     seo_title: "NAIMLY — כרטיס ביקור דיגיטלי לדוגמה",
     seo_description: "דוגמה חיה לכרטיס ביקור דיגיטלי של NAIMLY: פעולות מהירות, מסלולים, טופס פניות ושמירת איש קשר.",
     services: planServices,
@@ -176,6 +188,11 @@ const cards = [
     button_color: "#c2410c",
     template: "portfolio",
     background_preset: "sunset",
+    // NEW-004: אותו טיפול כמו ב-noa-design — קאבר כללי ולוגו NAIMLY, בלי זהות בדויה.
+    cover_url: "/samples/cover-example.jpg",
+    logo_url: "/icon.svg",
+    cover_alt: "רקע ממותג NAIMLY",
+    logo_alt: "לוגו NAIMLY",
     seo_title: "כרטיס דוגמה — מבנה לעסק ויזואלי | NAIMLY",
     seo_description: "כרטיס ביקור דיגיטלי לדוגמה עם גלריה, שירותים וטופס פניות. מנוהל על ידי NAIMLY.",
     services: [
@@ -206,6 +223,11 @@ const cards = [
     button_color: "#0f766e",
     template: "services",
     background_preset: "medical-mint",
+    // NEW-004: אותו טיפול כמו ב-noa-design — קאבר כללי ולוגו NAIMLY, בלי זהות בדויה.
+    cover_url: "/samples/cover-example.jpg",
+    logo_url: "/icon.svg",
+    cover_alt: "רקע ממותג NAIMLY",
+    logo_alt: "לוגו NAIMLY",
     seo_title: "כרטיס דוגמה — מבנה לעסק שירותים | NAIMLY",
     seo_description: "כרטיס ביקור דיגיטלי לדוגמה עם שירותים, מחירים, שעות פעילות וטופס פניות. מנוהל על ידי NAIMLY.",
     services: [

@@ -99,7 +99,16 @@ export function Reveal({
 export function CountUp({ to, suffix = "", duration = 1400 }: { to: number; suffix?: string; duration?: number }) {
   const ref = useRef<HTMLSpanElement>(null);
   const reduced = usePrefersReducedMotion();
-  const [animated, setAnimated] = useState(0);
+  /*
+   * NEW-001: האתחול ל-0 יצר "0" גלוי בכל טעינה — לא רק בזמן האנימציה.
+   * ב-SSR reduced=true מציג את הערך האמיתי, אך מיד אחרי ה-hydration
+   * reduced הופך ל-false אצל רוב המבקרים (ללא העדפת "פחות תנועה"),
+   * ו-animated עדיין 0 — המספר קופץ מ-14 ל-0 עוד לפני שהמקטע נגלל
+   * למסך, ונשאר כך עד שה-IntersectionObserver מופעל. אתחול ל-to
+   * שומר על הערך הנכון תמיד; הספירה עדיין רצה מ-0 ברגע שהאלמנט נכנס
+   * בפועל לתצוגה.
+   */
+  const [animated, setAnimated] = useState(to);
 
   useEffect(() => {
     const element = ref.current;

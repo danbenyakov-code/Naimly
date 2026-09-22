@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Check, GripVertical, LayoutGrid, Palette, Sparkles } from "lucide-react";
 import { CardPreview } from "@/components/card/card-preview";
-import { demoCard } from "@/lib/demo-data";
-import type { CardWidgetType } from "@/lib/types";
+import type { CardData, CardWidgetType } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 const palettes = [
@@ -14,8 +13,12 @@ const palettes = [
 ];
 const labels: Partial<Record<CardWidgetType, string>> = { smart_buttons: "כפתורים", services: "שירותים", gallery: "קרוסלה", video: "סרטון", testimonials: "המלצות", contact_form: "טופס לידים" };
 
-export function ProductPlayground() {
-  const [card, setCard] = useState({ ...demoCard, videoUrl: "https://youtube.com/watch?v=dQw4w9WgXcQ" });
+/*
+ * NEW-004: קיבל בעבר את demoCard המקודד בקוד במקום את הכרטיס האמיתי —
+ * ראו הערה ב-page.tsx. כרטיס ההתחלה מגיע עכשיו מבחוץ, מאותו מקור יחיד.
+ */
+export function ProductPlayground({ card: initialCard }: { card: CardData }) {
+  const [card, setCard] = useState({ ...initialCard, videoUrl: "https://youtube.com/watch?v=dQw4w9WgXcQ" });
   const toggle = (type: CardWidgetType) => setCard((current) => ({ ...current, widgets: current.widgets.map((widget) => widget.type === type ? { ...widget, enabled: !widget.enabled } : widget) }));
   return <div className="grid items-start gap-8 lg:grid-cols-[1fr_390px]">
     <div className="rounded-[28px] border border-white/10 bg-white/[.055] p-5 backdrop-blur sm:p-7">
@@ -24,6 +27,7 @@ export function ProductPlayground() {
       <div className="mt-6"><div className="mb-3 flex items-center gap-2 text-sm font-bold text-white/70"><Palette size={16} />צבעי מותג</div><div className="flex flex-wrap gap-2">{palettes.map((palette) => <button key={palette.name} type="button" onClick={() => setCard((current) => ({ ...current, primaryColor: palette.primary, accentColor: palette.accent }))} className="flex min-h-11 items-center gap-2 rounded-xl border border-white/10 bg-white/[.04] px-3 text-sm"><span className="h-5 w-5 rounded-full" style={{ background: palette.primary }} /><span>{palette.name}</span></button>)}</div></div>
       <div className="mt-6 rounded-2xl border border-[#6fe0cf]/25 bg-[#6fe0cf]/10 p-4"><div className="flex items-center gap-2 text-sm font-bold text-[#8ef3e4]"><Sparkles size={16} />קישורים חכמים</div><p className="mt-1 text-sm leading-6 text-white/60">מזינים כתובת פעם אחת והמערכת יוצרת לבד Waze ו־Google Maps. כך גם בטלפון, אימייל ו־WhatsApp.</p></div>
     </div>
-    <div className="mx-auto w-full max-w-[350px] rounded-[38px] border-[9px] border-[#101522] bg-white shadow-[0_34px_90px_rgba(0,0,0,.38)]"><div className="max-h-[680px] overflow-y-auto rounded-[28px]"><CardPreview card={card} contactForm={<div className="rounded-2xl bg-[#f5f6fa] p-4 text-center text-sm font-bold">טופס לידים דינמי</div>} /></div></div>
+    {/* NEW-002: בלי compact, CardPreview מדפיס h1 משלו — כפילות מול ה-h1 בראש דף הבית. */}
+    <div className="mx-auto w-full max-w-[350px] rounded-[38px] border-[9px] border-[#101522] bg-white shadow-[0_34px_90px_rgba(0,0,0,.38)]"><div className="max-h-[680px] overflow-y-auto rounded-[28px]"><CardPreview card={card} compact contactForm={<div className="rounded-2xl bg-[#f5f6fa] p-4 text-center text-sm font-bold">טופס לידים דינמי</div>} /></div></div>
   </div>;
 }

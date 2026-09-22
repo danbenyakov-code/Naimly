@@ -24,7 +24,13 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   // QA-035: ה-locale נגזר משפת הכרטיס. locale קבוע היה מצהיר על עברית
   // גם בכרטיס אנגלי, ומטעה כל מי שקורא את התגיות — רשתות וקוראי מסך.
   const locale = cardLocale(toCardLanguage(card.language));
-  return { title, description, alternates: { canonical: `/${card.slug}` }, robots: { index: card.allowIndexing, follow: card.allowIndexing }, openGraph: { title, description, type: "profile", locale, url: `/${card.slug}`, images }, twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((image) => image.url) } };
+  /*
+   * NEW-003: title.template בפריסת השורש מוסיף "| NAIMLY" לכל כותרת.
+   * כרטיס שהוגדרה לו כותרת SEO שמסתיימת כבר ב-NAIMLY (כמו שלושת כרטיסי
+   * התצוגה) יצא עם "NAIMLY | NAIMLY". title.absolute מדלג על התבנית של
+   * ההורה — כותרת הכרטיס הציבורי היא של בעל העסק, לא סניף של המותג.
+   */
+  return { title: { absolute: title }, description, alternates: { canonical: `/${card.slug}` }, robots: { index: card.allowIndexing, follow: card.allowIndexing }, openGraph: { title, description, type: "profile", locale, url: `/${card.slug}`, images }, twitter: { card: images ? "summary_large_image" : "summary", title, description, images: images?.map((image) => image.url) } };
 }
 
 export default async function PublicCardPage({ params }: { params: Promise<{ slug: string }> }) {
