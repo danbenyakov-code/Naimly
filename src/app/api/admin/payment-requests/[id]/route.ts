@@ -51,11 +51,21 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   if (!parsed.success) return NextResponse.json({ error: "בקשה לא תקינה" }, { status: 400 });
   const { action } = parsed.data;
 
-  const { data: row } = await admin
+  /*
+   * BUG (2026-09-23): payment_requests מחזיקה שני FK ל-profiles
+   * (user_id, reviewed_by) — "profiles(...)" גולמי דו-משמעי ל-PostgREST
+   * (PGRST201), והשאילתה נכשלת. כאן זה היה חמור פי כמה מבמסך התצוגה:
+   * data ריק גרר "הבקשה לא נמצאה" (404) על **כל** פעולת אדמין — אישור,
+   * שליחת קישור, אימות תשלום, הפעלה, דחייה — על בקשות שכן קיימות.
+   * התגלה בפועל: E2E אמיתי (Playwright) יצר בקשה, ומסך /admin/payments
+   * הציג "0 עסקאות" למרות שהשורה הייתה במסד.
+   */
+  const { data: row, error: fetchError } = await admin
     .from("payment_requests")
-    .select("id,user_id,plan_id,billing_cycle,amount,status,reference,plan_name_snapshot,card_id,profiles(full_name,email)")
+    .select("id,user_id,plan_id,billing_cycle,amount,status,reference,plan_name_snapshot,card_id,profiles!payment_requests_user_id_fkey(full_name,email)")
     .eq("id", id)
     .maybeSingle();
+  if (fetchError) console.error("payment_requests fetch failed:", fetchError.message);
   const paymentRequest = row as unknown as RequestRow | null;
   if (!paymentRequest) return NextResponse.json({ error: "הבקשה לא נמצאה" }, { status: 404 });
   const currentStatus = isPurchaseStatus(paymentRequest.status) ? paymentRequest.status : "pending_admin_review";

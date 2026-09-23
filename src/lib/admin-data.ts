@@ -116,12 +116,20 @@ type RequestRow = {
   } | null;
 };
 
+/*
+ * BUG (2026-09-23): payment_requests מחזיקה שני FK נפרדים ל-profiles
+ * (user_id ו-reviewed_by). "profiles(...)" גולמי לא יכול להחליט לאיזה
+ * מהם להתחבר — PostgREST מחזיר PGRST201 ("more than one relationship
+ * was found") וזורק את כל השאילתה. חייבים לנקוב בשם ה-constraint
+ * במפורש. התגלה כי getPaymentRequests בלע את השגיאה בשקט (רק data
+ * נקרא, לא error) והציג "0 עסקאות" בלי שום רמז שהשאילתה נכשלה.
+ */
 const REQUEST_COLUMNS =
   "id,reference,user_id,plan_id,amount,billing_cycle,method,status,contact_phone,note,admin_note,created_at,reviewed_at," +
   "plan_name_snapshot,price_before_discount,discount_amount,currency,cards_included,features_snapshot,pricing_version," +
   "payment_link,payment_link_expires_at,payment_reference,invoice_issued,invoice_reference,invoice_issued_at,invoice_note,invoice_sent_to_customer,customer_notes," +
   "payment_link_sent_at,customer_reported_paid_at,payment_confirmed_at,activated_at,rejected_at,cancelled_at,refunded_at," +
-  "profiles(full_name,email,terms_version,terms_accepted_at)";
+  "profiles!payment_requests_user_id_fkey(full_name,email,terms_version,terms_accepted_at)";
 
 function mapRequest(row: RequestRow): PaymentRequestRecord {
   return {
@@ -186,7 +194,9 @@ export async function getPaymentRequests(viewer: Viewer, filter: PaymentRequestF
   if (filter.planId) query = query.eq("plan_id", filter.planId);
   if (filter.billingCycle) query = query.eq("billing_cycle", filter.billingCycle);
   if (filter.reference) query = query.ilike("reference", `%${filter.reference}%`);
-  const { data } = await query;
+  const { data, error } = await query;
+  // שגיאת שאילתה בשקט הציגה בעבר "0 עסקאות" בלי שום רמז — עכשיו לפחות נרשם ללוג.
+  if (error) console.error("getPaymentRequests failed:", error.message);
   let rows = ((data || []) as unknown as RequestRow[]).map(mapRequest);
   // סינון לפי אימייל לקוח נעשה אחרי המיפוי — השדה מגיע מטבלה מקושרת.
   if (filter.email) rows = rows.filter((row) => row.customerEmail.toLowerCase().includes(filter.email!.toLowerCase()));
@@ -233,11 +243,12 @@ export async function getMyPaymentRequests(viewer: Viewer): Promise<PaymentReque
   if (viewer.demo || !isSupabaseAdminConfigured) return [];
   const admin = createSupabaseAdminClient();
   if (!admin) return [];
-  const { data } = await admin
+  const { data, error } = await admin
     .from("payment_requests")
     .select(REQUEST_COLUMNS)
     .eq("user_id", viewer.id)
     .order("created_at", { ascending: false })
     .limit(10);
+  if (error) console.error("getMyPaymentRequests failed:", error.message);
   return ((data || []) as unknown as RequestRow[]).map(mapRequest);
 }
