@@ -3,6 +3,7 @@
 
 import { useEffect, useMemo, useState, useRef, useId } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import QRCode from "qrcode";
 import { ArrowDown, ArrowLeft, ArrowRight, ArrowUp, BarChart3, Check, ContactRound, Copy, ExternalLink, Eye, ImagePlus, LayoutGrid, Link2, Loader2, Lock, MailCheck, Monitor, Palette, Plus, Save, Settings2, Share2, Smartphone, Sparkles, Trash2, Type, UploadCloud, X } from "lucide-react";
 import { CardPreview } from "@/components/card/card-preview";
@@ -26,7 +27,7 @@ import { burst, fireworks } from "@/lib/celebrate";
 import { LockBadge, PlanLock, useUpgrade } from "@/components/upgrade-dialog";
 import type { UpgradePrompt } from "@/components/upgrade-dialog";
 import { BackButton } from "@/components/ui/back-button";
-import { cardLanguages } from "@/lib/card-i18n";
+import { cardDir, cardLanguages, toCardLanguage } from "@/lib/card-i18n";
 import { cardTemplates } from "@/lib/card-templates";
 import { OpeningHoursEditor } from "@/components/dashboard/opening-hours-editor";
 import { primaryCtaOptions } from "@/components/card/primary-cta";
@@ -69,6 +70,7 @@ const actionOptions: Array<{ value: QuickActionType; label: string; placeholder:
 export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail = "",
   onboardingSeenAt, locked = false, lockReason = "active", trialActive = false, forceTour = false, initialPreviewMode = "mobile" }: { initialCard: CardData; demo: boolean; siteUrl: string; planId: PlanId; accountEmail?: string;
   onboardingSeenAt?: string; locked?: boolean; lockReason?: AccessReason; trialActive?: boolean; forceTour?: boolean; initialPreviewMode?: "mobile" | "desktop" }) {
+  const router = useRouter();
   const [card, setCard] = useState(initialCard);
   const [tab, setTab] = useState<Tab>("structure");
   const [saving, setSaving] = useState(false);
@@ -246,6 +248,16 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
       setLastSavedAt(new Date().toISOString());
       if (demo) localStorage.setItem("naimly-demo-card", JSON.stringify(next));
 
+      /*
+       * BUG (2026-09-22): DashboardShell מקבל cardStatus כ-prop שנטען
+       * פעם אחת בשרת (dashboard/layout.tsx), ולא מתעדכן אוטומטית
+       * כשפרסום קורה כאן בצד הלקוח. אחרי פרסום, הכותרת העליונה המשיכה
+       * להציג "הכרטיס שמור כטיוטה — נותר לפרסם" עד ריענון דף מלא.
+       * router.refresh() מריץ מחדש את שכבות ה-Server Component בנתיב
+       * הנוכחי (כולל ה-layout) בלי לאבד את ה-state המקומי כאן.
+       */
+      router.refresh();
+
       if (next.isPublished) {
         setSaveState("published");
         if (!options?.silent) fireworks({ bursts: 4 });
@@ -406,11 +418,36 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
       });
       return;
     }
+    /*
+     * BUG (2026-09-22): לא הייתה בדיקת גודל בצד הלקוח לפני העלאה
+     * אמיתית (רק במצב הדגמה). קובץ בין כ-4.5MB ל-5MB (המגבלה בשרת)
+     * עבר את בדיקת השרת רק תיאורטית — Vercel חוסמת גוף בקשה לפונקציית
+     * שרת מעל כ-4.5MB ברמת התשתית, לפני שהקוד שלנו בכלל רץ. הדפדפן
+     * מקבל כשל רשת גולמי ("Failed to fetch") במקום הודעת שרת ברורה.
+     * הבדיקה כאן חוסמת לפני השליחה, בטווח בטוח מתחת למגבלת התשתית.
+     */
+    const maxUploadSize = 4 * 1024 * 1024;
+    if (!demo && file.size > maxUploadSize) {
+      setStatus({ type: "error", text: `הקובץ גדול מדי (${(file.size / 1024 / 1024).toFixed(1)}MB). המגבלה היא 4MB — יש לכווץ את התמונה ולנסות שוב.` });
+      return;
+    }
     setUploading(target); setStatus(null);
     try {
       let url = "";
       if (demo) { if (file.size > 2 * 1024 * 1024) throw new Error("בדמו ניתן להעלות תמונה עד 2MB"); url = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file); }); }
-      else { const body = new FormData(); body.set("file", file); body.set("kind", "image"); const response = await fetch("/api/uploads", { method: "POST", body }); const result = await response.json(); if (!response.ok) throw new Error(result.error || "ההעלאה נכשלה"); url = result.url; }
+      else {
+        const body = new FormData(); body.set("file", file); body.set("kind", "image");
+        let response: Response;
+        try {
+          response = await fetch("/api/uploads", { method: "POST", body });
+        } catch {
+          // "Failed to fetch" גולמי מהדפדפן אינו אומר כלום למשתמש עברי.
+          throw new Error("ההעלאה נכשלה — בדקו את החיבור לרשת ונסו שוב.");
+        }
+        const result = await response.json().catch(() => null);
+        if (!response.ok || !result) throw new Error(result?.error || "ההעלאה נכשלה");
+        url = result.url;
+      }
       if (target === "gallery") {
         update("gallery", [...card.gallery, url]);
       } else {
@@ -544,6 +581,15 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
 
   const formPreview = <div className="rounded-2xl bg-[#f6f7fb] p-4"><h3 className="font-extrabold">{card.contactFormTitle}</h3><div className="mt-3 grid gap-2">{card.contactFormFields.slice(0, 4).map((field) => <div key={field.id} className="min-h-10 rounded-xl border border-[#dfe4ec] bg-white px-3 py-2 text-xs text-[#7b8799]">{field.label}{field.required ? " *" : ""}</div>)}<div className="grid min-h-10 place-items-center rounded-xl bg-[var(--card-primary)] text-xs font-bold text-white">שליחת פנייה</div></div></div>;
 
+  /*
+   * BUG (2026-09-22): התצוגה החיה בעורך לא הצהירה dir/lang בכלל — כרטיס
+   * שהוגדר לאנגלית המשיך להיראות ב-RTL בתצוגה המקדימה, בעוד שהדף
+   * הציבורי בפועל (public-card-client.tsx) כבר עושה זאת נכון. זו אותה
+   * לוגיקה בדיוק, כדי שהתצוגה המקדימה תשקף את המציאות.
+   */
+  const previewLanguage = toCardLanguage(card.language);
+  const previewDir = cardDir(previewLanguage);
+
   return <div className="mx-auto max-w-[1500px] pb-28 xl:pb-0">
     <AppChrome variant="builder" />
     <div className="flex flex-col gap-4 border-b border-[#dfe5ed] pb-5 sm:flex-row sm:items-end sm:justify-between">
@@ -635,7 +681,7 @@ export function CardBuilderV2({ initialCard, demo, siteUrl, planId, accountEmail
           {tab === "appearance" && <AppearancePanel card={card} onPatch={updateMany} />}
         </div>
       </section>
-      <aside id="live-preview" className={cn("scroll-mt-4", previewMode === "mobile" && "xl:sticky xl:top-4 xl:self-start")}><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><span className="text-sm font-bold">תצוגה חיה</span><p className="mt-0.5 text-xs text-[#748196]">כך הכרטיס ייראה אצל המבקרים</p></div><div className="inline-flex self-start rounded-xl border border-[#dfe4ec] bg-white p-1" role="group" aria-label="בחירת גודל תצוגה"><button type="button" onClick={() => setPreviewMode("mobile")} aria-pressed={previewMode === "mobile"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "mobile" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Smartphone size={17} />נייד</button><button type="button" onClick={() => setPreviewMode("desktop")} aria-pressed={previewMode === "desktop"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "desktop" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Monitor size={17} />מחשב</button></div></div>{previewMode === "mobile" ? <div className="mx-auto w-full max-w-[360px] overflow-y-auto rounded-[28px] border-4 border-[#172033] shadow-[0_22px_65px_rgba(11,24,48,.2)] sm:rounded-[34px] sm:border-[9px] xl:max-h-[770px]" style={{ background: backgroundCss(card.backgroundPreset) }}><div className="p-3"><div className="overflow-hidden rounded-[22px] bg-white shadow-[0_10px_30px_rgba(11,24,48,.12)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div> : <div className="mx-auto w-full max-w-[1040px] overflow-hidden rounded-[22px] border border-[#cad2df] bg-[#eef1f6] shadow-[0_22px_65px_rgba(11,24,48,.16)]"><div className="flex h-11 items-center gap-2 border-b border-[#d8dee8] bg-white px-4" aria-hidden="true"><span className="h-3 w-3 rounded-full bg-[#ff6b61]" /><span className="h-3 w-3 rounded-full bg-[#f5bf4f]" /><span className="h-3 w-3 rounded-full bg-[#14d9c4]" /><span className="mx-auto rounded-lg bg-[#f2f4f8] px-20 py-1 text-[11px] text-[#758198]">{publicUrl}</span></div><div className="max-h-[760px] overflow-y-auto p-8" style={{ background: backgroundCss(card.backgroundPreset) }}><div className="mx-auto max-w-[620px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_24px_70px_rgba(11,16,32,.15)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div>}</aside>
+      <aside id="live-preview" className={cn("scroll-mt-4", previewMode === "mobile" && "xl:sticky xl:top-4 xl:self-start")}><div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><span className="text-sm font-bold">תצוגה חיה</span><p className="mt-0.5 text-xs text-[#748196]">כך הכרטיס ייראה אצל המבקרים</p></div><div className="inline-flex self-start rounded-xl border border-[#dfe4ec] bg-white p-1" role="group" aria-label="בחירת גודל תצוגה"><button type="button" onClick={() => setPreviewMode("mobile")} aria-pressed={previewMode === "mobile"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "mobile" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Smartphone size={17} />נייד</button><button type="button" onClick={() => setPreviewMode("desktop")} aria-pressed={previewMode === "desktop"} className={cn("flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm font-bold", previewMode === "desktop" ? "bg-[#6d4aff] text-white" : "text-[#637086]")}><Monitor size={17} />מחשב</button></div></div>{previewMode === "mobile" ? <div className="mx-auto w-full max-w-[360px] overflow-y-auto rounded-[28px] border-4 border-[#172033] shadow-[0_22px_65px_rgba(11,24,48,.2)] sm:rounded-[34px] sm:border-[9px] xl:max-h-[770px]" style={{ background: backgroundCss(card.backgroundPreset) }}><div className="p-3"><div dir={previewDir} lang={previewLanguage} className="overflow-hidden rounded-[22px] bg-white shadow-[0_10px_30px_rgba(11,24,48,.12)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div> : <div className="mx-auto w-full max-w-[1040px] overflow-hidden rounded-[22px] border border-[#cad2df] bg-[#eef1f6] shadow-[0_22px_65px_rgba(11,24,48,.16)]"><div className="flex h-11 items-center gap-2 border-b border-[#d8dee8] bg-white px-4" aria-hidden="true"><span className="h-3 w-3 rounded-full bg-[#ff6b61]" /><span className="h-3 w-3 rounded-full bg-[#f5bf4f]" /><span className="h-3 w-3 rounded-full bg-[#14d9c4]" /><span className="mx-auto rounded-lg bg-[#f2f4f8] px-20 py-1 text-[11px] text-[#758198]">{publicUrl}</span></div><div className="max-h-[760px] overflow-y-auto p-8" style={{ background: backgroundCss(card.backgroundPreset) }}><div dir={previewDir} lang={previewLanguage} className="mx-auto max-w-[620px] overflow-hidden rounded-[30px] border border-white bg-white shadow-[0_24px_70px_rgba(11,16,32,.15)]"><CardPreview card={card} contactForm={formPreview} /></div></div></div>}</aside>
     </div>
     <div className="fixed inset-x-0 bottom-0 z-40 flex items-center gap-2 border-t border-[#dfe4ec] bg-white/95 p-3 pb-[calc(.75rem+env(safe-area-inset-bottom))] shadow-[0_-12px_30px_rgba(11,16,32,.12)] backdrop-blur xl:hidden"><a href="#live-preview" className="button-secondary flex-1"><Eye size={17} />תצוגה</a><button type="button" onClick={() => void save({ publish: true })} disabled={saving} className="button-primary flex-[1.35]">{saving ? <Loader2 size={17} className="animate-spin" /> : <Save size={17} />}{saveState === "publishing" ? "מפרסם..." : saveState === "saving" ? "שומר..." : "שמירה ופרסום"}</button></div>
     {/* סרגל שמירה קבוע בתחתית המסך בנייד. מעל ניווט התחתית של המעטפת. */}
@@ -776,10 +822,10 @@ function Field({ label, wide, required, error, children }: { label: string; wide
  * את המערכת. המפרט מוצג לפני הבחירה, לא אחריה.
  */
 const uploadSpecs: Record<string, { ratio: string; size: string; weight: string; note?: string }> = {
-  coverUrl: { ratio: "16:9 לרוחב", size: "1600×900 ומעלה", weight: "עד 5MB", note: "החלק העליון נחתך בנייד" },
-  logoUrl: { ratio: "ריבוע", size: "512×512 ומעלה", weight: "עד 5MB", note: "רקע שקוף מומלץ" },
-  avatarUrl: { ratio: "ריבוע", size: "512×512 ומעלה", weight: "עד 5MB", note: "הפנים במרכז" },
-  gallery: { ratio: "ריבוע או 4:5", size: "1000×1000 ומעלה", weight: "עד 5MB" },
+  coverUrl: { ratio: "16:9 לרוחב", size: "1600×900 ומעלה", weight: "עד 4MB", note: "החלק העליון נחתך בנייד" },
+  logoUrl: { ratio: "ריבוע", size: "512×512 ומעלה", weight: "עד 4MB", note: "רקע שקוף מומלץ" },
+  avatarUrl: { ratio: "ריבוע", size: "512×512 ומעלה", weight: "עד 4MB", note: "הפנים במרכז" },
+  gallery: { ratio: "ריבוע או 4:5", size: "1000×1000 ומעלה", weight: "עד 4MB" },
   document: { ratio: "PDF", size: "כל גודל", weight: "עד 10MB" },
 };
 

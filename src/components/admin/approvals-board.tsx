@@ -9,6 +9,7 @@ import { planName } from "@/lib/plan-access";
 import { cycleMonths, LEGAL_VERSION_LABEL } from "@/lib/admin-labels";
 import { cn, formatCurrency } from "@/lib/utils";
 import { burst } from "@/lib/celebrate";
+import { whatsappLink } from "@/lib/contact-source";
 
 type Tab = "pending" | "customers" | "create";
 
@@ -200,9 +201,15 @@ export function ApprovalsBoard({ requests, customers, demo }: { requests: Paymen
                 >
                   <X size={17} />דחייה
                 </button>
-                {request.contactPhone && (
+                {/*
+                 * BUG (2026-09-22): הקישור נבנה מהמספר הגולמי אחרי הסרת
+                 * תווים שאינם ספרות בלבד — 0500000000 יצר wa.me/0500000000
+                 * במקום נרמול ל-E.164 (972500000000), בדיוק אותה תקלה
+                 * שכבר תוקנה ב-contact-source.ts עבור הכרטיס הציבורי.
+                 */}
+                {whatsappLink(request.contactPhone) && (
                   <a
-                    href={`https://wa.me/${request.contactPhone.replace(/\D/g, "")}`}
+                    href={whatsappLink(request.contactPhone)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="button-secondary min-h-12 flex-1 sm:flex-none"

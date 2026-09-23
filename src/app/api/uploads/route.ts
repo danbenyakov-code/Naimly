@@ -39,7 +39,16 @@ export async function POST(request: Request) {
   if (!(file instanceof File)) return NextResponse.json({ error: "לא נבחר קובץ" }, { status: 400 });
 
   const allowedTypes: Record<string, string> = kind === "document" ? documentTypes : imageTypes;
-  const maxSize = kind === "document" ? 10 * 1024 * 1024 : 5 * 1024 * 1024;
+  /*
+   * BUG (2026-09-22): תמונה הייתה מוגבלת ל-5MB כאן, אבל Vercel חוסמת
+   * גוף בקשה לפונקציית שרת מעל כ-4.5MB ברמת התשתית — לפני שהבדיקה הזו
+   * בכלל רצה. קובץ בין 4.5MB ל-5MB נכשל בכשל רשת גולמי אצל הלקוח
+   * במקום הודעת "הקובץ גדול מדי" ברורה. הוזז מתחת לתקרת התשתית.
+   * מגבלת המסמכים (10MB) נשארת כפי שהיא ומתועדת כסיכון פתוח — קובץ
+   * PDF מעל כ-4.5MB ייכשל באותה צורה, ותיקון אמיתי דורש העלאה ישירה
+   * לאחסון (Signed URL) שעוקפת את פונקציית השרת לגמרי.
+   */
+  const maxSize = kind === "document" ? 10 * 1024 * 1024 : 4 * 1024 * 1024;
   if (file.size === 0) return NextResponse.json({ error: "הקובץ ריק" }, { status: 400 });
   if (file.size > maxSize) return NextResponse.json({ error: `הקובץ גדול מדי. המגבלה היא ${kind === "document" ? 10 : 5}MB` }, { status: 400 });
 

@@ -17,6 +17,13 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
   const access = resolveAccess(viewer);
   const maxCards = effectiveMaxCards(viewer);
   const selectedCardId = card.id;
+  /*
+   * BUG (2026-09-22): חשבון בלי כרטיס שמור מקבל starterCard עם id ריק
+   * (starter-card.ts), ולכן כל קישור בעמוד הזה יצא כ-"?card=" ריק —
+   * לא שובר בפועל (getDashboardCard מתעלם מ-cardId ריק), אבל כתובת
+   * מכוערת ומבלבלת. הפרמטר מתווסף רק כשיש כרטיס אמיתי לבחור.
+   */
+  const cardHref = (path: string) => (selectedCardId ? `${path}?card=${selectedCardId}` : path);
   const trial = access.trial;
   /*
    * QA-017: כאן הוצגו מגמות קבועות בקוד — "+18%", "+12%" — ליד נתונים
@@ -55,7 +62,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
         <div className="flex gap-2">{card.isPublished
           ? <Link href={`/${card.slug}`} target="_blank" className="button-secondary"><Eye size={17} />צפייה בכרטיס</Link>
           : <span className="inline-flex items-center gap-1.5 rounded-xl bg-[#fff6e5] px-3 py-2 text-sm font-bold text-[#8a5a00]"><Clock3 size={16} aria-hidden="true" />הכרטיס בטיוטה</span>}
-          <Link href={`/dashboard/card?card=${selectedCardId}`} className="button-primary">{card.isPublished ? "עריכת הכרטיס" : "השלמת הכרטיס ופרסום"} <ArrowLeft size={17} /></Link></div>
+          <Link href={cardHref("/dashboard/card")} className="button-primary">{card.isPublished ? "עריכת הכרטיס" : "השלמת הכרטיס ופרסום"} <ArrowLeft size={17} /></Link></div>
       </div>
 
       <section className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4" aria-label="מדדים מרכזיים">
@@ -66,7 +73,7 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
 
       <section className="mt-6 grid gap-5 xl:grid-cols-[1.25fr_.75fr]">
         <article className="card-surface p-5 sm:p-6">
-          <div className="flex items-center justify-between"><div><h2 className="text-lg font-extrabold">פעילות בשבוע האחרון</h2><p className="text-xs text-[#7a8799]">צפיות ולחיצות על הכרטיס</p></div><Link href={`/dashboard/analytics?card=${selectedCardId}`} className="text-sm font-bold text-[#6d4aff]">לכל הנתונים</Link></div>
+          <div className="flex items-center justify-between"><div><h2 className="text-lg font-extrabold">פעילות בשבוע האחרון</h2><p className="text-xs text-[#7a8799]">צפיות ולחיצות על הכרטיס</p></div><Link href={cardHref("/dashboard/analytics")} className="text-sm font-bold text-[#6d4aff]">לכל הנתונים</Link></div>
           <div className="mt-7 flex h-52 items-end gap-2 sm:gap-4" aria-label="גרף פעילות שבועי">
             {analytics.daily.slice(-7).map((item) => {
               const max = Math.max(...analytics.daily.map((day) => day.views), 1);
@@ -75,8 +82,8 @@ export default async function DashboardPage({ searchParams }: { searchParams: Pr
           </div>
         </article>
         <aside className="card-surface overflow-hidden">
-          <div className="bg-[linear-gradient(135deg,#0b1020,#2c2b70)] p-6 text-white"><div className="flex items-center gap-2 text-sm font-bold text-[#70e3d3]"><Sparkles size={16} />המלצה לשיפור</div><h2 className="mt-3 text-xl font-extrabold">הוספת המלצה יכולה להגדיל פניות.</h2><p className="mt-2 text-sm leading-6 text-white/65">בכרטיס שלך כבר יש {card.testimonials.length} המלצות. מומלץ להציג לפחות שלוש.</p><Link href={`/dashboard/card?card=${selectedCardId}#testimonials`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white">הוספת המלצה <ArrowLeft size={16} /></Link></div>
-          <div className="p-5"><h3 className="text-sm font-extrabold">קיצורי דרך</h3><div className="mt-3 grid gap-2"><Link href={`/dashboard/card?card=${selectedCardId}`} className="flex items-center justify-between rounded-xl bg-[#f4f5f9] p-3 text-sm font-semibold"><span className="flex items-center gap-2"><QrCode size={17} className="text-[#6d4aff]" />הורדת QR</span><ArrowLeft size={15} /></Link><Link href={`/dashboard/analytics?card=${selectedCardId}`} className="flex items-center justify-between rounded-xl bg-[#f4f5f9] p-3 text-sm font-semibold"><span className="flex items-center gap-2"><BarChart3 size={17} className="text-[#6d4aff]" />דו״ח ביצועים</span><ArrowLeft size={15} /></Link></div></div>
+          <div className="bg-[linear-gradient(135deg,#0b1020,#2c2b70)] p-6 text-white"><div className="flex items-center gap-2 text-sm font-bold text-[#70e3d3]"><Sparkles size={16} />המלצה לשיפור</div><h2 className="mt-3 text-xl font-extrabold">הוספת המלצה יכולה להגדיל פניות.</h2><p className="mt-2 text-sm leading-6 text-white/65">בכרטיס שלך כבר יש {card.testimonials.length} המלצות. מומלץ להציג לפחות שלוש.</p><Link href={`${cardHref("/dashboard/card")}#testimonials`} className="mt-5 inline-flex items-center gap-2 text-sm font-bold text-white">הוספת המלצה <ArrowLeft size={16} /></Link></div>
+          <div className="p-5"><h3 className="text-sm font-extrabold">קיצורי דרך</h3><div className="mt-3 grid gap-2"><Link href={cardHref("/dashboard/card")} className="flex items-center justify-between rounded-xl bg-[#f4f5f9] p-3 text-sm font-semibold"><span className="flex items-center gap-2"><QrCode size={17} className="text-[#6d4aff]" />הורדת QR</span><ArrowLeft size={15} /></Link><Link href={cardHref("/dashboard/analytics")} className="flex items-center justify-between rounded-xl bg-[#f4f5f9] p-3 text-sm font-semibold"><span className="flex items-center gap-2"><BarChart3 size={17} className="text-[#6d4aff]" />דו״ח ביצועים</span><ArrowLeft size={15} /></Link></div></div>
         </aside>
       </section>
     </div>
