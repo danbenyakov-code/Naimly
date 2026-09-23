@@ -147,7 +147,7 @@ export function PlanChoice({ fullName }: { fullName: string }) {
         או להתחיל ישירות במסלול בתשלום
       </h2>
       <p className="mt-1.5 text-center text-sm text-[#607087]">
-        התשלום מתבצע בביט דרך וואטסאפ. הכרטיס נפתח מיד עם אישור התשלום.
+        התשלום מתבצע בביט. לאחר בדיקת הבקשה ואימות ההעברה, המסלול מופעל.
       </p>
 
       <div className="mt-5 flex justify-center">

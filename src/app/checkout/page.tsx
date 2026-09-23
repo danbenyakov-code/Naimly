@@ -5,7 +5,7 @@ import { Check, MessageCircle } from "lucide-react";
 import { CheckoutButton } from "@/components/checkout-button";
 import { DowngradeNotice } from "@/components/downgrade-notice";
 import { Logo } from "@/components/logo";
-import { annualSaving, billing, billingCycleLabel, cycleAmount, extraCardProduct, isBillingConfigured, isExtraCard, plans, toBillingCycle } from "@/lib/config";
+import { annualSaving, billingCycleLabel, cycleAmount, extraCardProduct, isBillingConfigured, isExtraCard, plans, toBillingCycle } from "@/lib/config";
 import { getDashboardCard, getViewer } from "@/lib/data";
 import { downgradeImpact, resolveAccess, TRIAL_DAYS } from "@/lib/plan-access";
 import { formatCurrency } from "@/lib/utils";
@@ -83,10 +83,11 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
               </span>
             </div>
             <div className="mt-6 rounded-2xl border border-white/10 bg-white/[.055] p-4 text-xs leading-6 text-white/70">
-              <p className="flex items-center gap-2 font-bold text-[#72e3d3]"><MessageCircle size={14} />תשלום בביט דרך וואטסאפ</p>
+              <p className="flex items-center gap-2 font-bold text-[#72e3d3]"><MessageCircle size={14} />תשלום בביט, אחרי בדיקה קצרה</p>
               <p className="mt-2">
-                פותחים בקשה, מקבלים מספר אסמכתא, ומעבירים את הסכום בביט
-                {billing.bitPhone ? ` למספר ${billing.bitPhone}` : ""}. אחרי אימות ההעברה אנחנו מפעילים את המסלול.
+                פותחים בקשת רכישה ומקבלים מספר עסקה. אנחנו בודקים את הפרטים
+                ושולחים אליך קישור תשלום בביט. לאחר אימות ההעברה אנחנו מפעילים
+                את המסלול — אפשר לעקוב אחרי הסטטוס במסך &quot;ההזמנות שלי&quot;.
               </p>
             </div>
           </aside>
