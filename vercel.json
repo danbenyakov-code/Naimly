@@ -3,5 +3,8 @@
   "framework": "nextjs",
   "buildCommand": "next build",
   "installCommand": "npm ci --no-audit --no-fund",
-  "regions": ["fra1"]
+  "regions": ["fra1"],
+  "crons": [
+    { "path": "/api/cron/subscription-renewals", "schedule": "0 7 * * *" }
+  ]
 }

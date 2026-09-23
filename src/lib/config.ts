@@ -85,6 +85,16 @@ export const billingCycleLabel: Record<BillingCycle, string> = {
   annual: "תשלום שנתי מראש",
 };
 
+/**
+ * גרסת המחירון הנוכחית.
+ *
+ * נשמרת כ-snapshot על כל בקשת רכישה בזמן היצירה שלה, בדיוק כמו
+ * LEGAL_VERSION למסמכים המשפטיים. שינוי מחיר עתידי מחייב העלאת הגרסה
+ * כאן — כך אפשר להבדיל בין "המחיר בזמן הבקשה" לבין "המחיר היום" גם
+ * כשהמספר בפועל נשאר זהה.
+ */
+export const PRICING_VERSION = "2026-09-23";
+
 export const plans: Plan[] = [
   {
     id: "trial",

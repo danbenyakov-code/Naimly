@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { billing, cycleAmount, extraCardProduct, isBillingConfigured, isExtraCard, plans, toBillingCycle } from "@/lib/config";
+import { extraCardProduct, isExtraCard, plans, toBillingCycle } from "@/lib/config";
 import { getViewer } from "@/lib/data";
-import { buildReference, whatsappPaymentLink } from "@/lib/payments";
+import { buildReference } from "@/lib/payments";
+import { buildPriceSnapshot } from "@/lib/purchase-workflow";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 import { bindingDocumentIds, LEGAL_VERSION } from "@/lib/legal";
 import { adminNotificationEmail } from "@/lib/config";
-import { sendLegalAcceptanceNotification, sendPaymentRequestNotification } from "@/lib/email";
+import { sendLegalAcceptanceNotification, sendPaymentRequestNotification, sendPurchaseRequestReceived } from "@/lib/email";
 
 const schema = z.object({
   planId: z.enum(["basic", "pro", "premium", "extra_card"]),
@@ -17,16 +18,18 @@ const schema = z.object({
 });
 
 /**
- * פותח בקשת תשלום בביט. אין כאן סליקה — נוצרת רשומה במעקב עם אסמכתא,
- * והלקוח מועבר לוואטסאפ כדי להשלים את ההעברה מול העסק. ההפעלה בפועל
- * מתבצעת רק לאחר אישור ידני של מנהל.
+ * פותח בקשת רכישה. **אינה** פותחת תשלום ואינה מציגה הוראות תשלום ללקוח.
+ *
+ * הבקשה נוצרת במצב pending_admin_review — ממתינה לבדיקת מנהל. רק
+ * לאחר שמנהל בודק ושולח קישור תשלום במפורש (מסך /admin/payments) הלקוח
+ * מקבל את פרטי התשלום. ראו docs/qa — "תהליך רכישה ותשלומים ידניים".
  */
 export async function POST(request: Request) {
   const viewer = await getViewer();
-  if (!viewer) return NextResponse.json({ error: "יש להתחבר לפני התשלום" }, { status: 401 });
+  if (!viewer) return NextResponse.json({ error: "יש להתחבר לפני הרכישה" }, { status: 401 });
 
   const limited = rateLimit(`payreq:${viewer.id}`, 10, 600);
-  if (!limited.ok) return tooManyRequests(limited, "נפתחו יותר מדי בקשות תשלום ברצף. נסו שוב בעוד מספר דקות.");
+  if (!limited.ok) return tooManyRequests(limited, "נפתחו יותר מדי בקשות רכישה ברצף. נסו שוב בעוד מספר דקות.");
 
   const parsed = schema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "המסלול אינו תקין" }, { status: 400 });
@@ -40,40 +43,22 @@ export async function POST(request: Request) {
     ? { id: extraCardProduct.id, name: extraCardProduct.name, price: extraCardProduct.price } as unknown as (typeof plans)[number]
     : plans.find((item) => item.id === parsed.data.planId);
   if (!plan) return NextResponse.json({ error: "המסלול לא נמצא" }, { status: 404 });
-  if (!isBillingConfigured) {
-    return NextResponse.json({ error: "מספר הוואטסאפ לתשלומים טרם הוגדר במערכת. יש לפנות לתמיכה." }, { status: 503 });
-  }
 
   /*
-   * הסכום נגזר בשרת מהמסלול וממחזור החיוב, ולא מתקבל מהלקוח. מחיר
-   * שמגיע מהדפדפן הוא הצעה, לא עובדה.
+   * הסכום וכל שאר פרטי המחיר נגזרים בשרת מהמחירון המרכזי, לא מהלקוח —
+   * ונשמרים כ-snapshot. שינוי עתידי במחירון לא ישפיע על בקשה שכבר נפתחה.
    */
   const cycle = toBillingCycle(parsed.data.cycle);
-  const amount = cycleAmount(plan.price, cycle);
+  const snapshot = buildPriceSnapshot(parsed.data.planId, cycle);
 
-  /*
-   * פרטי ההסכמה נקבעים כאן, לפני בניית ההודעה, כדי שההודעה שהלקוח
-   * שולח בוואטסאפ תישא בדיוק את אותה גרסה ואותו מועד שנרשמים במסד.
-   */
   const ip = await clientIp();
   const userAgent = request.headers.get("user-agent")?.slice(0, 400) || "";
   const acceptedAt = new Date().toISOString();
   const phone = parsed.data.phone?.trim() || "";
-
-  const messageBase = {
-    plan,
-    viewer,
-    cycle,
-    phone,
-    termsVersion: LEGAL_VERSION,
-    acceptedAt,
-  } as const;
-
   const reference = buildReference(viewer.id, plan.id);
-  const link = whatsappPaymentLink({ ...messageBase, reference });
 
   if (viewer.demo) {
-    return NextResponse.json({ reference, whatsappUrl: link, bitPhone: billing.bitPhone, demo: true });
+    return NextResponse.json({ reference, status: "pending_admin_review", demo: true });
   }
 
   const admin = createSupabaseAdminClient();
@@ -82,34 +67,50 @@ export async function POST(request: Request) {
   // בקשה פתוחה קיימת לאותו מסלול מנוצלת מחדש, כדי לא להציף את המנהל בכפילויות.
   const { data: existing } = await admin
     .from("payment_requests")
-    .select("id,reference")
+    .select("id,reference,status")
     .eq("user_id", viewer.id)
     .eq("plan_id", plan.id)
     .eq("billing_cycle", cycle)
-    .eq("status", "pending")
+    .in("status", ["pending_admin_review", "awaiting_payment_link", "payment_link_sent", "customer_reported_paid", "payment_verification"])
     .maybeSingle();
 
   if (existing) {
-    return NextResponse.json({
-      reference: existing.reference,
-      whatsappUrl: whatsappPaymentLink({ ...messageBase, reference: existing.reference }),
-      bitPhone: billing.bitPhone,
-      reused: true,
-    });
+    return NextResponse.json({ reference: existing.reference, status: existing.status, reused: true });
   }
+
+  const { data: acceptanceReference } = await admin.rpc("record_legal_acceptance", {
+    target_user: viewer.id,
+    acceptance_context: "plan",
+    accepted_version: LEGAL_VERSION,
+    client_ip: ip,
+    client_agent: userAgent || null,
+    target_plan: plan.id,
+  });
+  const legalReference = typeof acceptanceReference === "string" ? acceptanceReference : null;
 
   const { error } = await admin.from("payment_requests").insert({
     user_id: viewer.id,
     reference,
     plan_id: plan.id,
-    amount,
+    amount: snapshot.totalAmount,
     billing_cycle: cycle,
     method: "bit",
-    status: "pending",
+    status: "pending_admin_review",
     contact_phone: phone,
     note: parsed.data.note || "",
+    plan_name_snapshot: snapshot.planNameSnapshot,
+    price_before_discount: snapshot.priceBeforeDiscount,
+    discount_amount: snapshot.discountAmount,
+    currency: snapshot.currency,
+    vat_included: snapshot.vatIncluded,
+    cards_included: snapshot.cardsIncluded,
+    features_snapshot: snapshot.featuresSnapshot,
+    pricing_version: snapshot.pricingVersion,
+    terms_version: LEGAL_VERSION,
+    legal_reference: legalReference,
+    terms_accepted_at: acceptedAt,
   });
-  if (error) return NextResponse.json({ error: "לא הצלחנו לפתוח את בקשת התשלום" }, { status: 500 });
+  if (error) return NextResponse.json({ error: "לא הצלחנו לפתוח את בקשת הרכישה" }, { status: 500 });
 
   /*
    * בחירת מסלול בתשלום עוברת את שער ההצטרפות, אבל לא פותחת גישה:
@@ -121,23 +122,12 @@ export async function POST(request: Request) {
     await admin.rpc("mark_plan_selected", { target_user: viewer.id, target_plan: plan.id });
   }
 
-  // תיעוד ההסכמה למסמכים, עם גרסה ו-IP. ראיה, לא תיבת סימון בממשק.
-  // REQ-012: המסלול נרשם יחד עם ההסכמה, ומוחזר מזהה קצר לציטוט.
-  const { data: acceptanceReference } = await admin.rpc("record_legal_acceptance", {
-    target_user: viewer.id,
-    acceptance_context: "plan",
-    accepted_version: LEGAL_VERSION,
-    client_ip: ip,
-    client_agent: userAgent || null,
-    target_plan: plan.id,
-  });
-
   if (phone) {
     await admin.from("profiles").update({ phone, updated_at: new Date().toISOString() }).eq("id", viewer.id);
   }
 
-  // תיעוד ההסכמה נשלח בנפרד מבקשת התשלום: הוא ראיה משפטית, ולא
-  // הודעה תפעולית שאפשר למחוק אחרי שהתשלום אושר.
+  // תיעוד ההסכמה נשלח בנפרד מבקשת הרכישה: הוא ראיה משפטית, ולא הודעה
+  // תפעולית שאפשר למחוק אחרי שהתשלום אושר.
   await sendLegalAcceptanceNotification({
     to: adminNotificationEmail,
     customerName: viewer.fullName,
@@ -147,25 +137,35 @@ export async function POST(request: Request) {
     contextLabel: "בחירת מסלול בתשלום",
     planName: plan.name,
     cycle,
-    amount,
+    amount: snapshot.totalAmount,
     documentVersion: LEGAL_VERSION,
     documents: bindingDocumentIds,
     acceptedAt,
-    reference: typeof acceptanceReference === "string" ? acceptanceReference : undefined,
+    reference: legalReference || undefined,
     ip,
     userAgent,
   }).catch(() => null);
 
-  // המנהל מקבל התראה כדי שלא יצטרך לרענן את מסך האישורים.
+  // אישור ללקוח שהבקשה התקבלה — לא שהחבילה פעילה.
+  await sendPurchaseRequestReceived({
+    to: viewer.email,
+    customerName: viewer.fullName,
+    planName: plan.name,
+    amount: snapshot.totalAmount,
+    cycle,
+    reference,
+  }).catch(() => null);
+
+  // המנהל מקבל התראה כדי שלא יצטרך לרענן את מסך התשלומים.
   await sendPaymentRequestNotification({
     to: adminNotificationEmail,
     customerName: viewer.fullName,
     customerEmail: viewer.email,
     planName: plan.name,
-    amount,
+    amount: snapshot.totalAmount,
     cycle,
     reference,
   }).catch(() => null);
 
-  return NextResponse.json({ reference, whatsappUrl: link, bitPhone: billing.bitPhone });
+  return NextResponse.json({ reference, status: "pending_admin_review" });
 }

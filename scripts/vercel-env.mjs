@@ -72,6 +72,7 @@ const REQUIRED = [
   "SMTP_FROM",
   "ADMIN_NOTIFICATION_EMAIL",
   "NEXT_PUBLIC_SUPPORT_EMAIL",
+  "CRON_SECRET",
 ];
 
 const api = async (method, url, body) => {

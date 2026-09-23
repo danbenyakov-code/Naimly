@@ -240,8 +240,8 @@ export async function sendPaymentRequestNotification(input: {
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מחזור חיוב</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(cycleText)}</td></tr>
        <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אסמכתא</td><td style="padding:8px 0;font-weight:700;font-family:monospace" dir="ltr">${escapeHtml(input.reference)}</td></tr>
      </table>
-     <a href="${brand.siteUrl}/admin/approvals" style="display:inline-block;margin-top:8px;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
-       מעבר לאישורים
+     <a href="${brand.siteUrl}/admin/payments" style="display:inline-block;margin-top:8px;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
+       מעבר לתשלומים
      </a>`,
   );
 
@@ -254,10 +254,160 @@ export async function sendPaymentRequestNotification(input: {
     `מחזור חיוב: ${cycleText}`,
     `אסמכתא: ${input.reference}`,
     "",
-    `${brand.siteUrl}/admin/approvals`,
+    `${brand.siteUrl}/admin/payments`,
   ].join("\n");
 
   return send({ to: input.to, subject: `בקשת תשלום — ${input.planName} — ${input.reference}`, html, text });
+}
+
+/**
+ * אישור ללקוח שבקשת הרכישה התקבלה — **לא** שהחבילה פעילה.
+ *
+ * חייב להבחין בין "בקשה התקבלה" ל"תשלום התקבל" ל"חבילה הופעלה" —
+ * שלושה מיילים שונים, כי לקוח שמקבל ניסוח מעורפל עלול לחשוב שהוא כבר
+ * יכול להשתמש במערכת לפני שהתשלום אומת בפועל.
+ */
+export async function sendPurchaseRequestReceived(input: {
+  to: string;
+  customerName: string;
+  planName: string;
+  amount: number;
+  cycle: BillingCycle;
+  reference: string;
+}): Promise<EmailResult> {
+  const cycleText = billingCycleLabel[input.cycle];
+  const html = layout(
+    "בקשת הרכישה שלך התקבלה",
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">בקשת הרכישה שלך ב-${escapeHtml(brand.name)} התקבלה</h1>
+     <p dir="rtl" align="right" style="margin:0 0 16px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">
+       היי ${escapeHtml(input.customerName)}, בקשתך להצטרף לחבילת <strong>${escapeHtml(input.planName)}</strong> התקבלה בהצלחה.
+     </p>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:120px">מספר העסקה</td><td style="padding:8px 0;font-weight:700;font-family:monospace" dir="ltr">${escapeHtml(input.reference)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">סוג החיוב</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(cycleText)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">סכום לתשלום</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${input.amount} ש״ח</td></tr>
+     </table>
+     <p dir="rtl" align="right" style="margin:0 0 12px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">
+       אנחנו בודקים את פרטי הבקשה. קישור מאובטח לביצוע התשלום יישלח אליך בהמשך.
+     </p>
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">
+       לאחר ביצוע התשלום, העסקה תעבור לאימות ידני. הפעלת החבילה צפויה להימשך מספר רגעים לאחר אימות התשלום.
+       <br><strong>בשלב זה החבילה עדיין אינה פעילה.</strong>
+     </p>
+     <a href="${brand.siteUrl}/dashboard/orders" style="display:inline-block;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
+       לצפייה בסטטוס ההזמנה
+     </a>`,
+  );
+
+  const text = [
+    `שלום ${input.customerName},`,
+    "",
+    `בקשתך להצטרף לחבילת ${input.planName} התקבלה בהצלחה.`,
+    "",
+    `מספר העסקה: ${input.reference}`,
+    `סוג החיוב: ${cycleText}`,
+    `סכום לתשלום: ${input.amount} ש״ח`,
+    "",
+    "אנחנו בודקים את פרטי הבקשה. קישור מאובטח לביצוע התשלום יישלח אליך בהמשך.",
+    "לאחר ביצוע התשלום, העסקה תעבור לאימות ידני. הפעלת החבילה צפויה להימשך מספר רגעים לאחר אימות התשלום.",
+    "בשלב זה החבילה עדיין אינה פעילה.",
+    "",
+    `${brand.siteUrl}/dashboard/orders`,
+    "",
+    `${brand.name}`,
+  ].join("\n");
+
+  return send({ to: input.to, subject: "בקשת הרכישה שלך ב-NAIMLY התקבלה", html, text });
+}
+
+/** קישור תשלום ללקוח, אחרי שאדמין אישר עקרונית ושלח אותו. */
+export async function sendPaymentLinkNotification(input: {
+  to: string;
+  customerName: string;
+  planName: string;
+  amount: number;
+  cycle: BillingCycle;
+  reference: string;
+  paymentLink: string;
+  expiresAt: string;
+}): Promise<EmailResult> {
+  const cycleText = billingCycleLabel[input.cycle];
+  const expiryText = new Date(input.expiresAt).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "long" });
+  const html = layout(
+    "קישור לתשלום מוכן",
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">קישור לתשלום עבור חבילת ${escapeHtml(input.planName)}</h1>
+     <p dir="rtl" align="right" style="margin:0 0 16px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">היי ${escapeHtml(input.customerName)}, קישור התשלום עבור בקשתך מוכן.</p>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:120px">מספר העסקה</td><td style="padding:8px 0;font-weight:700;font-family:monospace" dir="ltr">${escapeHtml(input.reference)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מסלול</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.planName)} — ${escapeHtml(cycleText)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">סכום מדויק</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${input.amount} ש״ח</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">בתוקף עד</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(expiryText)}</td></tr>
+     </table>
+     <a href="${escapeHtml(input.paymentLink)}" style="display:inline-block;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
+       לביצוע תשלום
+     </a>
+     <p dir="rtl" align="right" style="margin:20px 0 0;color:#68758a;line-height:1.6;direction:rtl;text-align:right">
+       לאחר ביצוע התשלום, יש ללחוץ על הכפתור ‘שילמתי’ במסך ״ההזמנה שלי״. <strong>החבילה תופעל רק לאחר אימות התשלום.</strong>
+     </p>`,
+  );
+
+  const text = [
+    `היי ${input.customerName},`,
+    "",
+    `קישור התשלום עבור חבילת ${input.planName} מוכן.`,
+    `מספר העסקה: ${input.reference}`,
+    `מחזור: ${cycleText}`,
+    `סכום: ${input.amount} ש״ח`,
+    `בתוקף עד: ${expiryText}`,
+    "",
+    `לתשלום: ${input.paymentLink}`,
+    "",
+    "לאחר התשלום יש ללחוץ על 'שילמתי' במסך ההזמנה שלי. החבילה תופעל רק לאחר אימות התשלום.",
+  ].join("\n");
+
+  return send({ to: input.to, subject: `קישור לתשלום עבור חבילת ${input.planName}`, html, text });
+}
+
+/** התראה למנהל: הלקוח דיווח שביצע תשלום — ממתין לבדיקה ידנית. */
+export async function sendCustomerReportedPaidNotification(input: {
+  to: string;
+  customerName: string;
+  customerEmail: string;
+  planName: string;
+  amount: number;
+  reference: string;
+  reportedAt: string;
+  paymentReference?: string;
+}): Promise<EmailResult> {
+  const reportedText = new Date(input.reportedAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" });
+  const html = layout(
+    "הלקוח דיווח על תשלום",
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">הלקוח דיווח על תשלום — עסקה ${escapeHtml(input.reference)}</h1>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:110px">לקוח</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.customerName)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אימייל</td><td style="padding:8px 0;font-weight:700" dir="ltr">${escapeHtml(input.customerEmail)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מסלול</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.planName)} — ${input.amount} ש״ח</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">זמן הדיווח</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(reportedText)}</td></tr>
+       ${input.paymentReference ? `<tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אסמכתת הלקוח</td><td style="padding:8px 0;font-weight:700;font-family:monospace" dir="ltr">${escapeHtml(input.paymentReference)}</td></tr>` : ""}
+     </table>
+     <a href="${brand.siteUrl}/admin/payments" style="display:inline-block;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
+       לבדיקת העסקה
+     </a>`,
+  );
+
+  const text = [
+    `הלקוח דיווח על תשלום — עסקה ${input.reference}`,
+    "",
+    `לקוח: ${input.customerName}`,
+    `אימייל: ${input.customerEmail}`,
+    `מסלול: ${input.planName} — ${input.amount} ש״ח`,
+    `זמן הדיווח: ${reportedText}`,
+    input.paymentReference ? `אסמכתת הלקוח: ${input.paymentReference}` : "",
+    "",
+    `${brand.siteUrl}/admin/payments`,
+  ].filter(Boolean).join("\n");
+
+  return send({ to: input.to, subject: `הלקוח דיווח על תשלום — עסקה ${input.reference}`, html, text });
 }
 
 /** אישור ללקוח שהמסלול הופעל. */
@@ -266,15 +416,34 @@ export async function sendPlanActivatedNotification(input: {
   customerName: string;
   planName: string;
   months: number;
+  /** מספר עסקה, כשההפעלה קשורה לבקשת רכישה ולא רק להארכה ידנית. */
+  reference?: string;
+  activatedAt?: string;
+  periodEnd?: string;
 }): Promise<EmailResult> {
+  const activatedText = input.activatedAt
+    ? new Date(input.activatedAt).toLocaleString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "short", timeStyle: "short" })
+    : "";
+  const periodText = input.periodEnd
+    ? new Date(input.periodEnd).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "long" })
+    : "";
+  const rows = [
+    input.reference ? ["מספר עסקה", input.reference] : null,
+    activatedText ? ["מועד הפעלה", activatedText] : null,
+    periodText ? ["בתוקף עד", periodText] : null,
+  ].filter((row): row is [string, string] => row !== null);
+
   const html = layout(
     "המסלול הופעל",
     `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">המסלול שלך פעיל 🎉</h1>
      <p style="margin:0 0 16px;color:#68758a;line-height:1.6">
-       היי ${escapeHtml(input.customerName)}, אישרנו את התשלום והמסלול
-       <strong>${escapeHtml(input.planName)}</strong> פעיל למשך ${input.months} חודשים.
+       היי ${escapeHtml(input.customerName)}, התשלום עבור חבילת
+       <strong>${escapeHtml(input.planName)}</strong> אומת והחבילה הופעלה בהצלחה, למשך ${input.months} חודשים.
      </p>
-     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">הכרטיס שלך חזר לאוויר וכל היכולות של המסלול פתוחות.</p>
+     ${rows.length ? `<table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       ${rows.map(([label, value]) => `<tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:120px">${escapeHtml(label)}</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(value)}</td></tr>`).join("\n       ")}
+     </table>` : ""}
+     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">הגישה ליכולות החבילה פתוחה כעת בחשבונך, והכרטיס שלך חזר לאוויר.</p>
      <a href="${brand.siteUrl}/dashboard" style="display:inline-block;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
        מעבר לאזור האישי
      </a>`,
@@ -283,13 +452,96 @@ export async function sendPlanActivatedNotification(input: {
   const text = [
     `היי ${input.customerName},`,
     "",
-    `אישרנו את התשלום. המסלול ${input.planName} פעיל למשך ${input.months} חודשים.`,
+    `התשלום עבור חבילת ${input.planName} אומת והחבילה הופעלה בהצלחה, למשך ${input.months} חודשים.`,
+    ...rows.map(([label, value]) => `${label}: ${value}`),
     "הכרטיס שלך חזר לאוויר.",
     "",
     `${brand.siteUrl}/dashboard`,
   ].join("\n");
 
   return send({ to: input.to, subject: `המסלול ${input.planName} הופעל`, html, text });
+}
+
+/**
+ * תזכורת חידוש ללקוח — נשלחת פעם אחת לכל תאריך תפוגה (לא בכל ריצת
+ * cron), כמה ימים לפני שהמנוי פג. אם לא מחדשים, הגישה נחסמת אוטומטית
+ * בתאריך התפוגה עצמו — זו רק אזהרה מוקדמת, לא איום.
+ */
+export async function sendRenewalReminderNotification(input: {
+  to: string;
+  customerName: string;
+  planName: string;
+  amount: number;
+  cycle: BillingCycle;
+  periodEnd: string;
+  daysLeft: number;
+}): Promise<EmailResult> {
+  const periodEndText = new Date(input.periodEnd).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "long" });
+  const html = layout(
+    "המנוי שלך עומד להסתיים",
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">המנוי שלך מסתיים בעוד ${input.daysLeft} ${input.daysLeft === 1 ? "יום" : "ימים"}</h1>
+     <p dir="rtl" align="right" style="margin:0 0 16px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">
+       היי ${escapeHtml(input.customerName)}, מסלול <strong>${escapeHtml(input.planName)}</strong> שלך יסתיים ב-${escapeHtml(periodEndText)}.
+       בלי חידוש, הגישה לכרטיס תיחסם אוטומטית באותו תאריך.
+     </p>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:120px">מסלול</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.planName)} — ${escapeHtml(billingCycleLabel[input.cycle])}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">סכום לחידוש</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${input.amount} ש״ח</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">תאריך סיום</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(periodEndText)}</td></tr>
+     </table>
+     <a href="${brand.siteUrl}/checkout?plan=${encodeURIComponent(input.planName)}" style="display:inline-block;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
+       חידוש המנוי
+     </a>`,
+  );
+
+  const text = [
+    `היי ${input.customerName},`,
+    "",
+    `מסלול ${input.planName} שלך יסתיים ב-${periodEndText} (בעוד ${input.daysLeft} ימים).`,
+    "בלי חידוש, הגישה לכרטיס תיחסם אוטומטית באותו תאריך.",
+    `סכום לחידוש: ${input.amount} ש״ח`,
+    "",
+    `${brand.siteUrl}/checkout`,
+  ].join("\n");
+
+  return send({ to: input.to, subject: `המנוי שלך מסתיים בעוד ${input.daysLeft} ${input.daysLeft === 1 ? "יום" : "ימים"}`, html, text });
+}
+
+/** אותה תזכורת, לאדמין — כדי שיוכל ליזום מעקב אישי אם ירצה. */
+export async function sendRenewalReminderAdminNotification(input: {
+  to: string;
+  customerName: string;
+  customerEmail: string;
+  planName: string;
+  amount: number;
+  periodEnd: string;
+  daysLeft: number;
+}): Promise<EmailResult> {
+  const periodEndText = new Date(input.periodEnd).toLocaleDateString("he-IL", { timeZone: "Asia/Jerusalem", dateStyle: "long" });
+  const html = layout(
+    "לקוח מתקרב לתאריך חידוש",
+    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">מנוי מסתיים בעוד ${input.daysLeft} ${input.daysLeft === 1 ? "יום" : "ימים"}</h1>
+     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px;width:110px">לקוח</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.customerName)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">אימייל</td><td style="padding:8px 0;font-weight:700" dir="ltr">${escapeHtml(input.customerEmail)}</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">מסלול</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(input.planName)} — ${input.amount} ש״ח</td></tr>
+       <tr><td style="padding:8px 0;color:#8b96a8;font-size:13px">תאריך סיום</td><td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(periodEndText)}</td></tr>
+     </table>
+     <p dir="rtl" align="right" style="margin:0;color:#68758a;line-height:1.6;direction:rtl;text-align:right">
+       הלקוח קיבל תזכורת חידוש. בלי חידוש, הגישה שלו תיחסם אוטומטית בתאריך הסיום — אין צורך בפעולה ידנית, אלא אם רוצים ליצור קשר אישי.
+     </p>`,
+  );
+
+  const text = [
+    `מנוי מסתיים בעוד ${input.daysLeft} ${input.daysLeft === 1 ? "יום" : "ימים"}`,
+    "",
+    `לקוח: ${input.customerName}`,
+    `אימייל: ${input.customerEmail}`,
+    `מסלול: ${input.planName} — ${input.amount} ש״ח`,
+    `תאריך סיום: ${periodEndText}`,
+  ].join("\n");
+
+  return send({ to: input.to, subject: `לקוח מתקרב לתאריך חידוש — ${input.customerName}`, html, text });
 }
 
 /** אישור לשולח טופס יצירת הקשר. */

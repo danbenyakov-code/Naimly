@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeCheck, BarChart3, CreditCard, LayoutDashboard, LogOut, Menu, Settings, ShieldCheck, Users, X } from "lucide-react";
+import { BadgeCheck, BarChart3, CreditCard, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldCheck, Users, X } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { Logo } from "@/components/logo";
@@ -18,6 +18,7 @@ const navItems = [
   { href: "/dashboard/card", label: "הכרטיס שלי", icon: CreditCard },
   { href: "/dashboard/analytics", label: "נתונים", icon: BarChart3 },
   { href: "/dashboard/leads", label: "פניות", icon: Users },
+  { href: "/dashboard/orders", label: "ההזמנות שלי", icon: Receipt },
   { href: "/dashboard/settings", label: "הגדרות", icon: Settings },
 ];
 
@@ -39,7 +40,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const items = viewer.role === "admin"
-    ? [...navItems, { href: "/admin", label: "ניהול המערכת", icon: ShieldCheck }, { href: "/admin/approvals", label: "אישורים ולקוחות", icon: BadgeCheck }]
+    ? [...navItems, { href: "/admin", label: "ניהול המערכת", icon: ShieldCheck }, { href: "/admin/payments", label: "תשלומים ולקוחות", icon: BadgeCheck }]
     : navItems;
   const access = resolveAccess(viewer);
   const trial = access.trial;

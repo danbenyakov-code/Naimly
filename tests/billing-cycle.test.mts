@@ -87,17 +87,24 @@ describe("REQ-010 — ההודעה ללקוח תואמת לחיוב", () => {
 describe("REQ-010 — מחזור החיוב עובר את כל השרשרת", () => {
   it("הסכום הנשמר במסד נגזר בשרת ולא מתקבל מהלקוח", () => {
     const route = read("src/app/api/payments/request/route.ts");
-    assert.ok(route.includes("cycleAmount(plan.price, cycle)"), "הסכום חייב להיגזר בשרת");
+    // הסכום עובר עכשיו דרך buildPriceSnapshot (purchase-workflow.ts), לא cycleAmount ישירות בנתיב.
+    assert.ok(route.includes("buildPriceSnapshot(parsed.data.planId, cycle)"), "הסכום חייב להיגזר מ-snapshot מרכזי, לא מהלקוח");
+    assert.ok(route.includes("amount: snapshot.totalAmount"), "הסכום שנשמר חייב להגיע מה-snapshot");
     assert.ok(route.includes("billing_cycle: cycle"), "מחזור החיוב חייב להישמר ברשומה");
     assert.ok(!route.includes("amount: plan.price"), "אסור לשמור את המחיר החודשי כסכום החיוב");
+
+    const workflow = read("src/lib/purchase-workflow.ts");
+    assert.ok(workflow.includes("cycleAmount(plan.price, cycle)"), "buildPriceSnapshot חייב לגזור את הסכום מ-cycleAmount");
   });
 
-  it("מספר החודשים באישור נגזר ממחזור החיוב", () => {
-    const route = read("src/app/api/admin/payment-requests/[id]/route.ts");
-    assert.ok(route.includes("cycleMonths(toBillingCycle(paymentRequest.billing_cycle))"));
+  it("מספר החודשים באישור נגזר ממחזור החיוב, לא מברירת מחדל קבועה", () => {
+    // מיגרציה 029: activate_purchase_request גוזרת months מ-billing_cycle
+    // של הבקשה עצמה, בתוך אותה טרנזקציה שמפעילה את המנוי.
+    const migration = read("supabase/migrations/029_purchase_workflow.sql");
+    assert.ok(migration.includes("case when req.billing_cycle = 'annual' then 12 else 1 end"));
 
     // הלוח לא שולח months קבוע — אחרת הוא היה דורס את הגזירה בשרת.
-    const board = read("src/components/admin/approvals-board.tsx");
+    const board = read("src/components/admin/payments-board.tsx");
     assert.ok(!board.includes("{ action, months: 1 }"), "אסור לשלוח months קבוע מהלוח");
   });
 

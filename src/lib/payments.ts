@@ -107,6 +107,40 @@ export function whatsappPaymentLink(input: MessageInput) {
   return `https://wa.me/${billing.whatsappNumber}?text=${encodeURIComponent(paymentMessage(input))}`;
 }
 
+/**
+ * קישור התשלום שמנהל שולח מתוך /admin/payments, אחרי שבדק את הבקשה.
+ *
+ * בשונה מ-paymentMessage: מקבל את הסכום הסופי כפי שכבר נשמר כ-snapshot
+ * על הבקשה (payment_requests.amount), ולא מחשב אותו מחדש ממחיר חודשי
+ * ומחזור — כדי שהקישור תמיד יתאים בדיוק למה שהאדמין רואה במסך.
+ */
+export function orderPaymentMessage(input: { planName: string; amount: number; cycle: BillingCycle; reference: string; customerName: string }) {
+  const lines = [
+    `שלום ${brand.name}, מאשר/ת תשלום עבור חבילת ${input.planName}.`,
+    "",
+    "── פרטי ההזמנה ──",
+    `מסלול: ${input.planName}`,
+    `מחזור חיוב: ${input.cycle === "annual" ? "שנתי — תשלום מראש ל-12 חודשים" : "חודשי מתחדש"}`,
+    `סכום לתשלום: ${input.amount} ש״ח (כולל מע״מ)`,
+    `מספר עסקה: ${input.reference}`,
+    `שם: ${input.customerName}`,
+    "",
+    "── תשלום ──",
+  ];
+  if (billing.bitPhone) {
+    lines.push(`אשלח את התשלום בביט למספר ${billing.bitPhone} (${billing.bitDisplayName}) ואצרף צילום מסך.`);
+  } else {
+    lines.push("אשמח לקבל את פרטי התשלום בביט.");
+  }
+  return lines.join("\n");
+}
+
+/** קישור וואטסאפ מוכן לתשלום ההזמנה. מחזיר "" כשמספר החיוב לא הוגדר. */
+export function orderWhatsappPaymentLink(input: { planName: string; amount: number; cycle: BillingCycle; reference: string; customerName: string }) {
+  if (!billing.whatsappNumber) return "";
+  return `https://wa.me/${billing.whatsappNumber}?text=${encodeURIComponent(orderPaymentMessage(input))}`;
+}
+
 /** הודעת וואטסאפ שהמנהל שולח ללקוח עם פרטי הכניסה. */
 export function credentialsMessage(input: { email: string; password?: string; loginUrl: string; planName: string; resetLink?: string }) {
   const lines = [

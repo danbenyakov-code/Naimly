@@ -298,7 +298,9 @@ describe("REQ-011 — כרטיס נוסף", () => {
     assert.ok(read("src/components/dashboard/card-switcher.tsx").includes("/checkout?plan=extra_card"));
     assert.ok(read("src/lib/config.ts").includes("extraCardProduct"));
     assert.ok(read("src/app/api/payments/request/route.ts").includes("isExtraCard"));
-    assert.ok(read("src/app/api/admin/payment-requests/[id]/route.ts").includes("grant_extra_card"));
+    // מיגרציה 029: הזיכוי עצמו עבר לתוך activate_purchase_request בפוסטגרס,
+    // כדי שיהיה חלק מאותה טרנזקציה אטומית שמעדכנת גם את סטטוס הבקשה.
+    assert.ok(read("supabase/migrations/029_purchase_workflow.sql").includes("grant_extra_card"));
   });
 
   it("רכישת כרטיס נוסף אינה משנה מסלול", () => {
