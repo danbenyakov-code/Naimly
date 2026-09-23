@@ -5,6 +5,7 @@ import type { CardAddress, CardData, VCardSettings } from "@/lib/types";
 import { Field, FormAlert, inputClass } from "@/components/ui/field";
 import { AddressEditor } from "@/components/dashboard/address-editor";
 import { formatAddress } from "@/lib/address";
+import { resolveVCard } from "@/lib/contact-source";
 
 /**
  * עורך כרטיס איש הקשר (vCard) והכתובת המובנית.
@@ -31,8 +32,15 @@ export function ContactCardEditor({
     card.quickActions.some((action) => action.type === "waze" || action.type === "google_maps")
     || card.smartButtons.some((button) => button.action === "waze" || button.action === "google_maps");
 
-  const hasName = Boolean(vcard.fullName.trim() || vcard.firstName.trim() || vcard.lastName.trim());
-  const displayName = vcard.fullName.trim() || [vcard.firstName, vcard.lastName].filter(Boolean).join(" ");
+  /*
+   * הבדיקה חייבת לעבור דרך resolveVCard — בדיוק כמו missingVCardFields
+   * וכמו /api/vcard/[slug] — ולא לבדוק רק את שדות הטאב הזה. בעל כרטיס
+   * עם שם מלא בכרטיס אך בלי שדה vCard ידני ראה "חסר שם" ואי-אפשר
+   * להוריד, אף שהקובץ שבאמת נוצר תקין לגמרי (נגזר משם הכרטיס).
+   */
+  const resolved = resolveVCard(card);
+  const hasName = Boolean(resolved.fullName.trim() || resolved.firstName.trim() || resolved.lastName.trim());
+  const displayName = resolved.fullName.trim() || [resolved.firstName, resolved.lastName].filter(Boolean).join(" ");
 
   return (
     <div className="grid gap-8">
@@ -57,7 +65,12 @@ export function ContactCardEditor({
         )}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="שם פרטי" required={!vcard.fullName.trim() && !vcard.lastName.trim()} optional={Boolean(vcard.fullName.trim())}>
+          <Field
+            label="שם פרטי"
+            required={!hasName}
+            optional={hasName && !vcard.firstName.trim()}
+            hint={!vcard.firstName.trim() && resolved.firstName ? `כשריק — נגזר משם בעל הכרטיס: ${resolved.firstName}` : undefined}
+          >
             {(field) => (
               <input
                 {...field}
@@ -65,7 +78,7 @@ export function ContactCardEditor({
                 className={inputClass(!hasName)}
                 value={vcard.firstName}
                 onChange={(event) => onVCardChange({ firstName: event.target.value })}
-                placeholder="נועה"
+                placeholder={resolved.firstName || "נועה"}
                 maxLength={60}
                 autoComplete="given-name"
               />
@@ -79,7 +92,7 @@ export function ContactCardEditor({
                 className={inputClass(false)}
                 value={vcard.lastName}
                 onChange={(event) => onVCardChange({ lastName: event.target.value })}
-                placeholder="כהן"
+                placeholder={resolved.lastName || "כהן"}
                 maxLength={60}
                 autoComplete="family-name"
               />
@@ -104,13 +117,18 @@ export function ContactCardEditor({
             )}
           </Field>
 
-          <Field label="שם העסק" optional>
+          <Field
+            label="שם העסק"
+            optional
+            hint={!vcard.organization.trim() && resolved.organization ? `כשריק — נגזר משם העסק בכרטיס: ${resolved.organization}` : undefined}
+          >
             {(field) => (
               <input
                 {...field}
                 className={inputClass(false)}
                 value={vcard.organization}
                 onChange={(event) => onVCardChange({ organization: event.target.value })}
+                placeholder={resolved.organization}
                 maxLength={100}
                 autoComplete="organization"
               />
@@ -138,7 +156,11 @@ export function ContactCardEditor({
         <p className="mb-4 text-sm text-[#748196]">שדה שיישאר ריק לא ייכנס לכרטיס איש הקשר.</p>
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="נייד" optional hint="הטלפון הראשי באיש הקשר">
+          <Field
+            label="נייד"
+            optional
+            hint={!vcard.phone.trim() && resolved.phone ? `כשריק — נגזר מפרטי הקשר של הכרטיס: ${resolved.phone}` : "הטלפון הראשי באיש הקשר"}
+          >
             {(field) => (
               <input
                 {...field}
@@ -148,7 +170,7 @@ export function ContactCardEditor({
                 inputMode="tel"
                 value={vcard.phone}
                 onChange={(event) => onVCardChange({ phone: event.target.value })}
-                placeholder="050-1234567"
+                placeholder={resolved.phone || "050-1234567"}
                 maxLength={30}
               />
             )}
@@ -170,7 +192,11 @@ export function ContactCardEditor({
             )}
           </Field>
 
-          <Field label="אימייל" optional>
+          <Field
+            label="אימייל"
+            optional
+            hint={!vcard.email.trim() && resolved.email ? `כשריק — נגזר מפרטי הקשר של הכרטיס: ${resolved.email}` : undefined}
+          >
             {(field) => (
               <input
                 {...field}
@@ -180,7 +206,7 @@ export function ContactCardEditor({
                 inputMode="email"
                 value={vcard.email}
                 onChange={(event) => onVCardChange({ email: event.target.value })}
-                placeholder="name@example.co.il"
+                placeholder={resolved.email || "name@example.co.il"}
                 maxLength={160}
               />
             )}
