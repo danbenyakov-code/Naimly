@@ -46,7 +46,8 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
               </a>
             </div>
 
-            <SocialIconRow className="mt-5" />
+            <p className="mt-6 text-sm font-semibold text-[#68758a]">או תפסו אותנו ברשתות</p>
+            <SocialIconRow className="mt-3" />
           </div>
         </section>
 
@@ -99,10 +100,12 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
                 </ul>
               </div>
 
-              <div className="card-surface p-5">
-                <h2 className="font-extrabold">עקבו אחרינו</h2>
-                <p className="mt-1 text-sm text-[#68758a]">טיפים, דוגמאות ועדכונים ברשתות.</p>
-                <SocialList />
+              <div className="relative overflow-hidden rounded-[24px] border border-[#e4defd] bg-[linear-gradient(150deg,#f4f1ff,#ffffff_55%,#eafaf6)] p-5">
+                <span className="absolute -left-8 -top-8 h-24 w-24 rounded-full bg-[#6d4aff]/10 blur-2xl" aria-hidden="true" />
+                <span className="relative text-xs font-bold text-[#6d4aff]">הקהילה של {brand.name}</span>
+                <h2 className="relative mt-1 text-lg font-black leading-snug">בואו נהיה בקשר גם ברשתות</h2>
+                <p className="relative mt-1.5 text-sm leading-6 text-[#5f6d83]">טיפים לכרטיס שמביא פניות, השראה מעסקים אמיתיים ועדכונים ראשונים על כל מה שחדש.</p>
+                <div className="relative"><SocialList /></div>
               </div>
             </aside>
           </div>

@@ -72,10 +72,10 @@ export function SocialCards({ className }: { className?: string }) {
   );
 }
 
-/** שורת אייקונים עגולים — לראש דף צור קשר, שם הכרטיס המלא רחוק מדי בנייד. */
-export function SocialIconRow({ className }: { className?: string }) {
+/** שורת אייקונים עגולים — לראש דף צור קשר ולפוטר. 44px לפחות, כדי שיהיה נוח ללחוץ באצבע. */
+export function SocialIconRow({ className, align = "center" }: { className?: string; align?: "center" | "start" }) {
   return (
-    <ul className={cn("flex items-center justify-center gap-3", className)}>
+    <ul className={cn("flex items-center gap-3", align === "center" ? "justify-center" : "justify-start", className)}>
       {socialLinks.map((social) => (
         <li key={social.id}>
           <a
