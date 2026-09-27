@@ -6,6 +6,7 @@ import { FloatingTools } from "@/components/floating-tools";
 import { brand, ogImage } from "@/lib/config";
 import { homeDescription, homeTitle, seoKeywords } from "@/lib/seo";
 import { ConsentedAnalytics } from "@/components/consented-analytics";
+import { SitePixel } from "@/components/site-pixel";
 
 const rubik = Rubik({
   variable: "--font-rubik",
@@ -45,7 +46,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} h-full antialiased`}>
-      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /></body>
+      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /><SitePixel /></body>
     </html>
   );
 }

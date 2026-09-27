@@ -1,3 +1,4 @@
+import { reservedSlugs } from "@/lib/reserved-slugs";
 import { z } from "zod";
 import { isHttpUrl, isSameOriginAsset } from "@/lib/safe-url";
 import { isBackgroundId } from "@/lib/backgrounds";
@@ -20,7 +21,7 @@ const acceptableUrl = (value: string) => isHttpUrl(value) || isSameOriginAsset(v
 const urlMessage = "כתובת חייבת להתחיל ב‑http:// או https://";
 const httpUrl = z.string().max(2000).refine(acceptableUrl, urlMessage);
 const optionalUrl = z.union([z.literal(""), httpUrl]);
-export const reservedSlugs = new Set(["admin", "api", "auth", "checkout", "dashboard", "login", "signup", "pricing", "legal", "accessibility", "robots.txt", "sitemap.xml", "forgot-password", "reset-password", "_next", "well-known", "favicon.ico", "manifest.webmanifest", "icon.svg", "onboarding", "contact"]);
+export { reservedSlugs };
 
 // רק פעולות שמתורגמות ל‑href חופשי נדרשות לבדיקת URL מלאה.
 const freeLinkActions = new Set(["website", "instagram", "facebook", "linkedin", "tiktok", "youtube", "calendar"]);
