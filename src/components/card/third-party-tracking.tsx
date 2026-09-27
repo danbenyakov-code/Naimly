@@ -45,6 +45,15 @@ export function ThirdPartyTracking({ settings }: { settings: TrackingSettings })
         );
       }
       if (/^GTM-[A-Z0-9]{4,20}$/i.test(settings.googleTagManagerId)) {
+        /*
+         * השורה מהסניפט הרשמי של GTM. בלי האירוע gtm.js ב-dataLayer
+         * הקונטיינר נטען אבל אף טריגר "All Pages" לא מופעל — כלומר אף
+         * תגית של הלקוח (Ads, Pixel, GA דרך GTM) לא רצה.
+         */
+        addInline(
+          "naimly-gtm-init",
+          "window.dataLayer=window.dataLayer||[];window.dataLayer.push({'gtm.start':new Date().getTime(),event:'gtm.js'});",
+        );
         addExternal("naimly-gtm", `https://www.googletagmanager.com/gtm.js?id=${settings.googleTagManagerId}`);
       }
     };

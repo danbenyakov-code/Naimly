@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import { buildContentSecurityPolicy } from "./src/lib/csp";
 
 // מקורות חיצוניים שהמערכת באמת טוענת: מדידה (רק אחרי אישור עוגיות),
 // נגן YouTube מוטמע, ותמונות/קבצים מאחסון Supabase.
@@ -10,36 +11,12 @@ const supabaseHost = (() => {
   }
 })();
 
-const analyticsHosts = ["https://www.googletagmanager.com", "https://www.google-analytics.com", "https://connect.facebook.net"];
-
-// Turbopack ב‑dev מייצר קוד שמצריך eval וחיבור HMR. שני ההיתרים האלה
-// אינם נכללים בבניית פרודקשן.
-const isDev = process.env.NODE_ENV !== "production";
-
-const contentSecurityPolicy = [
-  "default-src 'self'",
-  // הסקריפטים של GA/GTM/Pixel מוזרקים בצד הלקוח ולכן נדרש unsafe-inline.
-  `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} ${analyticsHosts.join(" ")}`,
-  "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: https://www.google-analytics.com https://www.facebook.com ${supabaseHost}`.trim(),
-  "font-src 'self' data:",
-  /*
-   * Meta Pixel שולח את האירועים עצמם (PageView, Lead…) ב-fetch/sendBeacon
-   * ל-www.facebook.com/tr, ואת ההגדרות מושך מ-connect.facebook.net. בלי
-   * שניהם כאן הסקריפט נטען אבל אף אירוע לא יוצא — גם בפיקסל של NAIMLY
-   * וגם בפיקסלים שלקוחות חיברו לכרטיסים.
-   */
-  `connect-src 'self' ${supabaseHost} ${supabaseHost.replace("https://", "wss://")} https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net${isDev ? " ws: http://localhost:*" : ""}`.trim(),
-  "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
-  "media-src 'self' blob: " + supabaseHost,
-  "object-src 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "frame-ancestors 'self'",
-  "upgrade-insecure-requests",
-]
-  .map((directive) => directive.replace(/\s+/g, " ").trim())
-  .join("; ");
+// המדיניות והאינטגרציות שהיא מתירה מתועדות ב-src/lib/csp.ts.
+const contentSecurityPolicy = buildContentSecurityPolicy({
+  supabaseOrigin: supabaseHost,
+  // Turbopack ב-dev מייצר קוד שמצריך eval וחיבור HMR; לא בפרודקשן.
+  isDev: process.env.NODE_ENV !== "production",
+});
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
