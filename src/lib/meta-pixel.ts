@@ -8,6 +8,9 @@ import { reservedSlugs } from "@/lib/reserved-slugs";
  * ו-fbq('track') שולח לכל פיקסל שאותחל בדף — שני פיקסלים יחד היו
  * מערבבים את האירועים של NAIMLY ושל הלקוח. עמוד "של האתר" = דף הבית
  * או נתיב שמור (reservedSlugs), אותה רשימה שאוסרת על כרטיס לתפוס אותו.
+ *
+ * מעברי עמוד בתוך האתר (pushState) נספרים אוטומטית על ידי fbevents.js —
+ * קריאה ידנית ל-PageView בכל ניווט הייתה מכפילה כל אירוע.
  */
 export const metaPixelHeadScript = `(function(){var seg=location.pathname.split('/')[1]||'';var site=${JSON.stringify([...reservedSlugs])};if(seg!==''&&site.indexOf(seg)===-1)return;
 !function(f,b,e,v,n,t,s)

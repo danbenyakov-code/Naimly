@@ -23,7 +23,13 @@ const contentSecurityPolicy = [
   "style-src 'self' 'unsafe-inline'",
   `img-src 'self' data: blob: https://www.google-analytics.com https://www.facebook.com ${supabaseHost}`.trim(),
   "font-src 'self' data:",
-  `connect-src 'self' ${supabaseHost} ${supabaseHost.replace("https://", "wss://")} https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com${isDev ? " ws: http://localhost:*" : ""}`.trim(),
+  /*
+   * Meta Pixel שולח את האירועים עצמם (PageView, Lead…) ב-fetch/sendBeacon
+   * ל-www.facebook.com/tr, ואת ההגדרות מושך מ-connect.facebook.net. בלי
+   * שניהם כאן הסקריפט נטען אבל אף אירוע לא יוצא — גם בפיקסל של NAIMLY
+   * וגם בפיקסלים שלקוחות חיברו לכרטיסים.
+   */
+  `connect-src 'self' ${supabaseHost} ${supabaseHost.replace("https://", "wss://")} https://www.google-analytics.com https://region1.google-analytics.com https://www.googletagmanager.com https://www.facebook.com https://connect.facebook.net${isDev ? " ws: http://localhost:*" : ""}`.trim(),
   "frame-src 'self' https://www.youtube-nocookie.com https://www.youtube.com",
   "media-src 'self' blob: " + supabaseHost,
   "object-src 'none'",
