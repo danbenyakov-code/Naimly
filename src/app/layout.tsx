@@ -7,6 +7,7 @@ import { brand, ogImage } from "@/lib/config";
 import { homeDescription, homeTitle, seoKeywords } from "@/lib/seo";
 import { ConsentedAnalytics } from "@/components/consented-analytics";
 import { SitePixel } from "@/components/site-pixel";
+import { metaPixelHeadScript, metaPixelNoscriptSrc } from "@/lib/meta-pixel";
 
 const rubik = Rubik({
   variable: "--font-rubik",
@@ -46,7 +47,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="he" dir="rtl" className={`${rubik.variable} h-full antialiased`}>
-      <body className="min-h-full"><a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /><SitePixel /></body>
+      {/* Meta Pixel — קוד הבסיס ב-<head> של כל עמוד, לפי הוראות Meta (ראו meta-pixel.ts). */}
+      <head><script id="meta-pixel" dangerouslySetInnerHTML={{ __html: metaPixelHeadScript }} /></head>
+      <body className="min-h-full">
+        {/* פיקסל מעקב של 1x1 למבקרים בלי JavaScript — לא תמונת תוכן, ולכן לא next/image. */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <noscript><img height="1" width="1" style={{ display: "none" }} alt="" src={metaPixelNoscriptSrc} /></noscript>
+        <a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /><SitePixel /></body>
     </html>
   );
 }
