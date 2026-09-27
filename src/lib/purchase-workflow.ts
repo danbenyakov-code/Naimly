@@ -97,7 +97,7 @@ export type PriceSnapshot = {
   discountAmount: number;
   totalAmount: number;
   currency: "ILS";
-  vatIncluded: true;
+  vatIncluded: false;
   cardsIncluded: number;
   featuresSnapshot: string[];
   pricingVersion: string;
@@ -118,7 +118,7 @@ export function buildPriceSnapshot(planId: PlanId | "extra_card", cycle: Billing
       discountAmount: 0,
       totalAmount: EXTRA_CARD_PRICE,
       currency: "ILS",
-      vatIncluded: true,
+      vatIncluded: false,
       cardsIncluded: 1,
       // עותק, לא הפניה — snapshot לא אמור לזוז אם המחירון ישתנה בהמשך.
       featuresSnapshot: [...extraCardProduct.features],
@@ -141,7 +141,7 @@ export function buildPriceSnapshot(planId: PlanId | "extra_card", cycle: Billing
     discountAmount: discount,
     totalAmount: total,
     currency: "ILS",
-    vatIncluded: true,
+    vatIncluded: false,
     cardsIncluded: plan.limits.cards,
     featuresSnapshot: [...plan.features],
     pricingVersion: PRICING_VERSION,
