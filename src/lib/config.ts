@@ -17,6 +17,18 @@ export const brand = {
 };
 
 /**
+ * הרשתות החברתיות של העסק — מקור אחד לדף הבית, לדף צור קשר ול-sameAs
+ * ב-JSON-LD. הקישורים נקיים מפרמטרי מעקב של אפליקציות השיתוף.
+ */
+export const socialLinks = [
+  { id: "instagram", label: "אינסטגרם", handle: "@naimly.il", url: "https://www.instagram.com/naimly.il" },
+  { id: "tiktok", label: "טיקטוק", handle: "@naimly.il", url: "https://www.tiktok.com/@naimly.il" },
+  { id: "facebook", label: "פייסבוק", handle: "NAIMLY", url: "https://www.facebook.com/share/1FFdm2Bwam/" },
+] as const;
+
+export type SocialId = (typeof socialLinks)[number]["id"];
+
+/**
  * תשלום בפועל מתבצע בביט, מול המספר הזה, דרך שיחת וואטסאפ.
  * המספר בפורמט בינלאומי ללא סימנים: 9725XXXXXXXX.
  */

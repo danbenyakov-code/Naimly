@@ -3,6 +3,7 @@ import { Clock3, Mail, MessageCircle } from "lucide-react";
 import { ContactForm } from "@/components/contact/contact-form";
 import { SiteFooter } from "@/components/site-footer";
 import { SiteHeader } from "@/components/site-header";
+import { SocialIconRow, SocialList } from "@/components/social-links";
 import { brand, ogImage } from "@/lib/config";
 import { whatsappTo } from "@/lib/payments";
 
@@ -44,6 +45,8 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
                 <Mail size={18} aria-hidden="true" />מייל
               </a>
             </div>
+
+            <SocialIconRow className="mt-5" />
           </div>
         </section>
 
@@ -94,6 +97,12 @@ export default async function ContactPage({ searchParams }: { searchParams: Prom
                     </li>
                   )}
                 </ul>
+              </div>
+
+              <div className="card-surface p-5">
+                <h2 className="font-extrabold">עקבו אחרינו</h2>
+                <p className="mt-1 text-sm text-[#68758a]">טיפים, דוגמאות ועדכונים ברשתות.</p>
+                <SocialList />
               </div>
             </aside>
           </div>
