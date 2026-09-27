@@ -61,9 +61,8 @@ export function SiteFooter() {
         </div>
       </div>
 
-      <div className="container-shell mt-8 flex flex-col gap-2 border-t border-[#edf0f5] pt-6 text-xs text-[#7b8799] sm:flex-row sm:items-center sm:justify-between">
+      <div className="container-shell mt-8 border-t border-[#edf0f5] pt-6 text-xs text-[#7b8799]">
         <span>© {new Date().getFullYear()} {brand.name}. כל הזכויות שמורות.</span>
-        <a href={`mailto:${brand.supportEmail}`} dir="ltr" className="group inline-flex min-h-11 items-center self-start sm:min-h-0 sm:self-auto"><span className="transition group-hover:text-[#5134cc]">{brand.supportEmail}</span></a>
       </div>
     </footer>
   );
