@@ -467,9 +467,10 @@ export async function getPublishedSlugs(): Promise<Array<{ slug: string; updated
   const admin = createSupabaseAdminClient();
   if (!admin) return [];
   const [{ data: cards }, { data: subscriptions }] = await Promise.all([
-    admin.from("cards").select("slug,updated_at,user_id").eq("is_published", true).order("updated_at", { ascending: false }).limit(5000),
+    admin.from("cards").select("slug,updated_at,user_id,allow_indexing").eq("is_published", true).order("updated_at", { ascending: false }).limit(5000),
     admin.from("subscriptions").select("user_id,status,current_period_end").in("status", ["active", "trialing"]),
   ]);
   const eligible = new Set((subscriptions || []).filter(isSubscriptionLive).map((subscription) => subscription.user_id));
-  return (cards || []).filter((card) => eligible.has(card.user_id)).map((card) => ({ slug: card.slug, updatedAt: card.updated_at }));
+  // כרטיס שבעליו ביקש noindex לא נכנס ל-sitemap — אחרת ה-sitemap סותר את תגית ה-robots של הדף עצמו.
+  return (cards || []).filter((card) => eligible.has(card.user_id) && card.allow_indexing !== false).map((card) => ({ slug: card.slug, updatedAt: card.updated_at }));
 }

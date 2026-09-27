@@ -10,7 +10,7 @@ const pricingDescription =
   "מסלולים גמישים לכרטיס ביקור דיגיטלי: מחיר חודשי ושנתי, השוואה מלאה של המכסות, ו-14 ימי התנסות ללא כרטיס אשראי.";
 
 export const metadata: Metadata = {
-  title: "מחירים",
+  title: "מחירי כרטיס ביקור דיגיטלי ומיני סייט",
   description: pricingDescription,
   alternates: { canonical: "/pricing" },
   // QA-012: בלי מטא ייעודי, שיתוף של עמוד המחירים הציג את תיאור דף הבית.
