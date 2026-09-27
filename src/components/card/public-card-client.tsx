@@ -7,6 +7,7 @@ import { Check, Download, Loader2, QrCode, Share2, X } from "lucide-react";
 import QRCode from "qrcode";
 import { CardPreview } from "@/components/card/card-preview";
 import { Logo } from "@/components/logo";
+import { brand } from "@/lib/config";
 import { ErrorSummary, focusErrorSummary } from "@/components/ui/field";
 import type { CardData, ContactFormField } from "@/lib/types";
 import { backgroundCss } from "@/lib/backgrounds";
@@ -161,7 +162,18 @@ export function PublicCardClient({ card }: { card: CardData }) {
   return <div lang={language} dir={dir} className="min-h-screen" style={{ "--public-primary": card.primaryColor, background: backgroundCss(card.backgroundPreset) } as React.CSSProperties}>
     <header className="mx-auto flex max-w-[660px] items-center justify-between px-4 py-5"><span className="rounded-xl bg-white/85 px-3 py-2 shadow-sm backdrop-blur"><Logo compact /></span><div className="flex gap-2"><button type="button" onClick={() => setShowQr(true)} className="button-secondary h-11 min-h-11 px-3" aria-label={t.qrAria}><QrCode size={18} /><span className="hidden sm:inline">{t.qr}</span></button><button type="button" onClick={share} className="button-secondary h-11 min-h-11 px-3" aria-label={t.shareAria}><Share2 size={18} /><span className="hidden sm:inline">{t.share}</span></button></div></header>
     <main className="mx-auto max-w-[620px] px-3 pb-10 sm:px-5"><div className="overflow-hidden rounded-[32px] border border-white/80 bg-white shadow-[0_30px_90px_rgba(11,24,48,.16)]"><CardPreview card={card} onAction={track} contactForm={contactForm} /></div></main>
-    <footer className="pb-24 text-center text-xs text-[#758198]">{t.builtWith} <Logo compact /></footer>
+    {/*
+      * SEO + צמיחה: קישור טקסט מכל כרטיס לדף הבית, עם מילת המפתח כעוגן.
+      * הלוגו לבדו היה קישור בלי טקסט — כמעט בלי אות לגוגל ובלי הזמנה
+      * למי שצופה בכרטיס לבנות אחד משלו.
+      */}
+    <footer className="grid justify-items-center gap-2 px-4 pb-24 text-center text-xs text-[#758198]">
+      {/* הצבעים על span פנימי: הכלל הגלובלי a { color: inherit } גובר על מחלקות צבע שעל הקישור עצמו. */}
+      <Link href="/" className="group inline-flex items-center gap-1.5 rounded-full bg-white/85 px-3.5 py-2 shadow-sm backdrop-blur">
+        <span className="text-[#758198] transition group-hover:text-[#5134cc]">{t.builtWith} <strong className="font-extrabold tracking-[0.06em] text-[#0b1020]">{brand.name}</strong> <span aria-hidden="true">·</span> {t.builtWithTag}</span>
+      </Link>
+      <Link href="/" className="group"><span className="font-bold text-[#5134cc] underline-offset-4 group-hover:underline">{t.builtWithCta}</span></Link>
+    </footer>
     {/* REQ-024: נקודת פעולה אחת קבועה. ה-padding בפוטר מפנה לה מקום כדי שלא תכסה תוכן. */}
     <ContactFab card={card} onAction={track} />
     {showQr && <div className="fixed inset-0 z-50 grid place-items-center bg-[#071020]/70 p-4 backdrop-blur-sm" role="dialog" aria-modal="true" aria-label={t.qrTitle}><div className="relative max-h-[90vh] w-full max-w-sm overflow-y-auto overscroll-contain rounded-[28px] bg-white p-6 text-center shadow-2xl"><button type="button" onClick={() => setShowQr(false)} className="absolute left-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-[#f0f2f6]" aria-label={t.close}><X size={18} /></button><QrCode className="mx-auto text-[#6d4aff]" size={28} /><h2 className="mt-3 text-xl font-black">{t.qrTitle}</h2><p className="mt-1 text-sm text-[#6a778c]">{t.qrSubtitle}</p>{qrData ? <img src={qrData} alt={t.qrAlt(card.ownerName)} className="mx-auto mt-5 w-64 rounded-2xl border border-[#e1e5ec]" /> : <div className="mx-auto mt-5 grid h-64 w-64 place-items-center rounded-2xl bg-[#f4f5f8]"><Loader2 className="animate-spin" /></div>}{qrData && <a href={qrData} download={`${card.slug}-qr.png`} className="button-primary mt-5 w-full"><Download size={18} />{t.qrDownload}</a>}</div></div>}

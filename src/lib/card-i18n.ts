@@ -42,6 +42,9 @@ export type CardStrings = {
   qrAlt: (name: string) => string;
   close: string;
   builtWith: string;
+  /** טקסט העוגן של הקישור לאתר — מילת המפתח שדף הבית מדורג עליה. */
+  builtWithTag: string;
+  builtWithCta: string;
   contactFab: string;
   contactFabOpen: string;
   contactFabClose: string;
@@ -73,6 +76,8 @@ const dictionaries: Record<CardLanguage, CardStrings> = {
     qrAlt: (name) => `QR לכרטיס של ${name}`,
     close: "סגירה",
     builtWith: "נבנה באמצעות",
+    builtWithTag: "כרטיס ביקור דיגיטלי",
+    builtWithCta: "רוצים כרטיס כזה לעסק שלכם? מתחילים בחינם",
     contactFab: "צור קשר",
     contactFabOpen: "פתיחת תפריט יצירת קשר",
     contactFabClose: "סגירה",
@@ -104,6 +109,8 @@ const dictionaries: Record<CardLanguage, CardStrings> = {
     qrAlt: (name) => `QR code for ${name}`,
     close: "Close",
     builtWith: "Built with",
+    builtWithTag: "digital business card",
+    builtWithCta: "Want a card like this for your business? Start free",
     contactFab: "Contact",
     contactFabOpen: "Open contact menu",
     contactFabClose: "Close",
