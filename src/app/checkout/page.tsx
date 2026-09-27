@@ -71,10 +71,10 @@ export default async function CheckoutPage({ searchParams }: { searchParams: Pro
 
             <div className="mt-4 flex justify-between text-sm text-white/65">
               <span>מע״מ</span>
-              <span>כלול במחיר</span>
+              <span>לא כלול, יתווסף כדין</span>
             </div>
             <div className="mt-4 flex items-end justify-between border-t border-white/10 pt-4">
-              <span className="font-bold">{cycle === "annual" ? "סה״כ לשנה" : "סה״כ לחודש"}</span>
+              <span className="font-bold">{cycle === "annual" ? "סה״כ לשנה, לפני מע״מ" : "סה״כ לחודש, לפני מע״מ"}</span>
               <span className="text-left">
                 <strong className="text-2xl sm:text-3xl">{formatCurrency(amount)}</strong>
                 <small className="block text-white/45">

@@ -72,8 +72,8 @@ export function paymentMessage(input: MessageInput) {
     `מסלול: ${plan.name}`,
     `מחזור חיוב: ${cycle === "annual" ? "שנתי — תשלום מראש ל-12 חודשים" : "חודשי מתחדש"}`,
     cycle === "annual"
-      ? `סכום לתשלום: ${amount} ש״ח לשנה (כולל מע״מ)`
-      : `סכום לתשלום: ${amount} ש״ח לחודש (כולל מע״מ)`,
+      ? `סכום לתשלום: ${amount} ש״ח לשנה (לא כולל מע״מ)`
+      : `סכום לתשלום: ${amount} ש״ח לחודש (לא כולל מע״מ)`,
     `מספר אסמכתא: ${reference}`,
     "",
     "── פרטי המזמין ──",
@@ -121,7 +121,7 @@ export function orderPaymentMessage(input: { planName: string; amount: number; c
     "── פרטי ההזמנה ──",
     `מסלול: ${input.planName}`,
     `מחזור חיוב: ${input.cycle === "annual" ? "שנתי — תשלום מראש ל-12 חודשים" : "חודשי מתחדש"}`,
-    `סכום לתשלום: ${input.amount} ש״ח (כולל מע״מ)`,
+    `סכום לתשלום: ${input.amount} ש״ח (לא כולל מע״מ)`,
     `מספר עסקה: ${input.reference}`,
     `שם: ${input.customerName}`,
     "",

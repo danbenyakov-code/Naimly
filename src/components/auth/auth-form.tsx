@@ -337,7 +337,7 @@ export function AuthForm({
               <span>
                 נבחר מסלול <strong>{selectedPlan.name}</strong> —{" "}
                 {formatCurrency(cycleAmount(selectedPlan.price, cycle))}{" "}
-                {cycle === "annual" ? "לשנה" : "לחודש"}, כולל מע״מ.
+                {cycle === "annual" ? "לשנה" : "לחודש"}, לא כולל מע״מ.
               </span>
               <Link href="/pricing" className="font-bold underline underline-offset-2">
                 שינוי מסלול
