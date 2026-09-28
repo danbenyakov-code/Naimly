@@ -37,6 +37,9 @@ const required: Array<[tool: string, directive: string, url: string]> = [
   ["Meta Pixel — הגדרות הפיקסל", "connect-src", "https://connect.facebook.net/signals/config/2492042894608866"],
   ["Meta Pixel — שליחת אירוע (התקלה)", "connect-src", "https://www.facebook.com/tr/"],
   ["Meta Pixel — noscript", "img-src", "https://www.facebook.com/tr?id=1&ev=PageView&noscript=1"],
+  // בכרום אמיתי האירוע יוצא דרך iframe נסתר + טופס POST — לא ב-fetch כמו בבדיקה אוטומטית.
+  ["Meta Pixel — iframe שליחה (כרום אמיתי)", "frame-src", "https://www.facebook.com/"],
+  ["Meta Pixel — טופס POST ל-/tr (כרום אמיתי)", "form-action", "https://www.facebook.com/tr/"],
   // Google Analytics 4
   ["GA4 — gtag.js", "script-src", "https://www.googletagmanager.com/gtag/js?id=G-ABC123"],
   ["GA4 — שליחת אירוע", "connect-src", "https://www.google-analytics.com/g/collect"],
@@ -68,7 +71,7 @@ describe("CSP — כל כלי מדידה שכרטיס או האתר מחברים
   });
 
   it("לא נפתח לכל העולם — אין מקור * גורף", () => {
-    for (const directive of ["script-src", "connect-src", "img-src", "frame-src"]) {
+    for (const directive of ["script-src", "connect-src", "img-src", "frame-src", "form-action"]) {
       assert.ok(!sources(directive).includes("*") && !sources(directive).includes("https:"), `${directive} פתוח לכל מקור`);
     }
   });

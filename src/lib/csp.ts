@@ -9,11 +9,12 @@
  * 1. כל אינטגרציה מתועדת כאן בנפרד, עם *כל* ההוסטים שהיא צריכה לפי
  *    הוראות הספק — לכל directive, לא רק ל-script-src.
  * 2. tests/csp.test.mts מוודא שכל אינטגרציה מכוסה במדיניות הסופית.
- * 3. אינטגרציה חדשה = רשומה חדשה כאן + בדיקה בדפדפן שהאירועים יוצאים
+ * 3. אינטגרציה חדשה = רשומה חדשה כאן + בדיקה בכרום אמיתי (לא headless —
+ *    ספקים בוחרים דרך שליחה אחרת לפי הדפדפן) שהאירועים יוצאים
  *    בפועל (לא רק שהסקריפט נטען).
  */
 
-type Directive = "script-src" | "connect-src" | "img-src" | "frame-src";
+type Directive = "script-src" | "connect-src" | "img-src" | "frame-src" | "form-action";
 
 export type Integration = {
   name: string;
@@ -32,6 +33,13 @@ export const integrations: Integration[] = [
       "connect-src": ["https://www.facebook.com", "https://connect.facebook.net"],
       // noscript ומצב גיבוי: <img src="https://www.facebook.com/tr?...">
       "img-src": ["https://www.facebook.com"],
+      /*
+       * בכרום אמיתי (לא בדפדפן אוטומטי) fbevents.js שולח את האירוע דרך
+       * iframe נסתר שמגיש טופס POST ל-/tr. בלי שני אלה — אפס אירועים
+       * מגולשים אמיתיים, בעוד שבדיקה אוטומטית (שעוברת ב-fetch) עוברת.
+       */
+      "frame-src": ["https://www.facebook.com"],
+      "form-action": ["https://www.facebook.com"],
     },
   },
   {
@@ -99,7 +107,7 @@ export function buildContentSecurityPolicy({ supabaseOrigin, isDev }: { supabase
     `media-src 'self' blob: ${supabaseOrigin}`,
     "object-src 'none'",
     "base-uri 'self'",
-    "form-action 'self'",
+    `form-action 'self' ${hostsFor("form-action").join(" ")}`,
     "frame-ancestors 'self'",
     "upgrade-insecure-requests",
   ]
