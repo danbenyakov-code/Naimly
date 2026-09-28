@@ -1,6 +1,6 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { startTransition, useActionState, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { cycleAmount, plans, type BillingCycle } from "@/lib/config";
 import { formatCurrency } from "@/lib/utils";
@@ -69,6 +69,7 @@ export function AuthForm({
   const [loginState, login, loginPending] = useActionState(loginAction, null);
   const [signupState, signup, signupPending] = useActionState(signupAction, null);
   const [dismissedSignup, setDismissedSignup] = useState<AuthResult | null>(null);
+  const [termsAccepted, setTermsAccepted] = useState(false);
   const [verifyState, verify, verifyPending] = useActionState(verifySignupOtpAction, null);
   const [resendSignup, resendSignupAction, resendSignupPending] = useActionState(resendSignupOtpAction, null);
   const [resetReqState, requestReset, resetReqPending] = useActionState(requestPasswordResetAction, null);
@@ -105,7 +106,14 @@ export function AuthForm({
 
   /* QA-007/QA-009: המיקוד עובר לסיכום רק אחרי שהוא נמצא ב-DOM. */
   useEffect(() => {
-    if (signupState && !signupState.ok) focusErrorSummary();
+    if (signupState && !signupState.ok) {
+      if (signupState.field) focusErrorSummary();
+      else requestAnimationFrame(() => {
+        const alert = document.getElementById("signup-form-error");
+        alert?.scrollIntoView({ block: "center", behavior: "smooth" });
+        alert?.focus({ preventScroll: true });
+      });
+    }
   }, [signupState]);
 
   const fieldError = (result: AuthResult | null, field: string) =>
@@ -272,7 +280,7 @@ export function AuthForm({
         </div>
       )}
 
-      {formError(activeState) && (
+      {mode !== "signup" && formError(activeState) && (
         <FormAlert tone="error" retryAfterSeconds={activeState && !activeState.ok ? activeState.retryAfterSeconds : undefined}>
           {formError(activeState)}
         </FormAlert>
@@ -332,7 +340,22 @@ export function AuthForm({
 
       {/* ── הרשמה ─────────────────────────────────────────────────────────── */}
       {mode === "signup" && (
-        <form action={signup} noValidate className="grid gap-4" onInput={() => { if (signupState && !signupState.ok) setDismissedSignup(signupState); }}>
+        <form
+          action={signup}
+          noValidate
+          className="grid gap-4"
+          onInput={() => { if (signupState && !signupState.ok) setDismissedSignup(signupState); }}
+          /*
+           * שליחה דרך onSubmit ולא ישירות דרך action: React מאפס את הטופס אחרי
+           * כל action, כולל תיבת האישור — ומי שקיבל שגיאה נאלץ לסמן אותה שוב.
+           * action נשאר כגיבוי לדפדפן בלי JavaScript.
+           */
+          onSubmit={(event) => {
+            event.preventDefault();
+            const data = new FormData(event.currentTarget);
+            startTransition(() => signup(data));
+          }}
+        >
           <input type="hidden" name="plan" value={plan} />
           <input type="hidden" name="cycle" value={cycle} />
 
@@ -424,6 +447,9 @@ export function AuthForm({
                 type="checkbox"
                 name="terms"
                 value="accepted"
+                // מבוקר: שדה לא מבוקר מתאפס אחרי כל שליחה, והמשתמש נדרש לסמן שוב אחרי כל שגיאה.
+                checked={termsAccepted}
+                onChange={(event) => setTermsAccepted(event.target.checked)}
                 className="mt-0.5 h-4.5 w-4.5 shrink-0"
                 aria-required="true"
                 aria-invalid={Boolean(fieldError(signupErrors, "terms"))}
@@ -443,6 +469,19 @@ export function AuthForm({
               </p>
             )}
           </div>
+
+          {/*
+            * שגיאה שאינה שייכת לשדה (עומס במיילים, כשל שרת) מוצגת צמוד לכפתור.
+            * בראש העמוד היא הייתה מחוץ למסך: מי שלחץ ראה שהדף "התרענן" ולא
+            * הבין שההרשמה נכשלה.
+            */}
+          {formError(signupErrors) && (
+            <div id="signup-form-error" tabIndex={-1} className="outline-none">
+              <FormAlert tone="error" retryAfterSeconds={signupErrors && !signupErrors.ok ? signupErrors.retryAfterSeconds : undefined}>
+                {formError(signupErrors)}
+              </FormAlert>
+            </div>
+          )}
 
           <button type="submit" disabled={activePending} className="button-primary min-h-13 w-full" aria-busy={signupPending}>
             {signupPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}

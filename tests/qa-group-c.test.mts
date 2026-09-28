@@ -128,7 +128,8 @@ describe("QA-007 — סיכום שגיאות נגיש בהרשמה", () => {
   });
 
   it("noValidate מונע את הודעת הדפדפן באנגלית", () => {
-    assert.match(source, /<form action=\{signup\} noValidate/);
+    // התגית מפוצלת לכמה שורות (onSubmit, onInput) — מתירים רווח או שבירת שורה.
+    assert.match(source, /<form\s+action=\{signup\}\s+noValidate/);
   });
 });
 
