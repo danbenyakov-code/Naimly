@@ -6,7 +6,7 @@ import { FloatingTools } from "@/components/floating-tools";
 import { brand, ogImage } from "@/lib/config";
 import { homeDescription, homeTitle, seoKeywords } from "@/lib/seo";
 import { ConsentedAnalytics } from "@/components/consented-analytics";
-import { metaPixelHeadScript, metaPixelNoscriptSrc } from "@/lib/meta-pixel";
+import { metaPixelHeadScript, metaPixelNoscriptSrcs } from "@/lib/meta-pixel";
 
 const rubik = Rubik({
   variable: "--font-rubik",
@@ -51,7 +51,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="min-h-full">
         {/* פיקסל מעקב של 1x1 למבקרים בלי JavaScript — לא תמונת תוכן, ולכן לא next/image. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <noscript><img height="1" width="1" style={{ display: "none" }} alt="" src={metaPixelNoscriptSrc} /></noscript>
+        <noscript>{metaPixelNoscriptSrcs.map((src) => <img key={src} height="1" width="1" style={{ display: "none" }} alt="" src={src} />)}</noscript>
         <a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /></body>
     </html>
   );

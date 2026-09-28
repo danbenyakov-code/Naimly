@@ -27,10 +27,14 @@ export const socialLinks = [
 ] as const;
 
 /**
- * Meta Pixel של NAIMLY עצמה — לאתר השיווקי בלבד, לא לכרטיסי הלקוחות
+ * הפיקסלים של NAIMLY עצמה (Meta) — לאתר השיווקי בלבד, לא לכרטיסי הלקוחות
  * (ראו meta-pixel.ts). מזהה פיקסל הוא ציבורי מטבעו: הוא מופיע בקוד של כל דף.
+ * NEXT_PUBLIC_META_PIXEL_ID יכול להכיל כמה מזהים מופרדים בפסיק.
  */
-export const siteMetaPixelId = (process.env.NEXT_PUBLIC_META_PIXEL_ID || "2492042894608866").replace(/\D/g, "");
+export const siteMetaPixelIds = (process.env.NEXT_PUBLIC_META_PIXEL_ID || "2492042894608866,4482468885403538")
+  .split(",")
+  .map((id) => id.replace(/\D/g, ""))
+  .filter(Boolean);
 
 export type SocialId = (typeof socialLinks)[number]["id"];
 

@@ -1,4 +1,4 @@
-import { siteMetaPixelId } from "@/lib/config";
+import { siteMetaPixelIds } from "@/lib/config";
 import { reservedSlugs } from "@/lib/reserved-slugs";
 
 /**
@@ -21,8 +21,9 @@ n.queue=[];t=b.createElement(e);t.async=!0;
 t.src=v;s=b.getElementsByTagName(e)[0];
 s.parentNode.insertBefore(t,s)}(window, document,'script',
 'https://connect.facebook.net/en_US/fbevents.js');
-fbq('init', '${siteMetaPixelId}');
+${siteMetaPixelIds.map((id) => `fbq('init', '${id}');`).join("\n")}
 fbq('track', 'PageView');
 })();`;
 
-export const metaPixelNoscriptSrc = `https://www.facebook.com/tr?id=${siteMetaPixelId}&ev=PageView&noscript=1`;
+/** fbq('track') אחד שולח לכל הפיקסלים שאותחלו; ב-noscript צריך תמונה לכל פיקסל. */
+export const metaPixelNoscriptSrcs = siteMetaPixelIds.map((id) => `https://www.facebook.com/tr?id=${id}&ev=PageView&noscript=1`);
