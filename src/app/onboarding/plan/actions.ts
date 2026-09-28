@@ -1,6 +1,7 @@
 "use server";
 
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { CONVERSION_SIGNAL_MAX_AGE_SECONDS, START_TRIAL_COOKIE } from "@/lib/conversion-signals";
 import { redirect } from "next/navigation";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
@@ -41,6 +42,18 @@ export async function startTrialAction(_prev: SelectPlanResult, formData: FormDa
   const headerList = await headers();
   const ip = await clientIp();
   const userAgent = (headerList.get("user-agent") || "").slice(0, 400);
+
+  /*
+   * select_trial_plan מחזיר הצלחה גם כשמסלול כבר נבחר — בלי לפתוח התנסות
+   * חדשה. בודקים לפני הקריאה, כדי ש-StartTrial יישלח רק על התנסות שנפתחה
+   * עכשיו, ולא על שליחה חוזרת של הטופס או לחיצה כפולה.
+   */
+  const { data: before } = await supabase
+    .from("subscriptions")
+    .select("plan_selected_at")
+    .eq("user_id", auth.user.id)
+    .maybeSingle();
+  const isNewTrial = !before?.plan_selected_at;
 
   const { error } = await supabase.rpc("select_trial_plan", {
     accepted_version: LEGAL_VERSION,
@@ -93,5 +106,19 @@ export async function startTrialAction(_prev: SelectPlanResult, formData: FormDa
     userAgent,
   }).catch(() => null);
 
-  redirect("/dashboard?trial=started");
+  /*
+   * נקודת ההצלחה של כל ה-flow: משתמש נוצר, אימת את המייל, מחובר, וההתנסות
+   * נפתחה עכשיו במסד. רק כאן מוצב האות ל-StartTrial (ראו MetaConversions).
+   * הערך הוא מזהה המשתמש — משמש כ-eventID כדי ש-Meta תאחד כפילויות.
+   */
+  if (isNewTrial) {
+    (await cookies()).set(START_TRIAL_COOKIE, auth.user.id, {
+      maxAge: CONVERSION_SIGNAL_MAX_AGE_SECONDS,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
+  }
+
+  redirect("/dashboard");
 }

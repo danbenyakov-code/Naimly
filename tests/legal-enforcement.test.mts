@@ -155,7 +155,8 @@ describe("תיעוד ההסכמה נשלח למנהל", () => {
     // redirect זורק חריגה, וכל מה שאחריו לא מתבצע.
     const action = read("src/app/onboarding/plan/actions.ts");
     const sendCall = action.indexOf("await sendLegalAcceptanceNotification({");
-    const redirectCall = action.indexOf('redirect("/dashboard?trial=started")');
+    // lastIndexOf: בראש הקובץ יש redirect נוסף למצב הדגמה.
+    const redirectCall = action.lastIndexOf('redirect("/dashboard")');
     assert.ok(sendCall > 0, "לא נמצאה קריאת השליחה");
     assert.ok(redirectCall > sendCall, "התיעוד נשלח אחרי ה-redirect");
   });
