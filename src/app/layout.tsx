@@ -7,6 +7,7 @@ import { brand, ogImage } from "@/lib/config";
 import { homeDescription, homeTitle, seoKeywords } from "@/lib/seo";
 import { ConsentedAnalytics } from "@/components/consented-analytics";
 import { metaPixelHeadScript, metaPixelNoscriptSrcs } from "@/lib/meta-pixel";
+import { MetaConversions } from "@/components/meta-conversions";
 
 const rubik = Rubik({
   variable: "--font-rubik",
@@ -52,7 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* פיקסל מעקב של 1x1 למבקרים בלי JavaScript — לא תמונת תוכן, ולכן לא next/image. */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <noscript>{metaPixelNoscriptSrcs.map((src) => <img key={src} height="1" width="1" style={{ display: "none" }} alt="" src={src} />)}</noscript>
-        <a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /></body>
+        <a href="#main-content" className="skip-link">דילוג לתוכן הראשי</a><div id="main-content" tabIndex={-1}>{children}</div><FloatingTools /><CookieConsent /><ConsentedAnalytics /><MetaConversions /></body>
     </html>
   );
 }
