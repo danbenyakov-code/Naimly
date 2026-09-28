@@ -24,6 +24,7 @@ export function PasswordField({
   autoComplete = "new-password",
   showMeter = true,
   hint,
+  typeOnly = false,
 }: {
   name: string;
   label?: string;
@@ -34,13 +35,24 @@ export function PasswordField({
   autoComplete?: string;
   showMeter?: boolean;
   hint?: string;
+  /**
+   * חובה להקליד: חוסם העתקה, גזירה, הדבקה וגרירה לשדה. מופעל בהרשמה
+   * ובבחירת סיסמה חדשה — כך אימות הסיסמה באמת בודק שהמשתמש יודע אותה.
+   * לא בכניסה: שם מנהלי סיסמאות מדביקים, וחסימה רק תפיל אותם.
+   */
+  typeOnly?: boolean;
 }) {
   const [visible, setVisible] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const block = (event: { preventDefault: () => void }) => {
+    event.preventDefault();
+    setBlocked(true);
+  };
   const strength = useMemo(() => evaluatePassword(value), [value]);
 
   return (
     <div className="grid gap-2">
-      <Field label={label} required error={error} success={success} hint={hint}>
+      <Field label={label} required error={error} success={success} hint={blocked ? "מטעמי אבטחה יש להקליד את הסיסמה — העתקה והדבקה חסומות בשדה הזה." : hint}>
         {(field) => (
           <div className="relative">
             <input
@@ -48,7 +60,17 @@ export function PasswordField({
               data-field={name}
               name={name}
               type={visible ? "text" : "password"}
-              className={cn(inputClass(Boolean(error)), "pl-12")}
+              className={inputClass(Boolean(error))}
+              /*
+               * מקום לכפתור העין משמאל. inline ולא pl-12: הכלל הגלובלי
+               * .field-input { padding } נמצא מחוץ לשכבות של Tailwind וגובר
+               * על מחלקה — והאייקון כיסה את תחילת הסיסמה.
+               */
+              style={{ paddingLeft: 52 }}
+              onCopy={typeOnly ? block : undefined}
+              onCut={typeOnly ? block : undefined}
+              onPaste={typeOnly ? block : undefined}
+              onDrop={typeOnly ? block : undefined}
               autoComplete={autoComplete}
               value={value}
               onChange={(event) => onChange(event.target.value)}

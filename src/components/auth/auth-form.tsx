@@ -68,6 +68,7 @@ export function AuthForm({
 
   const [loginState, login, loginPending] = useActionState(loginAction, null);
   const [signupState, signup, signupPending] = useActionState(signupAction, null);
+  const [dismissedSignup, setDismissedSignup] = useState<AuthResult | null>(null);
   const [verifyState, verify, verifyPending] = useActionState(verifySignupOtpAction, null);
   const [resendSignup, resendSignupAction, resendSignupPending] = useActionState(resendSignupOtpAction, null);
   const [resetReqState, requestReset, resetReqPending] = useActionState(requestPasswordResetAction, null);
@@ -207,6 +208,7 @@ export function AuthForm({
         <form action={updatePassword} className="grid gap-4">
           <PasswordField
             name="password"
+            typeOnly
             label="סיסמה חדשה"
             value={newPassword}
             onChange={setNewPassword}
@@ -214,6 +216,7 @@ export function AuthForm({
           />
           <PasswordField
             name="passwordConfirm"
+            typeOnly
             label="אימות הסיסמה החדשה"
             value={newPasswordConfirm}
             onChange={setNewPasswordConfirm}
@@ -230,7 +233,14 @@ export function AuthForm({
   }
 
   // ── שלב הטופס הראשי ──────────────────────────────────────────────────────
-  const activeState = mode === "login" ? loginState : mode === "signup" ? signupState : resetReqState;
+  /*
+   * שגיאות שרת בהרשמה מתיישנות ברגע שמתחילים לתקן: הודעה כמו "לא הצלחנו
+   * ליצור את החשבון" נשארה על המסך גם אחרי שכל השדות כבר תקינים, ונראה
+   * כאילו הטופס לא מזהה את התיקון. הקלדה בטופס מסמנת את התוצאה הנוכחית
+   * כ"נקראה" — הערכים שהוזנו (keptValue) נשארים, רק השגיאות מוסתרות.
+   */
+  const signupErrors = signupState && dismissedSignup === signupState ? null : signupState;
+  const activeState = mode === "login" ? loginState : mode === "signup" ? signupErrors : resetReqState;
   const activePending = mode === "login" ? loginPending : mode === "signup" ? signupPending : resetReqPending;
   const selectedPlan = plans.find((item) => item.id === plan && item.price > 0);
   const signupMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
@@ -322,7 +332,7 @@ export function AuthForm({
 
       {/* ── הרשמה ─────────────────────────────────────────────────────────── */}
       {mode === "signup" && (
-        <form action={signup} noValidate className="grid gap-4">
+        <form action={signup} noValidate className="grid gap-4" onInput={() => { if (signupState && !signupState.ok) setDismissedSignup(signupState); }}>
           <input type="hidden" name="plan" value={plan} />
           <input type="hidden" name="cycle" value={cycle} />
 
@@ -346,15 +356,15 @@ export function AuthForm({
           )}
 
           <ErrorSummary
-            errors={errorMap(signupState)}
+            errors={errorMap(signupErrors)}
             fieldOrder={["fullName", "email", "password", "passwordConfirm", "terms"]}
           />
 
-          <Field label="שם מלא" required name="fullName" error={fieldError(signupState, "fullName")} hint="כך נפנה אליך במערכת ובמיילים">
+          <Field label="שם מלא" required name="fullName" error={fieldError(signupErrors, "fullName")} hint="כך נפנה אליך במערכת ובמיילים">
             {(field) => (
               <input
                 {...field}
-                className={inputClass(Boolean(fieldError(signupState, "fullName")))}
+                className={inputClass(Boolean(fieldError(signupErrors, "fullName")))}
                 name="fullName"
                 defaultValue={keptValue(signupState, "fullName")}
                 autoComplete="name"
@@ -369,13 +379,13 @@ export function AuthForm({
             label="כתובת אימייל"
             required
             name="email"
-            error={fieldError(signupState, "email")}
+            error={fieldError(signupErrors, "email")}
             hint="לכאן יישלח קוד האימות, וגם התראות על פניות חדשות"
           >
             {(field) => (
               <input
                 {...field}
-                className={inputClass(Boolean(fieldError(signupState, "email")))}
+                className={inputClass(Boolean(fieldError(signupErrors, "email")))}
                 name="email"
                 defaultValue={keptValue(signupState, "email")}
                 type="email"
@@ -391,18 +401,20 @@ export function AuthForm({
 
           <PasswordField
             name="password"
+            typeOnly
             value={password}
             onChange={setPassword}
-            error={fieldError(signupState, "password")}
+            error={fieldError(signupErrors, "password")}
           />
 
           <PasswordField
             name="passwordConfirm"
+            typeOnly
             label="אימות סיסמה"
             value={passwordConfirm}
             onChange={setPasswordConfirm}
             showMeter={false}
-            error={signupMismatch ? "שתי הסיסמאות אינן זהות." : fieldError(signupState, "passwordConfirm")}
+            error={signupMismatch ? "שתי הסיסמאות אינן זהות." : fieldError(signupErrors, "passwordConfirm")}
             success={!signupMismatch && passwordConfirm.length > 0 ? "הסיסמאות תואמות" : undefined}
           />
 
@@ -414,8 +426,8 @@ export function AuthForm({
                 value="accepted"
                 className="mt-0.5 h-4.5 w-4.5 shrink-0"
                 aria-required="true"
-                aria-invalid={Boolean(fieldError(signupState, "terms"))}
-                aria-describedby={fieldError(signupState, "terms") ? "terms-error" : undefined}
+                aria-invalid={Boolean(fieldError(signupErrors, "terms"))}
+                aria-describedby={fieldError(signupErrors, "terms") ? "terms-error" : undefined}
               />
               <span>
                 קראתי ואני מאשר/ת את{" "}
@@ -425,9 +437,9 @@ export function AuthForm({
                 <span className="required-field">חובה</span>
               </span>
             </label>
-            {fieldError(signupState, "terms") && (
+            {fieldError(signupErrors, "terms") && (
               <p id="terms-error" role="alert" className="text-xs font-semibold text-[#a32031]">
-                {fieldError(signupState, "terms")}
+                {fieldError(signupErrors, "terms")}
               </p>
             )}
           </div>

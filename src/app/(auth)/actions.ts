@@ -45,6 +45,24 @@ const genericFailure: AuthResult = {
   error: "לא הצלחנו להשלים את הפעולה כרגע. הפרטים שהזנת נשמרו בטופס — אפשר לנסות שוב בעוד רגע.",
 };
 
+/*
+ * Supabase מגביל את מספר מיילי האימות לשעה לכל הפרויקט (הרשמה, קוד חוזר
+ * ושחזור סיסמה יחד) ומחזיר 429 over_email_send_rate_limit. התקלה הזו
+ * הוצגה בעבר כ"לא הצלחנו ליצור את החשבון" כללי, ולא נרשמה בשום לוג —
+ * כך שאי אפשר היה לדעת שההרשמה כולה חסומה.
+ */
+function isEmailQuotaError(error: { status?: number; code?: string; message: string }) {
+  return error.status === 429 || error.code === "over_email_send_rate_limit" || error.message.toLowerCase().includes("rate limit");
+}
+
+const emailQuotaMessage =
+  "שליחת מיילי האימות עמוסה כרגע, ולכן לא הצלחנו להשלים את הפעולה. הפרטים שהזנת נשמרו — אפשר לנסות שוב בעוד כמה דקות.";
+
+/** כל כשל של שירות האימות נרשם עם הקוד המלא, כדי שתקלה לא תיבלע מאחורי הודעה כללית. */
+function logAuthError(action: string, error: { status?: number; code?: string; message: string }) {
+  console.error(`[auth] ${action} failed`, { status: error.status, code: error.code, message: error.message });
+}
+
 async function limit(key: string, max: number, windowSeconds: number): Promise<AuthResult | null> {
   const ip = await clientIp();
   const result = rateLimit(`${key}:${ip}`, max, windowSeconds);
@@ -152,10 +170,14 @@ export async function signupAction(_prev: AuthResult | null, formData: FormData)
     if (message.includes("registered") || message.includes("already")) {
       return { ok: false, error: "קיימת כבר הרשמה לכתובת הזו. אפשר להתחבר, או לאפס את הסיסמה אם שכחת אותה.", field: "email" , values: { fullName, email } };
     }
+    logAuthError("signUp", error);
+    if (isEmailQuotaError(error)) {
+      return { ok: false, error: emailQuotaMessage, values: { fullName, email } };
+    }
     if (message.includes("password")) {
       return { ok: false, error: "הסיסמה נדחתה על ידי שירות האימות. יש לבחור סיסמה אחרת שעומדת בדרישות.", field: "password" , values: { fullName, email } };
     }
-    return { ok: false, error: "לא הצלחנו ליצור את החשבון. אפשר לנסות שוב או לפנות לתמיכה.", field: "email" , values: { fullName, email } };
+    return { ok: false, error: "לא הצלחנו ליצור את החשבון. אפשר לנסות שוב או לפנות לתמיכה.", values: { fullName, email } };
   }
 
   /*
@@ -234,6 +256,8 @@ export async function resendSignupOtpAction(_prev: AuthResult | null, formData: 
     options: { emailRedirectTo: `${origin}/auth/callback?next=/dashboard` },
   });
   if (error) {
+    logAuthError("resend signup code", error);
+    if (isEmailQuotaError(error)) return { ok: false, error: emailQuotaMessage, field: "email" };
     return { ok: false, error: "לא הצלחנו לשלוח קוד חדש כרגע. אפשר לנסות שוב בעוד דקה.", field: "email" };
   }
   return { ok: true, message: "שלחנו קוד חדש. הוא בתוקף ל‑10 דקות." };
@@ -259,7 +283,9 @@ export async function requestPasswordResetAction(_prev: AuthResult | null, formD
   if (!supabase) return genericFailure;
 
   const origin = await resolveOrigin();
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/auth/callback?next=/reset-password` });
+  // התשובה ללקוח זהה תמיד (לא חושפים אילו כתובות רשומות) — אבל כשל נרשם בלוג.
+  const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/auth/callback?next=/reset-password` });
+  if (resetError) logAuthError("reset password email", resetError);
 
   // תשובה זהה תמיד — לא חושפים אילו כתובות רשומות במערכת.
   return {
@@ -312,7 +338,9 @@ export async function resendResetOtpAction(_prev: AuthResult | null, formData: F
   if (!supabase) return genericFailure;
 
   const origin = await resolveOrigin();
-  await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/auth/callback?next=/reset-password` });
+  // התשובה ללקוח זהה תמיד (לא חושפים אילו כתובות רשומות) — אבל כשל נרשם בלוג.
+  const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, { redirectTo: `${origin}/auth/callback?next=/reset-password` });
+  if (resetError) logAuthError("reset password email", resetError);
   return { ok: true, message: "שלחנו קוד חדש. הוא בתוקף ל‑10 דקות." };
 }
 
