@@ -460,6 +460,7 @@ export function AuthForm({
                 <LegalLink docId="terms">תנאי השימוש</LegalLink>
                 {" "}ואת{" "}
                 <LegalLink docId="privacy">מדיניות הפרטיות</LegalLink>
+                , כולל קבלת עדכונים ודיוור במייל (אפשר לבחור או להסיר בכל עת)
                 <span className="required-field">חובה</span>
               </span>
             </label>

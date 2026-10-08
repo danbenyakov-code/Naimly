@@ -33,7 +33,7 @@ export default async function AdminEmailsPage() {
   const viewer = await getViewer();
   if (!viewer || viewer.role !== "admin") redirect("/dashboard");
 
-  const enabled = process.env.EMAIL_AUTOMATIONS_ENABLED === "true";
+  const enabled = process.env.EMAIL_AUTOMATIONS_ENABLED !== "false";
   let plan: LifecycleReport | null = null;
   let planError = "";
   if (!viewer.demo) {
@@ -58,7 +58,7 @@ export default async function AdminEmailsPage() {
             {isResendConfigured ? "השליחה עוברת דרך Resend, מהדומיין של NAIMLY." : isSmtpConfigured ? "השליחה עוברת כרגע דרך Gmail (SMTP). מומלץ לעבור ל־Resend: מגבלת נפח, ומיילים שיווקיים מ־Gmail נוטים להגיע לספאם." : "אין ספק מיילים מוגדר. שום מייל לא יישלח."}
           </StatusLine>
           <StatusLine ok={enabled}>
-            {enabled ? "שליחה אוטומטית פעילה: כל יום ב־09:00 (ודוח שבועי בימי ראשון)." : "שליחה אוטומטית כבויה. הקרון רץ כל יום ומחשב מי היה מקבל מה, אבל לא שולח. כדי להפעיל: EMAIL_AUTOMATIONS_ENABLED=true ב־Vercel."}
+            {enabled ? "שליחה אוטומטית פעילה: כל יום ב־09:00 (ודוח שבועי בימי ראשון). לעצירת חירום: EMAIL_AUTOMATIONS_ENABLED=false ב־Vercel." : "שליחה אוטומטית כבויה (EMAIL_AUTOMATIONS_ENABLED=false ב־Vercel). הקרון מחשב מי היה מקבל מה, אבל לא שולח."}
           </StatusLine>
           <StatusLine ok={Boolean(process.env.CRON_SECRET)}>
             {process.env.CRON_SECRET ? "CRON_SECRET מוגדר." : "CRON_SECRET חסר: המשימות המתוזמנות חסומות."}

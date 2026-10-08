@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { NotificationPreferencesForm } from "@/components/dashboard/notification-preferences";
+
+const allOff = { trial_reminders: false, weekly_report: false, product_updates: false, marketing: false };
 
 type State = { status: "pending" } | { status: "done" } | { status: "error"; message: string };
 
@@ -26,7 +29,7 @@ export function UnsubscribeConfirm({ token }: { token: string }) {
   }, [token]);
 
   return (
-    <section className="card-surface p-6 text-center sm:p-8" aria-live="polite">
+    <section className="card-surface p-6 text-center sm:p-8">
       {state.status === "pending" && (
         <>
           <Loader2 size={36} className="mx-auto animate-spin text-[#6d4aff]" aria-hidden="true" />
@@ -41,9 +44,11 @@ export function UnsubscribeConfirm({ token }: { token: string }) {
             לא נשלח לך יותר תזכורות, דוחות או עדכונים.
             מיילים חיוניים על החשבון ימשיכו להגיע: קוד אימות, איפוס סיסמה, אישורי תשלום והתראות על פניות מהכרטיס.
           </p>
-          <Link href="/dashboard/settings/notifications" className="button-secondary mt-6 min-h-12 w-full">
-            ניהול העדפות דיוור
-          </Link>
+          <div className="mt-6 border-t border-[#e7eaf1] pt-5 text-right">
+            <h2 className="font-extrabold text-[#18243a]">רוצה לקבל רק חלק מהמיילים?</h2>
+            <p className="mt-1 text-sm text-[#68758a]">מדליקים את מה שכן מעניין אותך. השינוי נשמר מיד, גם בהגדרות החשבון שלך.</p>
+            <NotificationPreferencesForm initial={allOff} token={token} />
+          </div>
         </>
       )}
       {state.status === "error" && (

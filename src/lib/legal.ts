@@ -17,10 +17,10 @@
  * (ראו requiresLegalReAcceptance). זו התנהגות מכוונת: הסכמה לנוסח ישן
  * אינה הסכמה לנוסח החדש.
  */
-export const LEGAL_VERSION = "2026-09-14";
+export const LEGAL_VERSION = "2026-10-08";
 
 /** תאריך תחילת התוקף, כפי שמוצג בראש כל מסמך. */
-export const LEGAL_EFFECTIVE_DATE = "14 בספטמבר 2026";
+export const LEGAL_EFFECTIVE_DATE = "8 באוקטובר 2026";
 
 /**
  * זהות הספק כפי שהיא מוצגת במסמכים.

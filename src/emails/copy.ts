@@ -23,7 +23,7 @@ export type CardStats = { views: number; clicks: number; leads: number };
 export const common = {
   brandTagline: "כרטיס ביקור דיגיטלי ומיני סייט לעסקים",
   unsubscribe: "לא לקבל יותר מיילים מאיתנו",
-  managePreferences: "ניהול העדפות דיוור",
+  managePreferences: "לבחור אילו מיילים לקבל",
   marketingFooter: "קיבלת את המייל הזה כי נרשמת ל־NAIMLY.",
   serviceFooter: "זהו מייל שירות על החשבון שלך, ולכן הוא נשלח תמיד.",
   questions: "יש שאלה? פשוט להשיב למייל הזה או לכתוב לנו בוואטסאפ.",

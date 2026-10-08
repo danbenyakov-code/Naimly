@@ -29,7 +29,7 @@ export const previewTitles: Record<PreviewId, string> = {
   lead_notification: "התראה על פנייה חדשה (קריטי)",
 };
 
-const sampleLinks = { unsubscribeUrl: `${brand.siteUrl}/unsubscribe/preview`, preferencesUrl: `${brand.siteUrl}/dashboard/settings/notifications` };
+const sampleLinks = { unsubscribeUrl: `${brand.siteUrl}/unsubscribe/preview`, preferencesUrl: `${brand.siteUrl}/email-preferences/preview` };
 const sampleStats = { views: 142, clicks: 37, leads: 6 };
 const thisWeek = { views: 48, clicks: 15, leads: 2, whatsapp: 9, phone: 3, navigation: 2, contactSave: 1 };
 const lastWeek = { views: 31, clicks: 12, leads: 2, whatsapp: 7, phone: 2, navigation: 3, contactSave: 0 };

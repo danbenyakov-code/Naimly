@@ -16,8 +16,8 @@ const SEND_HOUR = 9;
  * עוברת בין +2 ל-+3. רק הריצה שנופלת על 09:xx בישראל עושה משהו, השנייה
  * מדלגת. מניעת הכפילויות ביומן מכסה גם ריצה כפולה בטעות.
  *
- * מתג בטיחות: בלי EMAIL_AUTOMATIONS_ENABLED=true ההרצה היא "יבשה": מחשבת
- * מי היה מקבל מה, ולא שולחת דבר. כך אפשר לבדוק לפני שמגיעים ללקוחות.
+ * מתג חירום: EMAIL_AUTOMATIONS_ENABLED=false הופך כל הרצה ל"יבשה": מחשבת
+ * מי היה מקבל מה, ולא שולחת דבר. ברירת המחדל: שולחת.
  *
  * פרמטרים (רק עם הסוד): ?force=1 מדלג על בדיקת השעה, ?dry=1 מכריח הרצה
  * יבשה, ?weekly=1 מריץ גם את הדוח השבועי שלא ביום ראשון.
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, skipped: "not_send_hour", israelHour: israelHourOf(now) });
   }
 
-  const enabled = process.env.EMAIL_AUTOMATIONS_ENABLED === "true";
+  const enabled = process.env.EMAIL_AUTOMATIONS_ENABLED !== "false";
   const dryRun = !enabled || url.searchParams.get("dry") === "1";
 
   try {

@@ -57,9 +57,9 @@ describe("אישור מחדש לאחר עדכון נוסח", () => {
 
   it("הגרסה והתאריך עודכנו יחד", () => {
     // גרסה שהתקדמה בלי שהתאריך התקדם פירושה מסמך שמציג תאריך שגוי.
-    assert.equal(LEGAL_VERSION, "2026-09-14");
-    assert.ok(LEGAL_EFFECTIVE_DATE.includes("14"), LEGAL_EFFECTIVE_DATE);
-    assert.ok(LEGAL_EFFECTIVE_DATE.includes("ספטמבר"), LEGAL_EFFECTIVE_DATE);
+    assert.equal(LEGAL_VERSION, "2026-10-08");
+    assert.ok(LEGAL_EFFECTIVE_DATE.includes("8 "), LEGAL_EFFECTIVE_DATE);
+    assert.ok(LEGAL_EFFECTIVE_DATE.includes("אוקטובר"), LEGAL_EFFECTIVE_DATE);
   });
 });
 

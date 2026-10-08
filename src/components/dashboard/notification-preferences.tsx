@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import { BellOff, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { updateNotificationPreferencesAction, type NotificationPreferences } from "@/app/dashboard/settings/notifications/actions";
+import { updatePreferencesByTokenAction } from "@/app/email-preferences/actions";
 
 const options: Array<{ key: keyof NotificationPreferences; title: string; description: string }> = [
   { key: "trial_reminders", title: "תזכורות על תקופת הניסיון", description: "כמה ימים לפני שהניסיון מסתיים, עם הנתונים של הכרטיס שלך." },
@@ -14,7 +15,11 @@ const options: Array<{ key: keyof NotificationPreferences; title: string; descri
 
 const critical = ["קוד אימות בהרשמה", "איפוס סיסמה", "אישור תשלום וקבלה", "התראה על פנייה חדשה מהכרטיס"];
 
-export function NotificationPreferencesForm({ initial }: { initial: NotificationPreferences }) {
+/**
+ * המתגים משמשים בשני מקומות: בהגדרות החשבון (משתמש מחובר), ובקישור מתוך
+ * מייל (token, בלי התחברות). שניהם כותבים לאותה שורה בדיוק.
+ */
+export function NotificationPreferencesForm({ initial, token }: { initial: NotificationPreferences; token?: string }) {
   const [values, setValues] = useState(initial);
   const [message, setMessage] = useState<{ tone: "ok" | "error"; text: string } | null>(null);
   const [pending, startTransition] = useTransition();
@@ -25,7 +30,7 @@ export function NotificationPreferencesForm({ initial }: { initial: Notification
     setValues({ ...values, ...changes });
     setMessage(null);
     startTransition(async () => {
-      const result = await updateNotificationPreferencesAction(changes);
+      const result = token ? await updatePreferencesByTokenAction(token, changes) : await updateNotificationPreferencesAction(changes);
       if (result.ok) setMessage({ tone: "ok", text: okText });
       else {
         setValues(previous);

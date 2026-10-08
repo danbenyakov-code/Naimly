@@ -31,7 +31,8 @@ export type EmailPreferences = {
 export function unsubscribeLinks(token: string): UnsubscribeLinks {
   return {
     unsubscribeUrl: `${brand.siteUrl}/unsubscribe/${token}`,
-    preferencesUrl: `${brand.siteUrl}/dashboard/settings/notifications`,
+    // בחירה מתוך המייל, בלי התחברות. נשמר באותה טבלה שמוצגת בהגדרות החשבון.
+    preferencesUrl: `${brand.siteUrl}/email-preferences/${token}`,
   };
 }
 
