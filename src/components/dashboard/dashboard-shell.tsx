@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeCheck, BarChart3, CreditCard, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldCheck, Users, X } from "lucide-react";
+import { Activity, BadgeCheck, BarChart3, CreditCard, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldCheck, Users, X } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { Logo } from "@/components/logo";
@@ -40,7 +40,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const items = viewer.role === "admin"
-    ? [...navItems, { href: "/admin", label: "ניהול המערכת", icon: ShieldCheck }, { href: "/admin/payments", label: "תשלומים ולקוחות", icon: BadgeCheck }]
+    ? [...navItems, { href: "/admin", label: "ניהול המערכת", icon: ShieldCheck, exact: true }, { href: "/admin/users", label: "בקרת משתמשים", icon: Activity }, { href: "/admin/payments", label: "תשלומים ולקוחות", icon: BadgeCheck }]
     : navItems;
   const access = resolveAccess(viewer);
   const trial = access.trial;
@@ -61,7 +61,7 @@ export function DashboardShell({
   return (
     <UpgradeProvider currentPlan={access.plan}>
     <AppChrome variant="dashboard" />
-    <div className="min-h-screen bg-[#f3f5f9] lg:grid lg:grid-cols-[250px_1fr]">
+    <div className="min-h-screen bg-[#f3f5f9] lg:grid lg:grid-cols-[250px_minmax(0,1fr)]">
       <aside className="fixed inset-y-0 right-0 z-50 hidden w-[250px] border-l border-[#e1e6ee] bg-white px-4 py-5 lg:flex lg:flex-col">
         <div className="px-2"><Logo href="/dashboard" /></div>
         <div className="mt-8 flex-1">{navigation}</div>

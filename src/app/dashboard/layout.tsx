@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { DashboardShell } from "@/components/dashboard/dashboard-shell";
 import { getCardStatus, getViewer } from "@/lib/data";
 import { requiresLegalReAcceptance } from "@/lib/legal";
+import { recordAppVisit } from "@/lib/user-control-data";
 
 export const metadata: Metadata = { title: "אזור אישי", robots: { index: false, follow: false } };
 
@@ -24,6 +25,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
    */
   if (!viewer.demo && requiresLegalReAcceptance(viewer.termsVersion)) redirect("/legal/accept");
 
-  const cardStatus = await getCardStatus(viewer);
+  // "נכנס למערכת", פעם ביום לכל היותר. ה-layout אינו מתרנדר מחדש בניווט פנימי.
+  const [cardStatus] = await Promise.all([getCardStatus(viewer), recordAppVisit(viewer)]);
   return <DashboardShell viewer={viewer} cardStatus={cardStatus}>{children}</DashboardShell>;
 }

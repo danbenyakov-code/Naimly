@@ -9,8 +9,9 @@ import { clientIp } from "@/lib/rate-limit";
 import { bindingDocumentIds, LEGAL_VERSION } from "@/lib/legal";
 import { adminNotificationEmail, plans } from "@/lib/config";
 import { sendLegalAcceptanceNotification } from "@/lib/email";
+import { phoneSchema } from "@/lib/auth-schema";
 
-export type SelectPlanResult = { ok: false; error: string; field?: "terms" } | null;
+export type SelectPlanResult = { ok: false; error: string; field?: "terms" | "phone" } | null;
 
 /**
  * בחירת ההתנסות — הרגע שבו שעון 14 הימים מתחיל.
@@ -25,6 +26,19 @@ export type SelectPlanResult = { ok: false; error: string; field?: "terms" } | n
 export async function startTrialAction(_prev: SelectPlanResult, formData: FormData): Promise<SelectPlanResult> {
   if (!isSupabaseConfigured) redirect("/dashboard");
 
+  /*
+   * טלפון חובה כאן ולא בהרשמה: שדה נוסף בטופס ההרשמה מוריד הרשמות, וכאן
+   * הלקוח כבר החליט להתחיל. בלי מספר אין דרך לפנות ללקוח שנתקע.
+   */
+  const phone = phoneSchema.safeParse(String(formData.get("phone") || ""));
+  if (!phone.success || !phone.data) {
+    return {
+      ok: false,
+      field: "phone",
+      error: phone.success ? "יש להזין מספר טלפון כדי להמשיך." : phone.error.issues[0]?.message || "מספר הטלפון אינו תקין.",
+    };
+  }
+
   if (!formData.get("terms")) {
     return {
       ok: false,
@@ -38,6 +52,9 @@ export async function startTrialAction(_prev: SelectPlanResult, formData: FormDa
 
   const { data: auth } = await supabase.auth.getUser();
   if (!auth.user) redirect("/login?error=" + encodeURIComponent("יש להתחבר כדי לבחור מסלול"));
+
+  // לפני ההתנסות, כדי שגם מייל התיעוד למנהל יכלול את המספר.
+  await supabase.from("profiles").update({ phone: phone.data, updated_at: new Date().toISOString() }).eq("id", auth.user.id);
 
   const headerList = await headers();
   const ip = await clientIp();

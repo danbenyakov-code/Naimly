@@ -22,7 +22,9 @@ const paid = plans.filter((plan) => plan.id !== "trial");
  * ההתנסות מתחילה כאן ולא בהרשמה — כך הלקוח רואה שעון שרץ מהרגע הראשון,
  * ולא נוחת בדשבורד עם טיימר על אפס בלי להבין מה קיבל.
  */
-export function PlanChoice({ fullName }: { fullName: string }) {
+export function PlanChoice({ fullName, defaultPhone = "" }: { fullName: string; defaultPhone?: string }) {
+  // נשלט, כדי שהמספר לא יימחק כשהשרת מחזיר שגיאה (React מאפס טופס אחרי action).
+  const [phone, setPhone] = useState(defaultPhone);
   // אותו מתג כמו במחירון: לקוח שראה מחיר שנתי לא אמור לאבד אותו בדרך.
   const [cycle, setCycle] = useState<BillingCycle>("monthly");
   const [state, submit, pending] = useActionState<SelectPlanResult, FormData>(
@@ -55,7 +57,7 @@ export function PlanChoice({ fullName }: { fullName: string }) {
         </div>
       </header>
 
-      {state?.ok === false && (
+      {state?.ok === false && state.field !== "phone" && (
         <div className="mx-auto mt-6 max-w-2xl">
           <FormAlert tone="error">{state.error}</FormAlert>
         </div>
@@ -91,6 +93,33 @@ export function PlanChoice({ fullName }: { fullName: string }) {
               <p className="text-center lg:text-right">
                 <strong className="text-4xl">חינם</strong>
                 <span className="block text-sm text-[#6b778d]">ללא כרטיס אשראי</span>
+              </p>
+              <label htmlFor="onboarding-phone" className="mt-4 block text-right text-sm font-bold text-[#18243a]">
+                מספר טלפון
+              </label>
+              <input
+                id="onboarding-phone"
+                name="phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                dir="ltr"
+                required
+                value={phone}
+                onChange={(event) => setPhone(event.target.value)}
+                placeholder="050-1234567"
+                className="mt-1.5 min-h-12 w-full rounded-xl border bg-white px-3 text-right text-base outline-none focus:border-[#6d4aff]"
+                style={{ borderColor: state?.field === "phone" ? "#c9304a" : "#dfe4ec" }}
+                aria-invalid={state?.field === "phone"}
+                aria-describedby={state?.field === "phone" ? "onboarding-phone-error onboarding-phone-hint" : "onboarding-phone-hint"}
+              />
+              {state?.field === "phone" && (
+                <p id="onboarding-phone-error" role="alert" className="mt-1.5 text-right text-xs font-bold text-[#a4243b]">
+                  {state.error}
+                </p>
+              )}
+              <p id="onboarding-phone-hint" className="mt-1 text-right text-xs leading-5 text-[#6b778d]">
+                לעדכונים על החשבון והכרטיס שלך בלבד. לא נשלח הודעות שיווקיות.
               </p>
               <label
                 className="mt-4 flex cursor-pointer items-start gap-2.5 rounded-xl border p-3 text-right text-xs leading-6"

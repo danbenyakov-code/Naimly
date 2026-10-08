@@ -4,6 +4,7 @@ import { isSupabaseConfigured } from "@/lib/supabase/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { resolveAccess } from "@/lib/plan-access";
+import { plans } from "@/lib/config";
 import { isBackgroundId } from "@/lib/backgrounds";
 import { emptyAddress, parseFreeTextAddress } from "@/lib/address";
 import type { AnalyticsSummary, CardData, PlanId, Viewer } from "@/lib/types";
@@ -450,7 +451,8 @@ export async function getAdminSummary(viewer: Viewer): Promise<AdminSummary | nu
     admin.from("subscriptions").select("plan_id,status").in("status", ["active", "trialing"]),
     admin.from("profiles").select("id,full_name,email,plan_id,created_at").order("created_at", { ascending: false }).limit(8),
   ]);
-  const prices: Record<string, number> = { trial: 0, basic: 39, pro: 69, premium: 119 };
+  // מהמחירון המרכזי. מחירים קבועים כאן (39/69/119) נשארו מאחור כשהמחירון השתנה.
+  const prices: Record<string, number> = Object.fromEntries(plans.map((plan) => [plan.id, plan.price]));
   const monthlyRevenue = (subscriptions || []).filter((item) => item.status === "active").reduce((sum, item) => sum + (prices[item.plan_id] || 0), 0);
   return {
     customers: customers || 0,
