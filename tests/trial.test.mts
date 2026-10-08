@@ -74,10 +74,22 @@ describe("התנסות — ספירה לאחור מרגע הבחירה", () => {
     assert.equal(state.percentUsed, 100);
   });
 
-  it("בחר התנסות אך התאריך טרם נקבע — עדיין פתוח, לא נעול", () => {
+  /*
+   * מיגרציה 038: בחירה בלי תאריך סיום היא בחירת מסלול בתשלום שטרם שולם
+   * (select_trial_plan תמיד קובע תאריך יחד עם הבחירה). בעבר זה נחשב
+   * "התנסות פעילה" בלי הגבלת זמן, וכך מי שלא שילם קיבל גישה מלאה.
+   */
+  it("בחר מסלול בלי תאריך התנסות (בתשלום, טרם שולם): אין התנסות פעילה", () => {
     const state = trialState(base, NOW);
-    assert.equal(state.active, true, "בחירה קיימת, ולכן אין לחסום בגלל תאריך חסר");
+    assert.equal(state.active, false, "בלי תאריך סיום אין התנסות");
     assert.equal(state.pending, false);
+  });
+
+  it("בחר מסלול בתשלום וטרם שילם: נעול, ממתין לתשלום", () => {
+    const access = resolveAccess(base, NOW);
+    assert.equal(access.locked, true);
+    assert.equal(access.reason, "payment_pending");
+    assert.equal(canEdit(base), false);
   });
 });
 

@@ -142,12 +142,14 @@ export function trialState(viewer: Pick<Viewer, "subscriptionStatus" | "trialEnd
     return { ...emptyTrial, pending: true };
   }
 
+  /*
+   * בחר מסלול אבל אין תאריך סיום להתנסות: זה לקוח שבחר מסלול בתשלום
+   * וטרם שילם (select_trial_plan תמיד קובע תאריך יחד עם הבחירה). בעבר
+   * המצב הזה נחשב "התנסות פעילה" בלי הגבלת זמן, וכך מי שבחר מסלול בתשלום
+   * ולא שילם קיבל גישה מלאה, גם אם כבר מימש התנסות. אין תאריך, אין גישה.
+   */
   const endsAt = viewer.trialEndsAt ? new Date(viewer.trialEndsAt).getTime() : NaN;
-  if (!Number.isFinite(endsAt)) {
-    return viewer.subscriptionStatus === "trialing"
-      ? { ...emptyTrial, active: true, daysLeft: TRIAL_DAYS, hoursLeft: TRIAL_DAYS * 24 }
-      : emptyTrial;
-  }
+  if (!Number.isFinite(endsAt)) return emptyTrial;
 
   const msLeft = endsAt - now;
   if (msLeft <= 0) return { ...emptyTrial, expired: true, endsAt: new Date(endsAt).toISOString(), percentUsed: 100 };
@@ -225,11 +227,13 @@ export function resolveAccess(viewer: Pick<Viewer, "plan" | "subscriptionStatus"
     return { plan: "trial", features: trialFeatures, limits: trialLimits, locked: false, trial, reason: "trial" };
   }
 
+  // בחר מסלול בתשלום ולא התחיל התנסות: ממתין לתשלום.
+  const awaitingPayment = viewer.subscriptionStatus === "trialing" && Boolean(viewer.planSelectedAt) && !viewer.trialEndsAt;
   const reason: AccessReason = trial.pending
     ? "plan_not_selected"
     : trial.expired
     ? "trial_expired"
-    : viewer.subscriptionStatus === "past_due"
+    : viewer.subscriptionStatus === "past_due" || awaitingPayment
       ? "payment_pending"
       : "inactive";
 

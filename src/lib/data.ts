@@ -12,7 +12,7 @@ import { starterCard } from "@/lib/starter-card";
 import { cardTemplate } from "@/lib/card-templates";
 import { normalizeContactFormFields } from "@/lib/contact-form";
 
-type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null; plan_id?: string | null; admin_locked?: boolean | null } | null | undefined;
+type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null; trial_started_at?: string | null; plan_id?: string | null; admin_locked?: boolean | null } | null | undefined;
 
 /**
  * האכיפה של הסתרת התג: בקשת ההסתרה מכובדת רק כשבעל הכרטיס במנוי פרימיום
@@ -25,10 +25,14 @@ function brandingHidden(card: CardData, subscription: SubscriptionRow) {
 /** מנוי פעיל, או התנסות שטרם הסתיימה. מרוכז כאן כדי שכל הנתיבים יסכימו. */
 export function isSubscriptionLive(subscription: SubscriptionRow) {
   if (!subscription) return false;
-  if (subscription.status === "active") return true;
+  // נעילת מנהל ותפוגת מנוי בתשלום: אותו כלל כמו effective_plan במסד (מיגרציה 030).
+  if (subscription.admin_locked) return false;
+  if (subscription.status === "active") return !subscription.current_period_end || new Date(subscription.current_period_end).getTime() > Date.now();
   if (subscription.status !== "trialing") return false;
   // אותה הגדרה כמו public.subscription_live במסד: בלי בחירת מסלול אין מנוי חי.
   if (!subscription.plan_selected_at) return false;
+  // בלי התנסות שהתחילה בפועל אין התנסות: מי שבחר מסלול בתשלום ממתין לתשלום (מיגרציה 038).
+  if (!subscription.trial_started_at) return false;
   return Boolean(subscription.current_period_end && new Date(subscription.current_period_end).getTime() > Date.now());
 }
 
@@ -196,12 +200,16 @@ export async function getViewer(): Promise<Viewer | null> {
 
   const [{ data: profile }, { data: subscription }] = await Promise.all([
     supabase.from("profiles").select("full_name,role,plan_id,onboarding_seen_at,terms_version,terms_accepted_at").eq("id", authData.user.id).maybeSingle(),
-    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at,extra_cards").eq("user_id", authData.user.id).maybeSingle(),
+    supabase.from("subscriptions").select("status,plan_id,current_period_end,trial_ends_at,trial_pending,plan_selected_at,extra_cards,admin_locked").eq("user_id", authData.user.id).maybeSingle(),
   ]);
 
   // הסטטוס נשמר כפי שהוא. תפוגת ההתנסות נגזרת מ‑trialEndsAt דרך plan-access,
   // כדי שנוכל להבחין בין "ההתנסות נגמרה" לבין "המנוי בוטל".
-  const subscriptionStatus = subscription?.status || "trialing";
+  //
+  // חריג אחד: מנוי בתשלום שתוקפו עבר, או שננעל על ידי מנהל, מוצג כלא פעיל.
+  // המסד כבר חוסם אותו (effective_plan), ובלי זה הממשק נראה פתוח וכל שמירה נכשלת.
+  const paidExpired = subscription?.status === "active" && Boolean(subscription.current_period_end) && new Date(subscription.current_period_end as string).getTime() <= Date.now();
+  const subscriptionStatus = subscription?.admin_locked || paidExpired ? "canceled" : subscription?.status || "trialing";
   return {
     id: authData.user.id,
     email: authData.user.email || "",
@@ -329,7 +337,7 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
     // שהבעלים הסיר אותה מהאוויר, ואסור לעקוף את זה.
     if (!data) return slug === demoCard.slug ? demoCard : null;
     if (data.is_published !== true) return null;
-    const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at,plan_id,admin_locked").eq("user_id", data.user_id).maybeSingle();
+    const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at,trial_started_at,plan_id,admin_locked").eq("user_id", data.user_id).maybeSingle();
     if (!isSubscriptionLive(subscription)) return null;
     const card = normalizeCard(data);
     return { ...card, hideBranding: brandingHidden(card, subscription) };
@@ -340,7 +348,7 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   if (!data) return slug === demoCard.slug ? demoCard : null;
   if (data.is_published !== true) return null;
   // אותה בדיקת מנוי כמו במסלול ה‑service-role, כדי שכרטיס של מנוי שפג לא יישאר חשוף.
-  const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at,plan_id,admin_locked").eq("user_id", data.user_id).maybeSingle();
+  const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at,trial_started_at,plan_id,admin_locked").eq("user_id", data.user_id).maybeSingle();
   if (subscription && !isSubscriptionLive(subscription)) return null;
   const card = normalizeCard(data);
   return { ...card, hideBranding: brandingHidden(card, subscription) };
@@ -482,7 +490,7 @@ export async function getPublishedSlugs(): Promise<Array<{ slug: string; updated
   if (!admin) return [];
   const [{ data: cards }, { data: subscriptions }] = await Promise.all([
     admin.from("cards").select("slug,updated_at,user_id,allow_indexing").eq("is_published", true).order("updated_at", { ascending: false }).limit(5000),
-    admin.from("subscriptions").select("user_id,status,current_period_end").in("status", ["active", "trialing"]),
+    admin.from("subscriptions").select("user_id,status,current_period_end,plan_selected_at,trial_started_at,admin_locked").in("status", ["active", "trialing"]),
   ]);
   const eligible = new Set((subscriptions || []).filter(isSubscriptionLive).map((subscription) => subscription.user_id));
   // כרטיס שבעליו ביקש noindex לא נכנס ל-sitemap — אחרת ה-sitemap סותר את תגית ה-robots של הדף עצמו.
