@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { ArrowRight, ExternalLink, Mail, MessageCircle } from "lucide-react";
 import { PlanStateBadge, StageBadge } from "@/components/admin/user-control-badges";
+import { TestAccountToggle } from "@/components/admin/test-account-toggle";
 import { getViewer } from "@/lib/data";
 import {
   eventDetail,
@@ -73,9 +74,11 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
           <div className="mt-3 flex flex-wrap items-center gap-3">
             <StageBadge stage={user.stage} />
             <PlanStateBadge state={user.planState} />
+            {user.isTest && <span className="rounded-full bg-[#fff4e6] px-2.5 py-1 text-xs font-bold text-[#9a5800]">חשבון בדיקה: לא נספר בסיכומים</span>}
           </div>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-start gap-2">
+          <TestAccountToggle userId={user.id} isTest={user.isTest} />
           {user.phone ? (
             <a href={whatsappLink(user.phone, greeting)} target="_blank" rel="noopener noreferrer" className="button-primary min-h-11 gap-2 px-4 text-sm">
               <MessageCircle size={16} aria-hidden="true" />

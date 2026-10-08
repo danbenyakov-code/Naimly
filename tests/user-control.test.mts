@@ -96,9 +96,11 @@ describe("טלפון לפנייה", () => {
 });
 
 describe("מדדי סיכום", () => {
-  it("מנהלים לא נספרים, וההמרה מניסיון נמדדת רק על ניסיונות שהוכרעו", () => {
+  it("מנהלים וחשבונות בדיקה לא נספרים, וההמרה מניסיון נמדדת רק על ניסיונות שהוכרעו", () => {
     const rows = [
       row({ role: "admin", ...inTrial }),
+      // חשבון בדיקה "משלם": מסומן, ולכן אינו נספר באף מדד.
+      row({ is_test_account: true, ...inTrial, signed_up_at: at(-1), subscription_status: "active", current_period_end: at(20), first_payment_at: at(-1), published_count: 1, card_count: 1 }),
       row({ ...inTrial, signed_up_at: at(-2), card_count: 1, published_count: 1 }),
       row({ ...inTrial, trial_ends_at: at(1), current_period_end: at(1) }),
       row({ ...inTrial, signed_up_at: at(-30), trial_ends_at: at(-10), current_period_end: at(-10) }),

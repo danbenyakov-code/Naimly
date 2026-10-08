@@ -42,6 +42,8 @@ export type UserOverviewRow = {
   signup_source?: string | null;
   signup_medium?: string | null;
   signup_campaign?: string | null;
+  /** חשבון בדיקה פנימי: מוצג עם סימון, ואינו נספר בסיכומים. */
+  is_test_account?: boolean | null;
 };
 
 /** תיאור קריא של מקור ההרשמה. */
@@ -201,6 +203,7 @@ export type ControlUser = {
   phone: string;
   phoneSource: PhoneSource | null;
   isAdmin: boolean;
+  isTest: boolean;
   signedUpAt: string;
   /** הכניסה האחרונה: התחברות או חזרה למערכת כשכבר מחובר, המאוחר מביניהם. */
   lastSeenAt: string | null;
@@ -240,6 +243,7 @@ export function toControlUser(row: UserOverviewRow, now = Date.now()): ControlUs
     phone: phone?.phone || "",
     phoneSource: phone?.source || null,
     isAdmin: row.role === "admin",
+    isTest: row.is_test_account === true,
     signedUpAt: row.signed_up_at,
     lastSeenAt: latest(row.last_sign_in_at, row.last_app_visit_at),
     emailVerified: Boolean(row.email_confirmed_at),
@@ -283,13 +287,13 @@ function percent(part: number, whole: number) {
 }
 
 /**
- * מנהלים לא נספרים: החשבון של בעל המערכת ומשתמשי בדיקה ינפחו כל מדד.
+ * מנהלים וחשבונות בדיקה לא נספרים: הם ינפחו כל מדד.
  *
  * המרה מניסיון לתשלום נמדדת רק על ניסיונות שהוכרעו: הסתיימו, או ששילמו
  * לפני הסוף. ניסיון שעדיין רץ אינו כישלון ואינו הצלחה.
  */
 export function controlSummary(rows: UserOverviewRow[], now = Date.now()): ControlSummary {
-  const customers = rows.filter((row) => row.role !== "admin");
+  const customers = rows.filter((row) => row.role !== "admin" && row.is_test_account !== true);
   const weekAgo = now - 7 * DAY;
 
   let signedUpThisWeek = 0;

@@ -18,7 +18,7 @@ export default async function AdminUsersPage() {
   const { users, summary } = buildControlView(rows);
 
   const stats = [
-    { label: "סה״כ נרשמים", value: summary.total, hint: "ללא חשבונות מנהל", icon: Users, color: "bg-[#efecff] text-[#6d4aff]" },
+    { label: "סה״כ נרשמים", value: summary.total, hint: "ללא מנהלים וחשבונות בדיקה", icon: Users, color: "bg-[#efecff] text-[#6d4aff]" },
     { label: "נרשמו השבוע", value: summary.signedUpThisWeek, hint: "7 הימים האחרונים", icon: UserPlus, color: "bg-[#e8f4ff] text-[#1f5f9e]" },
     { label: "בניסיון פעיל", value: summary.activeTrials, hint: "ניסיון שעדיין רץ", icon: Hourglass, color: "bg-[#e9fbf7] text-[#08735f]" },
     { label: "ניסיון מסתיים ב־3 ימים", value: summary.trialsEndingSoon, hint: "הזמן לפנות אליהם", icon: CalendarClock, color: "bg-[#fff0f2] text-[#b7293a]" },

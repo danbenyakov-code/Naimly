@@ -45,9 +45,9 @@ function csvCell(value: string | number) {
 }
 
 function exportCsv(users: ControlUser[], siteUrl: string) {
-  const header = ["שם", "שם העסק", "אימייל", "טלפון", "מקור הגעה", "תאריך הרשמה", "כניסה אחרונה", "אימת מייל", "מסלול", "סטטוס", "ימים לסיום ניסיון", "יש כרטיס", "מפורסם", "קישור לכרטיס", "צפיות", "לחיצות", "פניות", "שלב במשפך", "פעילות אחרונה", "תאריך פעילות אחרונה"];
+  const header = ["חשבון בדיקה", "שם", "שם העסק", "אימייל", "טלפון", "מקור הגעה", "תאריך הרשמה", "כניסה אחרונה", "אימת מייל", "מסלול", "סטטוס", "ימים לסיום ניסיון", "יש כרטיס", "מפורסם", "קישור לכרטיס", "צפיות", "לחיצות", "פניות", "שלב במשפך", "פעילות אחרונה", "תאריך פעילות אחרונה"];
   const lines = users.map((user) => [
-    user.name, user.businessName, user.email, user.phone, user.signupSource, formatDateTime(user.signedUpAt), formatDateTime(user.lastSeenAt),
+    user.isTest ? "כן" : "", user.name, user.businessName, user.email, user.phone, user.signupSource, formatDateTime(user.signedUpAt), formatDateTime(user.lastSeenAt),
     user.emailVerified ? "כן" : "לא", user.plan, planStateLabel[user.planState], user.trialDaysLeft ?? "",
     user.cardCount > 0 ? "כן" : "לא", user.published ? "כן" : "לא", user.cardSlug ? `${siteUrl}/${user.cardSlug}` : "",
     user.views, user.clicks, user.leads, funnelStageLabel[user.stage], eventLabel(user.lastActivityType), formatDateTime(user.lastActivityAt),
@@ -172,7 +172,7 @@ export function UsersControl({ users, siteUrl }: { users: ControlUser[]; siteUrl
             <Link href={`/admin/users/${user.id}`} className="block p-4 hover:bg-[#f8f9fc]">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <strong className="block truncate">{user.name}{user.isAdmin && <span className="mr-1.5 text-xs font-bold text-[#6d4aff]">(מנהל)</span>}</strong>
+                  <strong className="block truncate">{user.name}{user.isAdmin && <span className="mr-1.5 text-xs font-bold text-[#6d4aff]">(מנהל)</span>}{user.isTest && <span className="mr-1.5 text-xs font-bold text-[#aa6100]">(בדיקה)</span>}</strong>
                   {user.businessName && <span className="block truncate text-xs text-[#4a5871]">{user.businessName}</span>}
                   <span className="block truncate text-xs text-[#7d8899]" dir="ltr">{user.email}</span>
                 </div>
@@ -218,6 +218,7 @@ export function UsersControl({ users, siteUrl }: { users: ControlUser[]; siteUrl
                 <td className="p-3">
                   <Link href={`/admin/users/${user.id}`} className="font-bold text-[#18243a] hover:text-[#6d4aff] hover:underline">{user.name}</Link>
                   {user.isAdmin && <span className="mr-1.5 text-xs font-bold text-[#6d4aff]">(מנהל)</span>}
+                  {user.isTest && <span className="mr-1.5 text-xs font-bold text-[#aa6100]">(בדיקה)</span>}
                   {user.businessName && <span className="block text-xs text-[#4a5871]">{user.businessName}</span>}
                 </td>
                 <td className="p-3">
