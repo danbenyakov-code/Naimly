@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { CheckCircle2, CreditCard, Database, KeyRound, LifeBuoy, Mail, Server, UserRound } from "lucide-react";
+import { Bell, CheckCircle2, ChevronLeft, CreditCard, Database, KeyRound, LifeBuoy, Mail, Server, UserRound } from "lucide-react";
 import { brand, plans } from "@/lib/config";
 import { getViewer } from "@/lib/data";
 import { isSupabaseAdminConfigured, isSupabaseConfigured } from "@/lib/supabase/env";
@@ -25,6 +25,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
       {params.message && <p role="status" className="mt-5 rounded-xl border border-[#b7e6d8] bg-[#effcf8] p-3 text-sm text-[#08735f]">{params.message}</p>}
       {params.error && <p role="alert" className="mt-5 rounded-xl border border-[#f0bdc3] bg-[#fff2f4] p-3 text-sm text-[#a32031]">{params.error}</p>}
       <div className="mt-6 grid gap-5">
+        <Link href="/dashboard/settings/notifications" className="card-surface flex items-center gap-4 p-5 transition-transform hover:-translate-y-0.5 sm:p-7"><span className="grid h-11 w-11 shrink-0 place-items-center rounded-2xl bg-[#efecff] text-[#6d4aff]"><Bell size={20} aria-hidden="true" /></span><span className="min-w-0 flex-1"><strong className="block">העדפות דיוור</strong><span className="block text-sm text-[#718096]">אילו מיילים לקבל מאיתנו: תזכורות, דוח שבועי ועדכונים.</span></span><ChevronLeft size={18} className="shrink-0 text-[#8b96a8]" aria-hidden="true" /></Link>
         {/* REQ-012: הלקוח יכול להפיק בעצמו את תיעוד ההסכמה. */}
         <AcceptanceRecordCard
           version={viewer.termsVersion}

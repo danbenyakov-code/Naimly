@@ -5,6 +5,8 @@
   "installCommand": "npm ci --no-audit --no-fund",
   "regions": ["fra1"],
   "crons": [
-    { "path": "/api/cron/subscription-renewals", "schedule": "0 7 * * *" }
+    { "path": "/api/cron/subscription-renewals", "schedule": "0 7 * * *" },
+    { "path": "/api/cron/lifecycle-emails?slot=summer", "schedule": "0 6 * * *" },
+    { "path": "/api/cron/lifecycle-emails?slot=winter", "schedule": "0 7 * * *" }
   ]
 }

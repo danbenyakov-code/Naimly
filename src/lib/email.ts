@@ -1,5 +1,9 @@
 import nodemailer, { type Transporter } from "nodemailer";
+import { createElement } from "react";
+import { render } from "@react-email/render";
 import { brand, billingCycleLabel, type BillingCycle } from "@/lib/config";
+import { leadCopy } from "@/emails/copy";
+import { whatsappLink } from "@/lib/user-control";
 
 /**
  * שליחת מיילים דרך SMTP.
@@ -16,7 +20,7 @@ import { brand, billingCycleLabel, type BillingCycle } from "@/lib/config";
  */
 
 export type EmailResult =
-  | { sent: true; via: "smtp" | "api" }
+  | { sent: true; via: "resend" | "smtp" | "api"; id?: string }
   | { sent: false; reason: "not_configured" | "no_recipient" | "provider_error"; detail?: string };
 
 const smtpHost = process.env.SMTP_HOST || "";
@@ -25,9 +29,18 @@ const smtpUser = process.env.SMTP_USER || "";
 const smtpPassword = process.env.SMTP_PASSWORD || "";
 const smtpFrom = process.env.SMTP_FROM || smtpUser;
 
+/*
+ * Resend קודם לכל השאר כשהוא מוגדר: דומיין שולח משלנו (SPF/DKIM), בלי
+ * מגבלת 500 מיילים ביום של Gmail, ותמיכה ב-List-Unsubscribe. בלי מפתח
+ * הכל ממשיך לעבוד דרך ה-SMTP הקיים, ולכן המעבר הוא רק הגדרת משתנים.
+ */
+const resendApiKey = process.env.RESEND_API_KEY || "";
+const resendFrom = process.env.RESEND_FROM || "";
+
+export const isResendConfigured = Boolean(resendApiKey && resendFrom);
 export const isSmtpConfigured = Boolean(smtpHost && smtpUser && smtpPassword);
 export const isEmailApiConfigured = Boolean(process.env.EMAIL_API_URL && process.env.EMAIL_API_SECRET);
-export const isEmailConfigured = isSmtpConfigured || isEmailApiConfigured;
+export const isEmailConfigured = isResendConfigured || isSmtpConfigured || isEmailApiConfigured;
 
 let transporter: Transporter | null = null;
 
@@ -56,8 +69,43 @@ export async function verifySmtp(): Promise<EmailResult> {
   }
 }
 
-async function send(input: { to: string; subject: string; html: string; text: string; replyTo?: string }): Promise<EmailResult> {
+export type OutgoingEmail = {
+  to: string;
+  subject: string;
+  html: string;
+  text: string;
+  replyTo?: string;
+  /** כותרות נוספות, למשל List-Unsubscribe. לא Content-Type (ראו הערה למטה). */
+  headers?: Record<string, string>;
+};
+
+export async function send(input: OutgoingEmail): Promise<EmailResult> {
   if (!input.to) return { sent: false, reason: "no_recipient" };
+
+  if (isResendConfigured) {
+    try {
+      const response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: { "content-type": "application/json", authorization: `Bearer ${resendApiKey}` },
+        body: JSON.stringify({
+          from: resendFrom,
+          to: [input.to],
+          subject: input.subject,
+          html: input.html,
+          text: input.text,
+          reply_to: input.replyTo || undefined,
+          headers: input.headers,
+        }),
+        cache: "no-store",
+      });
+      const body = (await response.json().catch(() => null)) as { id?: string; message?: string } | null;
+      return response.ok
+        ? { sent: true, via: "resend", id: body?.id }
+        : { sent: false, reason: "provider_error", detail: `Resend HTTP ${response.status}: ${body?.message || ""}`.trim() };
+    } catch (error) {
+      return { sent: false, reason: "provider_error", detail: error instanceof Error ? error.message : String(error) };
+    }
+  }
 
   const mailer = getTransporter();
   if (mailer) {
@@ -69,6 +117,7 @@ async function send(input: { to: string; subject: string; html: string; text: st
         subject: input.subject,
         text: input.text,
         html: input.html,
+        headers: input.headers,
         /*
          * base64 לחלקי הטקסט: משמר בתי UTF-8 במקום quoted-printable
          * שאיבד תווים עבריים והפך אותם לסימני שאלה.
@@ -168,7 +217,10 @@ function layout(title: string, bodyHtml: string) {
 </body></html>`;
 }
 
-/** התראה לבעל הכרטיס על פנייה חדשה. */
+/**
+ * התראה לבעל הכרטיס על פנייה חדשה. מייל קריטי: תמיד נשלח, בלי קישורי הסרה.
+ * התבנית ב-src/emails/lead-notification.tsx, הטקסטים ב-src/emails/copy.ts.
+ */
 export async function sendLeadNotification(input: {
   to: string;
   businessName: string;
@@ -176,40 +228,20 @@ export async function sendLeadNotification(input: {
   lead: { name: string; phone: string; email: string; message: string };
 }): Promise<EmailResult> {
   const { lead } = input;
-  const rows = [
-    ["שם", lead.name],
-    ["טלפון", lead.phone],
-    ["אימייל", lead.email],
-  ].filter(([, value]) => Boolean(value));
-
-  const html = layout(
-    `פנייה חדשה מהכרטיס של ${input.businessName}`,
-    `<h1 dir="rtl" align="right" style="margin:0 0 8px;font-size:20px;direction:rtl;text-align:right">פנייה חדשה 🎉</h1>
-     <p dir="rtl" align="right" style="margin:0 0 20px;color:#68758a;line-height:1.6;direction:rtl;text-align:right">התקבלה פנייה חדשה מהכרטיס של ${escapeHtml(input.businessName)}.</p>
-     <table dir="rtl" style="width:100%;border-collapse:collapse;margin-bottom:16px;direction:rtl">
-       ${rows.map(([label, value]) => `<tr>
-         <td dir="rtl" align="right" style="padding:8px 0;color:#8b96a8;font-size:13px;width:80px;text-align:right">${escapeHtml(label)}</td>
-         <td dir="rtl" align="right" style="padding:8px 0;font-weight:700;text-align:right">${escapeHtml(value)}</td>
-       </tr>`).join("")}
-     </table>
-     ${lead.message ? `<table dir="rtl" role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="direction:rtl"><tr><td dir="rtl" align="right" style="background:#f6f7fb;border-radius:12px;padding:14px;line-height:1.7;direction:rtl;text-align:justify;text-align-last:right">${escapeHtml(lead.message)}</td></tr></table>` : ""}
-     <a href="${brand.siteUrl}/dashboard/leads" style="display:inline-block;margin-top:20px;background:#6d4aff;color:#fff;text-decoration:none;padding:12px 22px;border-radius:12px;font-weight:700">
-       צפייה בכל הפניות
-     </a>`,
-  );
-
-  const text = [
-    `פנייה חדשה מהכרטיס של ${input.businessName}`,
-    "",
-    ...rows.map(([label, value]) => `${label}: ${value}`),
-    lead.message ? `\nהודעה:\n${lead.message}` : "",
-    "",
-    `${brand.siteUrl}/dashboard/leads`,
-  ].filter(Boolean).join("\n");
-
+  const digits = lead.phone.replace(/\D/g, "");
+  const whatsappUrl = digits.length >= 9 ? whatsappLink(lead.phone, leadCopy.whatsappGreeting(lead.name, input.businessName)) : null;
+  // טעינה עצלה: סקריפטים שמייבאים את הקובץ הזה ב-Node (בלי JSX) לא נשברים.
+  const { LeadNotificationEmail } = await import("@/emails/lead-notification");
+  const element = createElement(LeadNotificationEmail, {
+    businessName: input.businessName,
+    lead,
+    whatsappUrl,
+    leadsUrl: `${brand.siteUrl}/dashboard/leads`,
+  });
+  const [html, text] = await Promise.all([render(element), render(element, { plainText: true })]);
   return send({
     to: input.to,
-    subject: `פנייה חדשה מהכרטיס של ${input.businessName}`,
+    subject: leadCopy.subject(input.businessName),
     html,
     text,
     // מענה ישיר ללקוח, כשהשאיר אימייל.

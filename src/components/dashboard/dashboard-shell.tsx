@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, BadgeCheck, BarChart3, CreditCard, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldCheck, Users, X } from "lucide-react";
+import { Activity, BadgeCheck, Mail, BarChart3, CreditCard, LayoutDashboard, LogOut, Menu, Receipt, Settings, ShieldCheck, Users, X } from "lucide-react";
 import { useState } from "react";
 import { logoutAction } from "@/app/(auth)/actions";
 import { Logo } from "@/components/logo";
@@ -40,7 +40,7 @@ export function DashboardShell({
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const items = viewer.role === "admin"
-    ? [...navItems, { href: "/admin", label: "ניהול המערכת", icon: ShieldCheck, exact: true }, { href: "/admin/users", label: "בקרת משתמשים", icon: Activity }, { href: "/admin/payments", label: "תשלומים ולקוחות", icon: BadgeCheck }]
+    ? [...navItems, { href: "/admin", label: "ניהול המערכת", icon: ShieldCheck, exact: true }, { href: "/admin/users", label: "בקרת משתמשים", icon: Activity }, { href: "/admin/emails", label: "מיילים", icon: Mail }, { href: "/admin/payments", label: "תשלומים ולקוחות", icon: BadgeCheck }]
     : navItems;
   const access = resolveAccess(viewer);
   const trial = access.trial;

@@ -377,6 +377,11 @@ export const emailLabels: Record<string, string> = {
   payment_link: "קישור תשלום",
   plan_activated: "הפעלת מסלול",
   legal_acceptance: "אישור תנאים",
+  trial_ending_3d: "תזכורת: 3 ימים לסוף הניסיון",
+  trial_ending_1d: "תזכורת: יום לסוף הניסיון",
+  trial_ended: "הניסיון הסתיים",
+  weekly_report: "דוח שבועי",
+  weekly_tips: "טיפים להפצה (דוח שבועי)",
 };
 
 export function eventLabel(type: string | null | undefined) {
