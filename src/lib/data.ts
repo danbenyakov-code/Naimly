@@ -12,7 +12,15 @@ import { starterCard } from "@/lib/starter-card";
 import { cardTemplate } from "@/lib/card-templates";
 import { normalizeContactFormFields } from "@/lib/contact-form";
 
-type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null } | null | undefined;
+type SubscriptionRow = { status?: string | null; current_period_end?: string | null; plan_selected_at?: string | null; plan_id?: string | null; admin_locked?: boolean | null } | null | undefined;
+
+/**
+ * האכיפה של הסתרת התג: בקשת ההסתרה מכובדת רק כשבעל הכרטיס במנוי פרימיום
+ * בתשלום ובתוקף. בכל מצב אחר התג מוצג, גם אם בטבלה מוגדרת הסתרה.
+ */
+function brandingHidden(card: CardData, subscription: SubscriptionRow) {
+  return card.hideBranding && subscription?.status === "active" && subscription.plan_id === "premium" && !subscription.admin_locked && isSubscriptionLive(subscription);
+}
 
 /** מנוי פעיל, או התנסות שטרם הסתיימה. מרוכז כאן כדי שכל הנתיבים יסכימו. */
 export function isSubscriptionLive(subscription: SubscriptionRow) {
@@ -124,6 +132,7 @@ export function normalizeCard(row: Record<string, unknown>): CardData {
     template: cardTemplate(stringValue(row.template)).id,
     isPublished: Boolean(row.is_published),
     allowIndexing: row.allow_indexing !== false,
+    hideBranding: row.hide_branding === true,
     seoTitle: stringValue(row.seo_title),
     seoDescription: stringValue(row.seo_description),
     socialImageUrl: stringValue(row.social_image_url),
@@ -320,9 +329,10 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
     // שהבעלים הסיר אותה מהאוויר, ואסור לעקוף את זה.
     if (!data) return slug === demoCard.slug ? demoCard : null;
     if (data.is_published !== true) return null;
-    const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
+    const { data: subscription } = await admin.from("subscriptions").select("status,current_period_end,plan_selected_at,plan_id,admin_locked").eq("user_id", data.user_id).maybeSingle();
     if (!isSubscriptionLive(subscription)) return null;
-    return normalizeCard(data);
+    const card = normalizeCard(data);
+    return { ...card, hideBranding: brandingHidden(card, subscription) };
   }
   const supabase = await createSupabaseServerClient();
   if (!supabase) return null;
@@ -330,9 +340,10 @@ export async function getPublicCard(slug: string): Promise<CardData | null> {
   if (!data) return slug === demoCard.slug ? demoCard : null;
   if (data.is_published !== true) return null;
   // אותה בדיקת מנוי כמו במסלול ה‑service-role, כדי שכרטיס של מנוי שפג לא יישאר חשוף.
-  const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at").eq("user_id", data.user_id).maybeSingle();
+  const { data: subscription } = await supabase.from("subscriptions").select("status,current_period_end,plan_selected_at,plan_id,admin_locked").eq("user_id", data.user_id).maybeSingle();
   if (subscription && !isSubscriptionLive(subscription)) return null;
-  return normalizeCard(data);
+  const card = normalizeCard(data);
+  return { ...card, hideBranding: brandingHidden(card, subscription) };
 }
 
 /**
@@ -359,7 +370,8 @@ export async function getAnalyticsSummary(viewer: Viewer, cardId?: string): Prom
   const analyticsDays = resolveAccess(viewer).limits.analyticsDays;
   const since = new Date(Date.now() - analyticsDays * 86400000).toISOString();
   const [{ data: events }, { count: leads }] = await Promise.all([
-    supabase.from("card_events").select("event_type,created_at").eq("card_id", card.id).gte("created_at", since),
+    // לחיצה על תג NAIMLY אינה פעולה של לקוח של העסק, ולכן אינה נספרת כאן.
+    supabase.from("card_events").select("event_type,created_at").eq("card_id", card.id).neq("event_type", "badge_click").gte("created_at", since),
     supabase.from("leads").select("id", { count: "exact", head: true }).eq("card_id", card.id).gte("created_at", since),
   ]);
   const allEvents = events || [];

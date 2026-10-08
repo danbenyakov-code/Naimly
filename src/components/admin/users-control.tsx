@@ -45,9 +45,9 @@ function csvCell(value: string | number) {
 }
 
 function exportCsv(users: ControlUser[], siteUrl: string) {
-  const header = ["שם", "שם העסק", "אימייל", "טלפון", "תאריך הרשמה", "כניסה אחרונה", "אימת מייל", "מסלול", "סטטוס", "ימים לסיום ניסיון", "יש כרטיס", "מפורסם", "קישור לכרטיס", "צפיות", "לחיצות", "פניות", "שלב במשפך", "פעילות אחרונה", "תאריך פעילות אחרונה"];
+  const header = ["שם", "שם העסק", "אימייל", "טלפון", "מקור הגעה", "תאריך הרשמה", "כניסה אחרונה", "אימת מייל", "מסלול", "סטטוס", "ימים לסיום ניסיון", "יש כרטיס", "מפורסם", "קישור לכרטיס", "צפיות", "לחיצות", "פניות", "שלב במשפך", "פעילות אחרונה", "תאריך פעילות אחרונה"];
   const lines = users.map((user) => [
-    user.name, user.businessName, user.email, user.phone, formatDateTime(user.signedUpAt), formatDateTime(user.lastSeenAt),
+    user.name, user.businessName, user.email, user.phone, user.signupSource, formatDateTime(user.signedUpAt), formatDateTime(user.lastSeenAt),
     user.emailVerified ? "כן" : "לא", user.plan, planStateLabel[user.planState], user.trialDaysLeft ?? "",
     user.cardCount > 0 ? "כן" : "לא", user.published ? "כן" : "לא", user.cardSlug ? `${siteUrl}/${user.cardSlug}` : "",
     user.views, user.clicks, user.leads, funnelStageLabel[user.stage], eventLabel(user.lastActivityType), formatDateTime(user.lastActivityAt),
@@ -224,7 +224,7 @@ export function UsersControl({ users, siteUrl }: { users: ControlUser[]; siteUrl
                   <span className="block text-xs" dir="ltr">{user.email}</span>
                   {user.phone && <span className="block text-xs text-[#7d8899]" dir="ltr">{user.phone}</span>}
                 </td>
-                <td className="whitespace-nowrap p-3 text-xs text-[#5f6d83]">{formatDateTime(user.signedUpAt)}</td>
+                <td className="whitespace-nowrap p-3 text-xs text-[#5f6d83]">{formatDateTime(user.signedUpAt)}{user.signupSource && <span className="mt-0.5 block font-bold text-[#aa6100]">{user.signupSource}</span>}</td>
                 <td className="whitespace-nowrap p-3 text-xs text-[#5f6d83]">{formatDateTime(user.lastSeenAt) || <span className="text-[#a0a9b8]">-</span>}</td>
                 <td className="p-3">{user.emailVerified ? <span className="font-bold text-[#08735f]">כן</span> : <span className="font-bold text-[#c42b3f]">לא</span>}</td>
                 <td className="p-3"><span className="block text-xs font-bold">{user.plan}</span><PlanStateBadge state={user.planState} /></td>

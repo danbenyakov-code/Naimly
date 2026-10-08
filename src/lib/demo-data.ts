@@ -56,6 +56,7 @@ export const demoCard: CardData = {
   template: "spotlight",
   isPublished: true,
   allowIndexing: true,
+  hideBranding: false,
   seoTitle: "נועה כהן — מיתוג ועיצוב לעסקים",
   seoDescription: "אסטרטגיית מותג, שפה חזותית ועיצוב דיגיטלי לעסקים שרוצים לבלוט.",
   socialImageUrl: "",

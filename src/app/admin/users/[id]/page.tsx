@@ -43,6 +43,7 @@ export default async function AdminUserPage({ params }: { params: Promise<{ id: 
     ["אימייל", <span key="email" dir="ltr">{user.email}</span>],
     ["טלפון", user.phone ? <span key="phone"><span dir="ltr">{user.phone}</span>{user.phoneSource && <span className="mr-1.5 text-xs text-[#7d8899]">({phoneSourceLabel[user.phoneSource]})</span>}</span> : "לא ידוע"],
     ["נרשם", formatDateTime(user.signedUpAt)],
+    ["מקור הגעה", user.signupSource || "לא ידוע"],
     ["אימת מייל", row.email_confirmed_at ? formatDateTime(row.email_confirmed_at) : "לא"],
     ["התחברות אחרונה", formatDateTime(row.last_sign_in_at) || "-"],
     ["כניסה אחרונה למערכת", formatDateTime(row.last_app_visit_at) || "-"],

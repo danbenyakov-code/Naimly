@@ -48,6 +48,15 @@ export async function getUserControlDetail(viewer: Viewer | null, userId: string
   return { row, events: (events || []) as UserEventRecord[] };
 }
 
+/** סך הלחיצות על תג "נבנה ב־NAIMLY" בכל הכרטיסים. */
+export async function getBadgeClicks(viewer: Viewer | null): Promise<number> {
+  noStore();
+  const admin = adminClientFor(viewer);
+  if (!admin) return 0;
+  const { count } = await admin.from("card_events").select("id", { head: true, count: "exact" }).eq("event_type", "badge_click");
+  return count || 0;
+}
+
 /**
  * "נכנס למערכת": נרשם פעם ביום לכל היותר (הבדיקה במסד). כשל כאן לעולם
  * אינו חוסם את הדשבורד.

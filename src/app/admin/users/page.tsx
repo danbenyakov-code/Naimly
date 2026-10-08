@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { CalendarClock, CreditCard, Hourglass, Percent, Rocket, UserPlus, Users } from "lucide-react";
+import { BadgeCheck, CalendarClock, CreditCard, Hourglass, Percent, Rocket, UserPlus, Users } from "lucide-react";
 import { UsersControl } from "@/components/admin/users-control";
 import { brand } from "@/lib/config";
 import { getViewer } from "@/lib/data";
 import { buildControlView } from "@/lib/user-control";
-import { getUsersOverview } from "@/lib/user-control-data";
+import { getBadgeClicks, getUsersOverview } from "@/lib/user-control-data";
 
 export const metadata: Metadata = { title: "בקרת משתמשים", robots: { index: false, follow: false } };
 
@@ -14,7 +14,7 @@ export default async function AdminUsersPage() {
   // ההגנה כאן כפולה ל-layout בכוונה: הנתונים נקראים עם מפתח השירות.
   if (!viewer || viewer.role !== "admin") redirect("/dashboard");
 
-  const rows = await getUsersOverview(viewer);
+  const [rows, badgeClicks] = await Promise.all([getUsersOverview(viewer), getBadgeClicks(viewer)]);
   const { users, summary } = buildControlView(rows);
 
   const stats = [
@@ -25,6 +25,7 @@ export default async function AdminUsersPage() {
     { label: "משלמים", value: summary.paying, hint: "מנוי בתשלום בתוקף", icon: CreditCard, color: "bg-[#fff4e6] text-[#aa6100]" },
     { label: "מנרשם לכרטיס מפורסם", value: `${summary.signupToPublishedPercent}%`, hint: `${summary.published} מתוך ${summary.total}`, icon: Rocket, color: "bg-[#efecff] text-[#6d4aff]" },
     { label: "מניסיון לתשלום", value: `${summary.trialToPaidPercent}%`, hint: `${summary.trialsConverted} מתוך ${summary.trialsFinished} ניסיונות שהסתיימו`, icon: Percent, color: "bg-[#e9fbf7] text-[#08735f]" },
+    { label: "נרשמו מתג בכרטיס", value: summary.signupsFromBadge, hint: `${badgeClicks} לחיצות על התג בסך הכל`, icon: BadgeCheck, color: "bg-[#fff4e6] text-[#aa6100]" },
   ];
 
   return (
@@ -35,7 +36,7 @@ export default async function AdminUsersPage() {
         <p className="mt-1 text-sm text-[#718096]">איפה כל לקוח נמצא במסע: מהרשמה, דרך כרטיס מפורסם, ועד תשלום.</p>
       </div>
 
-      <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-7" aria-label="סיכום">
+      <section className="mt-6 grid grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4 2xl:grid-cols-8" aria-label="סיכום">
         {stats.map(({ label, value, hint, icon: Icon, color }) => (
           <article key={label} className="card-surface p-4">
             <span className={`grid h-9 w-9 place-items-center rounded-xl ${color}`}><Icon size={18} aria-hidden="true" /></span>

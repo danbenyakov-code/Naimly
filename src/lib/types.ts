@@ -179,6 +179,8 @@ export type CardData = {
   template: CardTemplateId;
   isPublished: boolean;
   allowIndexing: boolean;
+  /** בקשה להסתיר את תג NAIMLY. מכובדת רק בפרימיום בתשלום (נאכף בשרת, ראו getPublicCard). */
+  hideBranding: boolean;
   seoTitle: string;
   seoDescription: string;
   socialImageUrl: string;

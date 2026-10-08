@@ -1,7 +1,8 @@
 "use server";
 
 import { redirect } from "next/navigation";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { ATTRIBUTION_COOKIE, parseAttributionCookie } from "@/lib/attribution";
 import { LEGAL_VERSION } from "@/lib/legal";
 import { toBillingCycle } from "@/lib/config";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
@@ -159,10 +160,12 @@ export async function signupAction(_prev: AuthResult | null, formData: FormData)
   if (!supabase) return genericFailure;
 
   const origin = await resolveOrigin();
+  const attribution = parseAttributionCookie((await cookies()).get(ATTRIBUTION_COOKIE)?.value);
   const { data, error } = await supabase.auth.signUp({
     email,
     password,
-    options: { data: { full_name: fullName }, emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}` },
+    // מקור ההגעה (למשל תג "נבנה ב־NAIMLY" בכרטיס) נשמר על המשתמש ונרשם ביומן.
+    options: { data: { full_name: fullName, ...(attribution ? { attribution } : {}) }, emailRedirectTo: `${origin}/auth/callback?next=${encodeURIComponent(nextPath)}` },
   });
 
   if (error) {

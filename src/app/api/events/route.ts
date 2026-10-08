@@ -7,7 +7,7 @@ import { clientIp, rateLimit, tooManyRequests } from "@/lib/rate-limit";
 
 const eventSchema = z.object({
   slug: z.string().min(3).max(60),
-  type: z.enum(["view", "qr_scan", "phone", "whatsapp", "whatsapp_primary", "email", "contact_save", "map", "waze", "google_maps", "website", "share", "social", "instagram", "facebook", "linkedin", "tiktok", "youtube", "calendar", "button", "video", "file"]),
+  type: z.enum(["view", "qr_scan", "phone", "whatsapp", "whatsapp_primary", "email", "contact_save", "map", "waze", "google_maps", "website", "share", "social", "instagram", "facebook", "linkedin", "tiktok", "youtube", "calendar", "button", "video", "file", "badge_click"]),
   referrer: z.string().max(500).optional(),
 });
 

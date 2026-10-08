@@ -57,6 +57,7 @@ export function starterCard(viewer: Viewer): CardData {
     template: "spotlight",
     isPublished: false,
     allowIndexing: true,
+    hideBranding: false,
     // SEO ו-alt נשארים ריקים במכוון. ערך שנגזר מעסק אחר גרוע מערך חסר:
     // הוא נראה תקין, עובר את מד המוכנות, ומתפרסם בלי שאיש שם לב.
     seoTitle: "",

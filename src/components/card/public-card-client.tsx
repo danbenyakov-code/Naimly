@@ -7,10 +7,10 @@ import { Check, Download, Loader2, QrCode, Share2, X } from "lucide-react";
 import QRCode from "qrcode";
 import { CardPreview } from "@/components/card/card-preview";
 import { Logo } from "@/components/logo";
-import { brand } from "@/lib/config";
 import { ErrorSummary, focusErrorSummary } from "@/components/ui/field";
 import type { CardData, ContactFormField } from "@/lib/types";
-import { backgroundCss } from "@/lib/backgrounds";
+import { backgroundCss, getBackground } from "@/lib/backgrounds";
+import { NaimlyBadge } from "@/components/card/naimly-badge";
 import { CONSENT_EVENT, hasConsent, type ConsentState } from "@/lib/consent";
 import { countDigits, isEmailLike } from "@/lib/email-format";
 import { ContactFab } from "@/components/card/contact-fab";
@@ -160,19 +160,15 @@ export function PublicCardClient({ card }: { card: CardData }) {
    * שגוי הופך טקסט עם מספרים וסימני פיסוק לבלתי קריא.
    */
   return <div lang={language} dir={dir} className="min-h-screen" style={{ "--public-primary": card.primaryColor, background: backgroundCss(card.backgroundPreset) } as React.CSSProperties}>
-    <header className="mx-auto flex max-w-[660px] items-center justify-between px-4 py-5"><span className="rounded-xl bg-white/85 px-3 py-2 shadow-sm backdrop-blur"><Logo compact /></span><div className="flex gap-2"><button type="button" onClick={() => setShowQr(true)} className="button-secondary h-11 min-h-11 px-3" aria-label={t.qrAria}><QrCode size={18} /><span className="hidden sm:inline">{t.qr}</span></button><button type="button" onClick={share} className="button-secondary h-11 min-h-11 px-3" aria-label={t.shareAria}><Share2 size={18} /><span className="hidden sm:inline">{t.share}</span></button></div></header>
+    <header className="mx-auto flex max-w-[660px] items-center justify-between px-4 py-5">{card.hideBranding ? <span /> : <span className="rounded-xl bg-white/85 px-3 py-2 shadow-sm backdrop-blur"><Logo compact /></span>}<div className="flex gap-2"><button type="button" onClick={() => setShowQr(true)} className="button-secondary h-11 min-h-11 px-3" aria-label={t.qrAria}><QrCode size={18} /><span className="hidden sm:inline">{t.qr}</span></button><button type="button" onClick={share} className="button-secondary h-11 min-h-11 px-3" aria-label={t.shareAria}><Share2 size={18} /><span className="hidden sm:inline">{t.share}</span></button></div></header>
     <main className="mx-auto max-w-[620px] px-3 pb-10 sm:px-5"><div className="overflow-hidden rounded-[32px] border border-white/80 bg-white shadow-[0_30px_90px_rgba(11,24,48,.16)]"><CardPreview card={card} onAction={track} contactForm={contactForm} /></div></main>
     {/*
-      * SEO + צמיחה: קישור טקסט מכל כרטיס לדף הבית, עם מילת המפתח כעוגן.
-      * הלוגו לבדו היה קישור בלי טקסט — כמעט בלי אות לגוגל ובלי הזמנה
-      * למי שצופה בכרטיס לבנות אחד משלו.
+      * תג "נבנה ב־NAIMLY": בכל המסלולים, כולל ניסיון. מוסתר רק כש-hideBranding
+      * הגיע מהשרת כ-true, כלומר בעל הכרטיס בפרימיום בתשלום (ראו getPublicCard).
+      * ה-padding מפנה מקום לכפתור הצף, עם התג ובלעדיו.
       */}
-    <footer className="grid justify-items-center gap-2 px-4 pb-24 text-center text-xs text-[#758198]">
-      {/* הצבעים על span פנימי: הכלל הגלובלי a { color: inherit } גובר על מחלקות צבע שעל הקישור עצמו. */}
-      <Link href="/" className="group inline-flex items-center gap-1.5 rounded-full bg-white/85 px-3.5 py-2 shadow-sm backdrop-blur">
-        <span className="text-[#758198] transition group-hover:text-[#5134cc]">{t.builtWith} <strong className="font-extrabold tracking-[0.06em] text-[#0b1020]">{brand.name}</strong> <span aria-hidden="true">·</span> {t.builtWithTag}</span>
-      </Link>
-      <Link href="/" className="group"><span className="font-bold text-[#5134cc] underline-offset-4 group-hover:underline">{t.builtWithCta}</span></Link>
+    <footer className="flex justify-center px-4 pb-24">
+      {!card.hideBranding && <NaimlyBadge slug={card.slug} foreground={getBackground(card.backgroundPreset).foreground} label={t.builtWith} onClick={() => track("badge_click")} />}
     </footer>
     {/* REQ-024: נקודת פעולה אחת קבועה. ה-padding בפוטר מפנה לה מקום כדי שלא תכסה תוכן. */}
     <ContactFab card={card} onAction={track} />

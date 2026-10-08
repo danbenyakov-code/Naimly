@@ -38,7 +38,19 @@ export type UserOverviewRow = {
   last_activity_type: string | null;
   last_activity_at: string | null;
   last_app_visit_at: string | null;
+  /** מקור ההרשמה (utm), אם נקלט. card_badge = תג "נבנה ב־NAIMLY" בכרטיס. */
+  signup_source?: string | null;
+  signup_medium?: string | null;
+  signup_campaign?: string | null;
 };
+
+/** תיאור קריא של מקור ההרשמה. */
+export function signupSourceLabel(source: string | null | undefined, campaign?: string | null) {
+  if (!source) return "";
+  if (source === "card_badge") return campaign ? `תג בכרטיס /${campaign}` : "תג בכרטיס";
+  if (source === "email") return "מייל";
+  return campaign ? `${source} (${campaign})` : source;
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // שלבי המשפך, לפי הסדר
@@ -205,6 +217,7 @@ export type ControlUser = {
   stage: FunnelStage;
   lastActivityType: string | null;
   lastActivityAt: string | null;
+  signupSource: string;
 };
 
 function latest(...values: Array<string | null | undefined>) {
@@ -242,6 +255,7 @@ export function toControlUser(row: UserOverviewRow, now = Date.now()): ControlUs
     stage: funnelStage(row, now),
     lastActivityType: row.last_activity_type,
     lastActivityAt: row.last_activity_at,
+    signupSource: signupSourceLabel(row.signup_source, row.signup_campaign),
   };
 }
 
@@ -260,6 +274,8 @@ export type ControlSummary = {
   trialsFinished: number;
   trialsConverted: number;
   trialToPaidPercent: number;
+  /** הרשמות שהגיעו מלחיצה על תג "נבנה ב־NAIMLY" בכרטיס של לקוח. */
+  signupsFromBadge: number;
 };
 
 function percent(part: number, whole: number) {
@@ -283,6 +299,7 @@ export function controlSummary(rows: UserOverviewRow[], now = Date.now()): Contr
   let published = 0;
   let trialsFinished = 0;
   let trialsConverted = 0;
+  let signupsFromBadge = 0;
 
   for (const row of customers) {
     const state = planState(row, now);
@@ -295,6 +312,7 @@ export function controlSummary(rows: UserOverviewRow[], now = Date.now()): Contr
     }
     if (state === "paying") paying += 1;
     if (toNumber(row.published_count) > 0) published += 1;
+    if (row.signup_source === "card_badge") signupsFromBadge += 1;
 
     if (row.trial_started_at) {
       const paid = Boolean(row.first_payment_at);
@@ -317,6 +335,7 @@ export function controlSummary(rows: UserOverviewRow[], now = Date.now()): Contr
     trialsFinished,
     trialsConverted,
     trialToPaidPercent: percent(trialsConverted, trialsFinished),
+    signupsFromBadge,
   };
 }
 
@@ -395,6 +414,11 @@ export function eventDetail(type: string, metadata: Record<string, unknown> | nu
   switch (type) {
     case "email_sent":
       return emailLabels[text("email")] || text("email");
+    case "signed_up": {
+      const attribution = (data.attribution || {}) as Record<string, unknown>;
+      const source = typeof attribution.source === "string" ? attribution.source : "";
+      return source ? `מקור: ${signupSourceLabel(source, typeof attribution.campaign === "string" ? attribution.campaign : "")}` : "";
+    }
     case "plan_selected": {
       const choice = text("choice");
       if (choice === "trial") return "ניסיון 14 יום";

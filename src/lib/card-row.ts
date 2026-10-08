@@ -37,6 +37,7 @@ export function cardToDatabaseRow(card: CardData | ReturnType<typeof import("@/l
     template: card.template,
     is_published: card.isPublished,
     allow_indexing: card.allowIndexing,
+    hide_branding: card.hideBranding === true,
     seo_title: card.seoTitle,
     seo_description: card.seoDescription,
     social_image_url: card.socialImageUrl,

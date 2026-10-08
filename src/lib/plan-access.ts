@@ -81,6 +81,14 @@ export function planName(planId: PlanId) {
   return (plans.find((plan) => plan.id === planId) || plans[0]).name;
 }
 
+/**
+ * הסתרת תג "נבנה ב־NAIMLY": פרימיום בתשלום בלבד, לא בניסיון.
+ * מחוץ ל-FeatureMap בכוונה: ההתנסות מקבלת את כל היכולות, אבל לא את זו.
+ */
+export function canHideBranding(planId: PlanId) {
+  return planId === "premium";
+}
+
 /** המסלול בתשלום הזול ביותר שפותח את היכולת. */
 export function requiredPlanForFeature(feature: FeatureKey): PlanId {
   return paidPlanOrder.find((planId) => featuresByPlan[planId][feature]) || "premium";
@@ -322,6 +330,7 @@ export function clampCardToPlan(card: CardData, targetPlan: PlanId): CardData {
     videoUrl: features.video ? card.videoUrl : "",
     areaServed: features.seo ? card.areaServed : "",
     socialImageUrl: features.seo ? card.socialImageUrl : "",
+    hideBranding: canHideBranding(targetPlan) ? card.hideBranding : false,
     widgets: card.widgets.map((widget) => {
       if (widget.type === "video" && !features.video) return { ...widget, enabled: false };
       if (widget.type === "files" && !features.files) return { ...widget, enabled: false };

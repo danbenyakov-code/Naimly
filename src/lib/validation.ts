@@ -81,6 +81,7 @@ export const cardSchema = z.object({
   template: z.enum(cardTemplateIds as [string, ...string[]]),
   isPublished: z.boolean(),
   allowIndexing: z.boolean(),
+  hideBranding: z.boolean().optional().default(false),
   seoTitle: z.string().max(70),
   seoDescription: z.string().max(170),
   socialImageUrl: optionalUrl,
