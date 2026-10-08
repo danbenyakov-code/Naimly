@@ -10,6 +10,8 @@ import { bindingDocumentIds, LEGAL_VERSION } from "@/lib/legal";
 import { adminNotificationEmail, plans } from "@/lib/config";
 import { sendLegalAcceptanceNotification } from "@/lib/email";
 import { phoneSchema } from "@/lib/auth-schema";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { recordMarketingConsent } from "@/lib/email-preferences";
 
 export type SelectPlanResult = { ok: false; error: string; field?: "terms" | "phone" } | null;
 
@@ -122,6 +124,12 @@ export async function startTrialAction(_prev: SelectPlanResult, formData: FormDa
     ip,
     userAgent,
   }).catch(() => null);
+
+  // הסכמה לדיוור שיווקי: רק כשסומנה, ונרשמת כראיה. כשל כאן אינו חוסם את ההתנסות.
+  if (formData.get("marketing")) {
+    const admin = createSupabaseAdminClient();
+    if (admin) await recordMarketingConsent(admin, auth.user.id, "trial");
+  }
 
   /*
    * נקודת ההצלחה של כל ה-flow: משתמש נוצר, אימת את המייל, מחובר, וההתנסות

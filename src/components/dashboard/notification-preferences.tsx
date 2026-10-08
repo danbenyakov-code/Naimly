@@ -6,12 +6,21 @@ import { cn } from "@/lib/utils";
 import { updateNotificationPreferencesAction, type NotificationPreferences } from "@/app/dashboard/settings/notifications/actions";
 import { updatePreferencesByTokenAction } from "@/app/email-preferences/actions";
 
-const options: Array<{ key: keyof NotificationPreferences; title: string; description: string }> = [
+type Option = { key: keyof NotificationPreferences; title: string; description: string };
+
+/** מיילי שירות: על החשבון והכרטיס שלך. פעילים כברירת מחדל. */
+const serviceOptions: Option[] = [
   { key: "trial_reminders", title: "תזכורות על תקופת הניסיון", description: "כמה ימים לפני שהניסיון מסתיים, עם הנתונים של הכרטיס שלך." },
   { key: "weekly_report", title: "דוח שבועי", description: "כל יום ראשון: צפיות, לחיצות ופניות בכרטיס, לעומת השבוע הקודם." },
-  { key: "product_updates", title: "עדכוני מוצר", description: "יכולות חדשות בכרטיס ובמערכת." },
+];
+
+/** דיוור שיווקי: רק בהסכמה. הדלקה כאן נרשמת כהסכמה. */
+const marketingOptions: Option[] = [
+  { key: "product_updates", title: "עדכונים וטיפים", description: "יכולות חדשות בכרטיס ובמערכת, וטיפים להבאת לקוחות." },
   { key: "marketing", title: "הצעות ומבצעים", description: "הנחות ומבצעים מיוחדים, מדי פעם." },
 ];
+
+const options = [...serviceOptions, ...marketingOptions];
 
 const critical = ["קוד אימות בהרשמה", "איפוס סיסמה", "אישור תשלום וקבלה", "התראה על פנייה חדשה מהכרטיס"];
 
@@ -41,11 +50,18 @@ export function NotificationPreferencesForm({ initial, token }: { initial: Notif
 
   return (
     <div className="mt-6 grid gap-5">
-      <section className="card-surface divide-y divide-[#edf0f5]">
-        {options.map(({ key, title, description }) => (
+      {[
+        { id: "service", title: "מיילים על החשבון והכרטיס", note: "", items: serviceOptions },
+        { id: "marketing", title: "דיוור שיווקי", note: "לא חובה. הדלקה כאן היא הסכמה לקבל מאיתנו דברי פרסומת, ואפשר לכבות בכל רגע.", items: marketingOptions },
+      ].map((group) => (
+      <section key={group.id} aria-labelledby={`group-${group.id}`}>
+        <h2 id={`group-${group.id}`} className="mb-2 text-sm font-extrabold text-[#5f6d83]">{group.title}</h2>
+        {group.note && <p className="mb-2 text-xs text-[#7d8899]">{group.note}</p>}
+      <div className="card-surface divide-y divide-[#edf0f5]">
+        {group.items.map(({ key, title, description }) => (
           <div key={key} className="flex items-center justify-between gap-4 p-5">
             <div className="min-w-0">
-              <h2 id={`pref-${key}`} className="font-bold text-[#18243a]">{title}</h2>
+              <h3 id={`pref-${key}`} className="font-bold text-[#18243a]">{title}</h3>
               <p className="mt-0.5 text-sm text-[#68758a]">{description}</p>
             </div>
             <button
@@ -61,17 +77,19 @@ export function NotificationPreferencesForm({ initial, token }: { initial: Notif
             </button>
           </div>
         ))}
+      </div>
       </section>
+      ))}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           disabled={pending || allOff}
-          onClick={() => save({ trial_reminders: false, weekly_report: false, product_updates: false, marketing: false }, "כל המיילים השיווקיים בוטלו")}
+          onClick={() => save({ trial_reminders: false, weekly_report: false, product_updates: false, marketing: false }, "כל המיילים שאינם חיוניים בוטלו")}
           className="button-secondary min-h-11 gap-2 px-4 text-sm disabled:opacity-50"
         >
           <BellOff size={16} aria-hidden="true" />
-          בטל את כל המיילים השיווקיים
+          ביטול כל המיילים שאינם חיוניים
         </button>
         <p role="status" aria-live="polite" className={cn("text-sm font-bold", message?.tone === "error" ? "text-[#a32031]" : "text-[#08735f]")}>
           {message?.text}

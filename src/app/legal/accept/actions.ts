@@ -9,6 +9,8 @@ import { bindingDocumentIds, LEGAL_VERSION } from "@/lib/legal";
 import { adminNotificationEmail, plans } from "@/lib/config";
 import { sendLegalAcceptanceNotification } from "@/lib/email";
 import { isSameOriginPath } from "@/lib/safe-url";
+import { createSupabaseAdminClient } from "@/lib/supabase/admin";
+import { recordMarketingConsent } from "@/lib/email-preferences";
 
 export type AcceptResult = { ok: false; error: string } | null;
 
@@ -44,6 +46,12 @@ export async function acceptTermsAction(_prev: AcceptResult, formData: FormData)
 
   if (error) {
     return { ok: false, error: "לא הצלחנו לרשום את האישור. אפשר לנסות שוב, ואם זה חוזר — לפנות אלינו." };
+  }
+
+  // הסכמה לדיוור שיווקי: נפרדת מאישור התקנון, רק כשסומנה.
+  if (formData.get("marketing")) {
+    const admin = createSupabaseAdminClient();
+    if (admin) await recordMarketingConsent(admin, auth.user.id, "re_accept");
   }
 
   // הפונקציה מחזירה טבלה; השורה הראשונה היא הרשומה שנוצרה.

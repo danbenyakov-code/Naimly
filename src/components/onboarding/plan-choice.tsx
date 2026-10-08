@@ -145,6 +145,14 @@ export function PlanChoice({ fullName, defaultPhone = "" }: { fullName: string; 
                 </span>
               </label>
 
+              {/* הסכמה לשיווק: נפרדת, לא חובה ולא מסומנת מראש. מיילי הניסיון הם מיילי שירות ואינם תלויים בה. */}
+              <label className="mt-3 flex cursor-pointer items-start gap-2.5 rounded-xl border border-[#dfe4ec] p-3 text-right text-xs leading-6">
+                <input type="checkbox" name="marketing" className="mt-0.5 h-5 w-5 shrink-0 accent-[#6d4aff]" />
+                <span className="text-[#4a5871]">
+                  אשמח לקבל מ־NAIMLY טיפים, עדכונים על יכולות חדשות והצעות במייל.{" "}
+                  <span className="text-[#8b96a8]">לא חובה, ואפשר להסיר בכל עת.</span>
+                </span>
+              </label>
               <button type="submit" disabled={pending} className="button-primary mt-4 min-h-12 w-full">
                 {pending ? (
                   <>
