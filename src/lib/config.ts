@@ -13,7 +13,8 @@ export const brand = {
   tagline: "נעים להכיר. קל לסגור.",
   supportEmail: process.env.NEXT_PUBLIC_SUPPORT_EMAIL || "info.naimly@gmail.com",
   supportWhatsapp: (process.env.NEXT_PUBLIC_SUPPORT_WHATSAPP || DEFAULT_WHATSAPP).replace(/\D/g, ""),
-  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://naimly.co.il",
+  // אין עדיין דומיין משלנו: ברירת המחדל היא כתובת הפרודקשן ב-Vercel.
+  siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://naimly-mu.vercel.app",
 };
 
 /**

@@ -47,8 +47,7 @@ export function PlanChoice({ fullName, defaultPhone = "" }: { fullName: string; 
           {fullName ? `${fullName}, ` : ""}איזה מסלול מתאים לך?
         </h1>
         <p className="mx-auto mt-3 max-w-2xl text-[#607087] sm:text-lg">
-          אי אפשר להיכנס למערכת בלי לבחור — כך תמיד ברור מה כלול ומה השעון מראה.
-          אפשר להחליף מסלול בכל רגע, והכרטיס שבנית נשמר.
+          מתחילים בחינם. אפשר להחליף מסלול בכל רגע, והכרטיס נשמר.
         </p>
 
         <div className="mt-6 flex items-center justify-center gap-3">
@@ -172,7 +171,7 @@ export function PlanChoice({ fullName, defaultPhone = "" }: { fullName: string; 
                 </p>
               )}
               <p className="mt-2 text-center text-xs leading-5 text-[#6b778d] lg:text-right">
-                השעון מתחיל עכשיו, ברגע הבחירה.
+                14 יום מלאים, בלי התחייבות ובלי חיוב אוטומטי.
               </p>
             </div>
           </div>

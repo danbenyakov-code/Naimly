@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { usePathname } from "next/navigation";
-import { START_TRIAL_COOKIE } from "@/lib/conversion-signals";
+import { COMPLETE_REGISTRATION_COOKIE, START_TRIAL_COOKIE } from "@/lib/conversion-signals";
 
 type Fbq = (...args: unknown[]) => void;
 
@@ -16,7 +16,10 @@ function deleteCookie(name: string) {
 }
 
 /**
- * StartTrial של Meta Pixel — המרה אמיתית בלבד.
+ * StartTrial ו-CompleteRegistration של Meta Pixel — המרות אמיתיות בלבד.
+ *
+ * CompleteRegistration נשלח כשהמייל אומת (קוד OTP או קישור), לפני שלב
+ * בחירת המסלול. הוא נותן ל-Meta אות מוקדם ותכוף יותר מ-StartTrial.
  *
  * ה-flow: "14 יום התנסות" → /signup → הרשמה + אימות מייל (OTP) → שער
  * בחירת מסלול → startTrialAction → select_trial_plan במסד. רק כשהקריאה
@@ -38,21 +41,27 @@ export function MetaConversions() {
   const pathname = usePathname();
 
   useEffect(() => {
-    const userId = readCookie(START_TRIAL_COOKIE);
-    if (!userId) return;
-    deleteCookie(START_TRIAL_COOKIE);
-
-    const sentKey = `naimly:start-trial-sent:${userId}`;
-    try {
-      if (localStorage.getItem(sentKey)) return;
-      localStorage.setItem(sentKey, new Date().toISOString());
-    } catch {
-      // בלי localStorage (גלישה פרטית) נשענים על מחיקת העוגייה ועל eventID.
-    }
-
-    const fbq = (window as unknown as { fbq?: Fbq }).fbq;
-    fbq?.("track", "StartTrial", { value: 0, currency: "ILS" }, { eventID: `start-trial-${userId}` });
+    fireOnce(COMPLETE_REGISTRATION_COOKIE, "CompleteRegistration", "complete-registration");
+    fireOnce(START_TRIAL_COOKIE, "StartTrial", "start-trial");
   }, [pathname]);
 
   return null;
+}
+
+/** שולח אירוע אחד לכל משתמש, לפי עוגייה חד-פעמית שהשרת הציב. */
+function fireOnce(cookieName: string, event: "CompleteRegistration" | "StartTrial", key: string) {
+  const userId = readCookie(cookieName);
+  if (!userId) return;
+  deleteCookie(cookieName);
+
+  const sentKey = `naimly:${key}-sent:${userId}`;
+  try {
+    if (localStorage.getItem(sentKey)) return;
+    localStorage.setItem(sentKey, new Date().toISOString());
+  } catch {
+    // בלי localStorage (גלישה פרטית) נשענים על מחיקת העוגייה ועל eventID.
+  }
+
+  const fbq = (window as unknown as { fbq?: Fbq }).fbq;
+  fbq?.("track", event, { value: 0, currency: "ILS" }, { eventID: `${key}-${userId}` });
 }
