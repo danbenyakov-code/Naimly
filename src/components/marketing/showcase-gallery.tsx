@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { ArrowLeft, ExternalLink } from "lucide-react";
 import { Reveal } from "@/components/ui/reveal";
+import { brand } from "@/lib/config";
 
 /**
  * גלריית כרטיסי הדוגמה (REQ-007).
@@ -67,7 +68,7 @@ export function ShowcaseGallery() {
 
               <div className="flex flex-1 flex-col p-5">
                 <p className="flex-1 text-sm leading-7 text-[#5f6d83]">{card.description}</p>
-                <p className="mt-3 text-xs text-[#8b96a8]" dir="ltr">naimly.co.il/{card.slug}</p>
+                <p className="mt-3 text-xs text-[#8b96a8]" dir="ltr">{brand.siteUrl.replace(/^https?:\/\//, "")}/{card.slug}</p>
 
                 <Link
                   href={`/${card.slug}`}

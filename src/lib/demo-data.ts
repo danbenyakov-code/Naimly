@@ -1,4 +1,5 @@
 import { SAMPLE_COVER, SAMPLE_LOGO } from "@/lib/sample-media";
+import { brand } from "@/lib/config";
 import type { AnalyticsSummary, CardData, Viewer } from "@/lib/types";
 
 // ההתנסות בהדגמה מתחילה בכל טעינה, כדי שהטיימר יציג תמיד מצב חי ותקין.
@@ -31,7 +32,7 @@ export const demoCard: CardData = {
   phone: "050-000-0000",
   whatsapp: "972500000000",
   email: "info.naimly@gmail.com",
-  website: "https://naimly.co.il/noa-design",
+  website: `${brand.siteUrl}/noa-design`,
   address: "רח׳ החשמונאים 100, תל אביב",
   // תמונות הדוגמה מ-public/samples. אם הקבצים אינם קיימים, SafeImage
   // נופל אוטומטית לרקע הגרדיאנט ולראשי התיבות — שום דבר לא נשבר.
@@ -79,7 +80,7 @@ export const demoCard: CardData = {
   ],
   quickActionsLimit: 6,
   smartButtons: [
-    { id: "b1", label: "לתיק העבודות", description: "פרויקטים נבחרים מהשנה האחרונה", action: "url", value: "https://naimly.co.il/noa-design" },
+    { id: "b1", label: "לתיק העבודות", description: "פרויקטים נבחרים מהשנה האחרונה", action: "url", value: `${brand.siteUrl}/noa-design` },
     { id: "b2", label: "קביעת שיחת היכרות", description: "בוחרים זמן שמתאים לכם", action: "booking", value: "https://cal.com" },
   ],
   widgets: [
@@ -124,7 +125,7 @@ export const demoCard: CardData = {
     title: "מיתוג ועיצוב לעסקים",
     phone: "050-000-0000",
     email: "info.naimly@gmail.com",
-    website: "https://naimly.co.il/noa-design",
+    website: `${brand.siteUrl}/noa-design`,
     address: "רח׳ החשמונאים 100, תל אביב",
     note: "נשמר מכרטיס הביקור הדיגיטלי של נועה כהן",
   },
