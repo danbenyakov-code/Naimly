@@ -140,9 +140,16 @@ img, svg, video, canvas, iframe {
 .floating-contact-whatsapp { background: #1f9d59; }
 .floating-contact-form { background: #6d4aff; }
 
-a {
-  color: inherit;
-  text-decoration: none;
+/*
+ * בתוך @layer base: כלל לא-שכבתי גובר על כל utility של Tailwind v4, ולכן
+ * text-white על קישור (למשל כפתור הפנייה בכרטיס) נדרס ל-inherit והטקסט
+ * יצא כהה על רקע סגול.
+ */
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 button,

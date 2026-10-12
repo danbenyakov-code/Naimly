@@ -13,6 +13,7 @@ import { safeInternalPath } from "@/lib/safe-url";
 import { evaluatePassword } from "@/lib/password";
 import { clientIp, rateLimit } from "@/lib/rate-limit";
 import { OTP_RESEND_COOLDOWN_SECONDS, emailSchema, otpSchema } from "@/lib/auth-schema";
+import { COMPLETE_REGISTRATION_COOKIE, CONVERSION_SIGNAL_MAX_AGE_SECONDS } from "@/lib/conversion-signals";
 
 /**
  * מודל האימות:
@@ -144,7 +145,8 @@ export async function signupAction(_prev: AuthResult | null, formData: FormData)
   if (!strength.valid) {
     return { ok: false, error: strength.error, field: "password" , values: { fullName, email } };
   }
-  if (password !== passwordConfirm) {
+  // אימות סיסמה הוסר מטופס ההרשמה (יש כפתור הצגה). אם הגיע ערך, עדיין נבדק.
+  if (passwordConfirm && password !== passwordConfirm) {
     return { ok: false, error: "שתי הסיסמאות אינן זהות. יש להזין את אותה סיסמה בשני השדות.", field: "passwordConfirm" , values: { fullName, email } };
   }
   if (!terms) {
@@ -229,13 +231,26 @@ export async function verifySignupOtpAction(_prev: AuthResult | null, formData: 
   const supabase = await createSupabaseServerClient();
   if (!supabase) return genericFailure;
 
-  const { error } = await supabase.auth.verifyOtp({ email, token: code, type: "signup" });
+  const { data, error } = await supabase.auth.verifyOtp({ email, token: code, type: "signup" });
   if (error) {
     const message = error.message.toLowerCase();
     if (message.includes("expired")) {
       return { ok: false, error: "תוקף הקוד פג. יש לבקש קוד חדש ולהזין אותו תוך 10 דקות.", field: "code" };
     }
     return { ok: false, error: "הקוד שהוזן אינו נכון. יש לבדוק את ההודעה במייל ולהזין שוב.", field: "code" };
+  }
+
+  /*
+   * CompleteRegistration: החשבון קיים והמייל אומת. זה האות הראשון אחרי
+   * PageView ש-Meta מקבלת, ולכן היא יכולה ללמוד ממנו הרבה לפני StartTrial.
+   */
+  if (data.user) {
+    (await cookies()).set(COMPLETE_REGISTRATION_COOKIE, data.user.id, {
+      maxAge: CONVERSION_SIGNAL_MAX_AGE_SECONDS,
+      path: "/",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+    });
   }
 
   return { ok: true, next: nextPath, message: "הכתובת אומתה בהצלחה." };

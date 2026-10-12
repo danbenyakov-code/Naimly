@@ -24,6 +24,7 @@ import { ResendButton } from "@/components/auth/resend-button";
 import { burst } from "@/lib/celebrate";
 import { cn } from "@/lib/utils";
 import { LegalLink } from "@/components/legal/legal-dialog";
+import { TrialBadge } from "@/components/trial-badge";
 
 export type AuthMode = "login" | "signup" | "forgot";
 
@@ -37,7 +38,7 @@ const tabs: Array<{ id: AuthMode; label: string }> = [
 
 const headings: Record<AuthMode, { title: string; description: string }> = {
   login: { title: "טוב לראות אותך שוב", description: "כניסה עם אימייל וסיסמה." },
-  signup: { title: "בואו נבנה את הכרטיס שלך", description: "14 יום עם כל היכולות פתוחות. בלי כרטיס אשראי." },
+  signup: { title: "קישור אחד במקום 5 הודעות", description: "כרטיס ביקור דיגיטלי שהלקוח שומר בלחיצה, וחוזר אליך מעצמו." },
   forgot: { title: "שחזור סיסמה", description: "נשלח קוד אימות למייל, ואחריו תבחרו סיסמה חדשה." },
 };
 
@@ -62,7 +63,6 @@ export function AuthForm({
   const [dismissed, setDismissed] = useState<AuthResult | null>(null);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [passwordConfirm, setPasswordConfirm] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [newPasswordConfirm, setNewPasswordConfirm] = useState("");
 
@@ -251,13 +251,23 @@ export function AuthForm({
   const activeState = mode === "login" ? loginState : mode === "signup" ? signupErrors : resetReqState;
   const activePending = mode === "login" ? loginPending : mode === "signup" ? signupPending : resetReqPending;
   const selectedPlan = plans.find((item) => item.id === plan && item.price > 0);
-  const signupMismatch = passwordConfirm.length > 0 && password !== passwordConfirm;
 
   return (
     <div className="grid gap-6">
       <div>
-        <h1 className="text-2xl font-black tracking-[-0.04em] sm:text-3xl">{headings[mode].title}</h1>
+        {mode === "signup" && <TrialBadge />}
+        <h1 className={cn("text-2xl font-black tracking-[-0.04em] sm:text-3xl", mode === "signup" && "mt-3")}>{headings[mode].title}</h1>
         <p className="mt-1.5 text-[#607087]">{headings[mode].description}</p>
+        {mode === "signup" && (
+          <ul className="mt-3 grid gap-1.5 text-sm font-semibold text-[#344156]">
+            {["כל היכולות פתוחות", "בלי חיוב אוטומטי. בסוף בוחרים אם להמשיך", "הכרטיס מוכן לשליחה בוואטסאפ תוך דקות"].map((item) => (
+              <li key={item} className="flex items-center gap-2">
+                <Check size={15} className="shrink-0 text-[#0a9b81]" aria-hidden="true" />
+                {item}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
 
       {mode !== "forgot" && (
@@ -286,12 +296,6 @@ export function AuthForm({
         </FormAlert>
       )}
       {activeState?.ok && activeState.message && !activeState.step && <FormAlert tone="success">{activeState.message}</FormAlert>}
-
-      {mode === "signup" && (
-        <p className="text-xs leading-5 text-[#78859a]">
-          שדות המסומנים <span className="required-field">חובה</span> נדרשים להשלמת ההרשמה.
-        </p>
-      )}
 
       {/* ── כניסה: אימייל וסיסמה בלבד ─────────────────────────────────────── */}
       {mode === "login" && (
@@ -380,7 +384,7 @@ export function AuthForm({
 
           <ErrorSummary
             errors={errorMap(signupErrors)}
-            fieldOrder={["fullName", "email", "password", "passwordConfirm", "terms"]}
+            fieldOrder={["fullName", "email", "password", "terms"]}
           />
 
           <Field label="שם מלא" required name="fullName" error={fieldError(signupErrors, "fullName")} hint="כך נפנה אליך במערכת ובמיילים">
@@ -430,17 +434,6 @@ export function AuthForm({
             error={fieldError(signupErrors, "password")}
           />
 
-          <PasswordField
-            name="passwordConfirm"
-            typeOnly
-            label="אימות סיסמה"
-            value={passwordConfirm}
-            onChange={setPasswordConfirm}
-            showMeter={false}
-            error={signupMismatch ? "שתי הסיסמאות אינן זהות." : fieldError(signupErrors, "passwordConfirm")}
-            success={!signupMismatch && passwordConfirm.length > 0 ? "הסיסמאות תואמות" : undefined}
-          />
-
           <div className="grid gap-1.5">
             <label className="flex items-start gap-2.5 text-xs leading-5 text-[#607087]">
               <input
@@ -485,12 +478,12 @@ export function AuthForm({
 
           <button type="submit" disabled={activePending} className="button-primary min-h-13 w-full" aria-busy={signupPending}>
             {signupPending ? <Loader2 size={18} className="animate-spin" aria-hidden="true" /> : <Sparkles size={18} aria-hidden="true" />}
-            {signupPending ? "פותחים חשבון..." : "פתיחת חשבון ושליחת קוד אימות"}
+            {signupPending ? "פותחים את הכרטיס..." : "פתחו כרטיס בחינם"}
             {!signupPending && <ArrowLeft size={16} aria-hidden="true" />}
           </button>
 
           <p className="text-center text-xs leading-5 text-[#7c8799]">
-            הסיסמה לעולם אינה נשלחת במייל. נשלח קוד אימות בן 6 ספרות בלבד.
+            בשלב הבא נשלח למייל קוד בן 6 ספרות לאימות הכתובת.
           </p>
         </form>
       )}
@@ -546,3 +539,4 @@ function StepHeader({ icon, title, body }: { icon: React.ReactNode; title: strin
 function Email({ value }: { value: string }) {
   return <span dir="ltr" className="font-semibold">{value}</span>;
 }
+

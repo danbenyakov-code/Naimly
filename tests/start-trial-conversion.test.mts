@@ -49,10 +49,22 @@ describe("StartTrial — נקודת ההצלחה של ה-flow", () => {
 
   it("בדפדפן: העוגייה נמחקת לפני השליחה, ויש eventID ו-localStorage נגד כפילות", () => {
     const client = read("src/components/meta-conversions.tsx");
-    const remove = client.indexOf("deleteCookie(START_TRIAL_COOKIE)");
-    const send = client.indexOf('"StartTrial"');
+    const helper = client.slice(client.indexOf("function fireOnce"));
+    const remove = helper.indexOf("deleteCookie(cookieName)");
+    const send = helper.indexOf('fbq?.("track"');
     assert.ok(remove > 0 && send > remove, "העוגייה חייבת להימחק לפני השליחה (Strict Mode מריץ פעמיים)");
-    assert.ok(client.includes("eventID: `start-trial-${userId}`"));
-    assert.ok(client.includes("naimly:start-trial-sent:"));
+    assert.ok(helper.includes("eventID: `${key}-${userId}`"));
+    assert.ok(helper.includes("naimly:${key}-sent:"));
+    assert.ok(client.includes('fireOnce(START_TRIAL_COOKIE, "StartTrial", "start-trial")'), "eventID ומפתח הכפילות של StartTrial נשארו כמו שהיו");
+  });
+
+  it("CompleteRegistration נשלח רק אחרי אימות מייל מוצלח", () => {
+    const actions = read("src/app/(auth)/actions.ts");
+    const verify = actions.slice(actions.indexOf("export async function verifySignupOtpAction"));
+    const failure = verify.indexOf("if (error)");
+    const signal = verify.indexOf("COMPLETE_REGISTRATION_COOKIE");
+    assert.ok(failure > 0 && signal > failure, "העוגייה מוצבת רק אחרי שהקוד אומת");
+    assert.ok(read("src/app/auth/callback/route.ts").includes("COMPLETE_REGISTRATION_COOKIE"), "גם קישור האימות מהמייל נספר");
+    assert.ok(read("src/components/meta-conversions.tsx").includes('fireOnce(COMPLETE_REGISTRATION_COOKIE, "CompleteRegistration", "complete-registration")'));
   });
 });
